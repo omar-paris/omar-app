@@ -47,7 +47,7 @@ Choisir le squelette technique minimal et construire V0 avec OA-Builder :
 ## Naming
 
 ```txt
-Internal codename: admin-app
+Internal codename: AppOmar
 Public product: Omar App
 Domain: app.omar.paris
 ```

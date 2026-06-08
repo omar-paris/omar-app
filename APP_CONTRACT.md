@@ -5,14 +5,14 @@
 ## Identity
 
 - App ID: `app`
-- Internal name/codename: `admin-app`
+- Internal name/codename: `AppOmar`
 - Filesystem path for now: `/home/omar/23-Offre/actifs/omar-app`
 - Product name: `Omar App`
 - Public domain: `app.omar.paris`
-- Naming rule: `admin-app` is the internal codename; the customer-facing surface remains `app.omar.paris` / `Omar App`.
+- Naming rule: `AppOmar` is the internal codename; the customer-facing surface remains `app.omar.paris` / `Omar App`.
 - QG remains distinct: internal CORE OA registry/backoffice, not the customer portal.
 - Do not introduce `AAPP` unless Alex/H-Omar later define a distinct acronym; it is too ambiguous for now.
-- Code namespace recommendation: `admin_app` or `oa_app` at build time, but choose one before backend implementation.
+- Code namespace recommendation: `app_omar` or `oa_app` at build time, but choose one before backend implementation.
 - Stack: CORE OA
 - Tenant/client: multi-tenant, à définir
 - Public/private/tailnet-only: public avec authentification à terme
