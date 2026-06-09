@@ -1,0 +1,27 @@
+# app.omar.paris — persistent Caddy snippet for AppOmar V0.3
+# Runtime route currently patched through Caddy Admin API.
+
+app.omar.paris {
+	root * /home/omar/23-Offre/actifs/omar-app/public
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	handle /api/health {
+		reverse_proxy 127.0.0.1:8096
+	}
+
+	handle /api/proposals* {
+		reverse_proxy 127.0.0.1:8096
+	}
+
+	handle /api/hetzner/pricing {
+		reverse_proxy 127.0.0.1:8096
+	}
+
+	file_server
+}

@@ -31,7 +31,7 @@ def test_build_generates_all_direct_routes():
         assert path.exists(), f"Missing route {route}: {path}"
         text = html(path)
         assert "Omar App" in text
-        assert "V0.2.0" in text
+        assert "V0.3.0" in text
         assert "app.omar.paris" in text
 
 
@@ -90,6 +90,9 @@ def test_config_wizard_generates_human_go_proposal_contract():
         "hetzner_payload",
         "apps_l1",
         "Télécharger la proposition JSON",
+        "Enregistrer la proposition",
+        "/api/proposals",
+        "/api/hetzner/pricing",
     ]:
         assert marker in text
     assert 'src="/assets/app.js"' in text
@@ -119,6 +122,9 @@ def test_config_javascript_builds_proposal_without_paid_autoprovisioning():
         "create_server_payload",
         "apps_l1",
         "monthly_total_eur",
+        "/api/proposals",
+        "/api/hetzner/pricing",
+        "proposal_status",
     ]:
         assert term in js
     forbidden = ["fetch('https://api.hetzner.cloud", 'fetch("https://api.hetzner.cloud', "POST /servers"]

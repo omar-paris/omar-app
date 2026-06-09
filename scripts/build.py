@@ -45,7 +45,7 @@ function buildProposal() {
     schema: "configuration_proposal.v0",
     type: "configuration_proposal",
     status: "pending_human_go",
-    generated_by: "app.omar.paris/config V0.2.0",
+    generated_by: "app.omar.paris/config V0.3.0",
     client_profile: {
       company_name: value("company_name"),
       activity: value("activity"),
@@ -109,12 +109,44 @@ function renderProposal() {
   download.download = `${proposal.hetzner_payload.create_server_payload.name}-configuration-proposal.json`;
 }
 
+async function saveProposal() {
+  const status = document.getElementById("proposal_status");
+  if (status) status.textContent = "Enregistrement en cours…";
+  try {
+    const response = await fetch("/api/proposals", {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify(buildProposal())
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    if (status) status.textContent = `Proposition enregistrée : ${data.proposal.id}`;
+  } catch (error) {
+    if (status) status.textContent = `Stockage indisponible : ${error.message}`;
+  }
+}
+
+async function loadPricing() {
+  const status = document.getElementById("pricing_status");
+  if (!status) return;
+  try {
+    const response = await fetch("/api/hetzner/pricing", {headers: {"accept": "application/json"}});
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    status.textContent = `Pricing Hetzner : ${data.mode}, ${data.packs.length} packs, paid_actions=${data.paid_actions}`;
+  } catch (error) {
+    status.textContent = `Pricing Hetzner indisponible : ${error.message}`;
+  }
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("#config_wizard input, #config_wizard select, #config_wizard textarea").forEach((node) => {
     node.addEventListener("input", renderProposal);
     node.addEventListener("change", renderProposal);
   });
+  document.getElementById("proposal_save")?.addEventListener("click", saveProposal);
   renderProposal();
+  loadPricing();
 });
 """
 
@@ -165,7 +197,9 @@ def render_config_wizard() -> str:
   <section class="card" style="margin-top:22px">
     <h2>Sortie opérateur</h2>
     <p><strong>hetzner_payload</strong> contient un <strong>create_server_payload</strong> dry-run. Validation humaine obligatoire avant POST /servers.</p>
-    <div class="actions"><a class="btn primary" id="proposal_download" href="#">Télécharger la proposition JSON</a></div>
+    <div class="actions"><a class="btn primary" id="proposal_download" href="#">Télécharger la proposition JSON</a><button class="btn" id="proposal_save" type="button">Enregistrer la proposition</button></div>
+    <p id="pricing_status" class="meta">Pricing Hetzner : chargement /api/hetzner/pricing…</p>
+    <p id="proposal_status" class="meta">Stockage serveur prêt via /api/proposals.</p>
     <pre id="proposal_output" class="proposal-output" aria-label="configuration_proposal JSON"></pre>
   </section>
 """

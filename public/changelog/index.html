@@ -4,17 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Changelog · Omar App</title>
-  <meta name="description" content="V0.2.0 · 9 juin 2026 · Wizard config + proposition JSON + dry-run Hetzner.">
+  <meta name="description" content="V0.3.0 · 9 juin 2026 · Stockage serveur des propositions + pricing Hetzner read-only.">
   <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
-<header><div class="bar"><div><div class="brand">Omar App · app.omar.paris</div><div class="meta">V0.2.0 · 9 JUIN 2026 · CORE OA</div></div><nav class="nav" aria-label="Navigation principale"><a class="" href="/">Accueil</a><a class="" href="/onboarding/">Onboarding</a><a class="" href="/config/">Config</a><a class="" href="/buy/">Buy</a><a class="" href="/sav/">SAV</a><a class="" href="/factures/">Factures</a><a class="" href="/compte/">Compte</a><a class="active" href="/changelog/">Changelog</a></nav></div></header>
+<header><div class="bar"><div><div class="brand">Omar App · app.omar.paris</div><div class="meta">V0.3.0 · 9 JUIN 2026 · CORE OA</div></div><nav class="nav" aria-label="Navigation principale"><a class="" href="/">Accueil</a><a class="" href="/onboarding/">Onboarding</a><a class="" href="/config/">Config</a><a class="" href="/buy/">Buy</a><a class="" href="/sav/">SAV</a><a class="" href="/factures/">Factures</a><a class="" href="/compte/">Compte</a><a class="active" href="/changelog/">Changelog</a></nav></div></header>
 <main>
   <div class="hero">
     <section class="hero-main">
       <div class="eyebrow">Historique Omar App</div>
       <h1 class="h1">Changelog</h1>
-      <p class="summary">V0.2.0 · 9 juin 2026 · Wizard config + proposition JSON + dry-run Hetzner.</p>
+      <p class="summary">V0.3.0 · 9 juin 2026 · Stockage serveur des propositions + pricing Hetzner read-only.</p>
       <div class="actions"><a class="btn primary" href="/onboarding/">Démarrer l’onboarding</a><a class="btn" href="/config/">Voir le wizard config</a></div>
     </section>
     <aside class="card side" aria-label="Statut V0">
@@ -26,11 +26,11 @@
       </div>
     </aside>
   </div>
-  <div class="grid"><section class='card'><h2>V0.2.0</h2><ul><li>Wizard /config réel</li><li>Proposal JSON configuration_proposal</li><li>Dry-run Hetzner pending_human_go</li><li>Apps L1 alignées OmarTop → Hub</li><li>Aucun POST payant automatique</li></ul></section><section class='card'><h2>V0.1.0</h2><ul><li>Routes directes créées</li><li>Contrat App aligné</li><li>Onboarding/config/SAV/factures/compte documentés</li><li>No secrets</li></ul></section></div>
+  <div class="grid"><section class='card'><h2>V0.3.0</h2><ul><li>POST /api/proposals pour stocker les propositions</li><li>GET /api/proposals/&lt;id&gt; pour relecture opérateur</li><li>GET /api/hetzner/pricing read-only</li><li>Fallback statique si token Hetzner non disponible</li><li>Toujours aucun coût sans GO humain</li></ul></section><section class='card'><h2>V0.2.0</h2><ul><li>Wizard /config réel</li><li>Proposal JSON configuration_proposal</li><li>Dry-run Hetzner pending_human_go</li><li>Apps L1 alignées OmarTop → Hub</li><li>Aucun POST payant automatique</li></ul></section><section class='card'><h2>V0.1.0</h2><ul><li>Routes directes créées</li><li>Contrat App aligné</li><li>Onboarding/config/SAV/factures/compte documentés</li><li>No secrets</li></ul></section></div>
 
   <section class="card" style="margin-top:22px"><h2>Routes</h2><div class="route-list"><a class="route" href="/"><strong>Accueil</strong><span>/</span></a><a class="route" href="/onboarding/"><strong>Onboarding</strong><span>/onboarding/</span></a><a class="route" href="/config/"><strong>Config</strong><span>/config/</span></a><a class="route" href="/buy/"><strong>Buy</strong><span>/buy/</span></a><a class="route" href="/sav/"><strong>SAV</strong><span>/sav/</span></a><a class="route" href="/factures/"><strong>Factures</strong><span>/factures/</span></a><a class="route" href="/compte/"><strong>Compte</strong><span>/compte/</span></a></div></section>
 </main>
-<footer class="footer">Omar App · app.omar.paris · V0.2.0 · Changelog disponible · Aucun secret client dans cette V0.</footer>
+<footer class="footer">Omar App · app.omar.paris · V0.3.0 · Changelog disponible · Aucun secret client dans cette V0.</footer>
 
 </body>
 </html>

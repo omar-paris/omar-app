@@ -5,3 +5,5 @@ __pycache__/
 .env
 .env.*
 !.env.example
+var/proposals/
+var/*.json

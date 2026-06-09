@@ -1,4 +1,4 @@
-VERSION = "V0.2.0"
+VERSION = "V0.3.0"
 PUBLISHED = "9 JUIN 2026"
 DOMAIN = "app.omar.paris"
 
@@ -128,8 +128,9 @@ PAGES = {
     "/changelog/": {
         "title": "Changelog",
         "eyebrow": "Historique Omar App",
-        "summary": "V0.2.0 · 9 juin 2026 · Wizard config + proposition JSON + dry-run Hetzner.",
+        "summary": "V0.3.0 · 9 juin 2026 · Stockage serveur des propositions + pricing Hetzner read-only.",
         "sections": [
+            ("V0.3.0", ["POST /api/proposals pour stocker les propositions", "GET /api/proposals/<id> pour relecture opérateur", "GET /api/hetzner/pricing read-only", "Fallback statique si token Hetzner non disponible", "Toujours aucun coût sans GO humain"]),
             ("V0.2.0", ["Wizard /config réel", "Proposal JSON configuration_proposal", "Dry-run Hetzner pending_human_go", "Apps L1 alignées OmarTop → Hub", "Aucun POST payant automatique"]),
             ("V0.1.0", ["Routes directes créées", "Contrat App aligné", "Onboarding/config/SAV/factures/compte documentés", "No secrets"]),
         ]
