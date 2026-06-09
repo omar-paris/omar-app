@@ -1,0 +1,47 @@
+{
+  "schema": "oa_start_packs.v0",
+  "status": "pending_human_go",
+  "provider": "hetzner",
+  "packs": [
+    {
+      "id": "starter",
+      "label": "Starter",
+      "provider": "hetzner",
+      "server_type": "cax21",
+      "fallback_server_type": "cpx21",
+      "location": "fsn1",
+      "image": "ubuntu-24.04",
+      "backups_default": true,
+      "monthly_total_eur": 9.0,
+      "status": "pending_human_go",
+      "note": "Profil coût-efficace ARM si compatibilité validée ; x86 fallback cpx21."
+    },
+    {
+      "id": "pro",
+      "label": "Pro",
+      "provider": "hetzner",
+      "server_type": "cax31",
+      "fallback_server_type": "cpx31",
+      "location": "fsn1",
+      "image": "ubuntu-24.04",
+      "backups_default": true,
+      "monthly_total_eur": 18.0,
+      "status": "pending_human_go",
+      "note": "Profil conseillé pour premier client sérieux avec marge RAM/CPU."
+    },
+    {
+      "id": "max",
+      "label": "Max",
+      "provider": "hetzner",
+      "server_type": "cax41",
+      "fallback_server_type": "cpx41",
+      "location": "fsn1",
+      "image": "ubuntu-24.04",
+      "backups_default": true,
+      "monthly_total_eur": 36.0,
+      "status": "pending_human_go",
+      "note": "Profil confort ; à valider humainement avant coût récurrent."
+    }
+  ],
+  "safety": "No paid resource creation without explicit human GO."
+}

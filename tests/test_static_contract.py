@@ -31,7 +31,7 @@ def test_build_generates_all_direct_routes():
         assert path.exists(), f"Missing route {route}: {path}"
         text = html(path)
         assert "Omar App" in text
-        assert "V0.1.0" in text
+        assert "V0.2.0" in text
         assert "app.omar.paris" in text
 
 
@@ -65,6 +65,65 @@ def test_config_page_defines_actionable_oa_start_wizard():
     text = html(PUBLIC / "config" / "index.html").lower()
     for term in ["pack oa start", "hetzner", "infomaniak", "vps", "email", "connection_intent", "nango", "l2"]:
         assert term in text
+
+
+def test_config_wizard_generates_human_go_proposal_contract():
+    build_site()
+    text = html(PUBLIC / "config" / "index.html")
+    expected_fields = [
+        'id="company_name"',
+        'id="activity"',
+        'id="contact_email"',
+        'id="domain_status"',
+        'id="primary_goal"',
+        'id="urgency"',
+        'id="budget"',
+        'id="pack"',
+        'id="location"',
+        'id="backups"',
+    ]
+    for field in expected_fields:
+        assert field in text
+    for marker in [
+        "configuration_proposal",
+        "pending_human_go",
+        "hetzner_payload",
+        "apps_l1",
+        "Télécharger la proposition JSON",
+    ]:
+        assert marker in text
+    assert 'src="/assets/app.js"' in text
+
+
+def test_build_exports_packs_and_l1_apps_json_for_hub_top_chain():
+    build_site()
+    packs_path = PUBLIC / "api" / "oa-start-packs.json"
+    apps_path = PUBLIC / "api" / "apps-l1.json"
+    assert packs_path.exists()
+    assert apps_path.exists()
+    packs = packs_path.read_text(encoding="utf-8").lower()
+    apps = apps_path.read_text(encoding="utf-8").lower()
+    for term in ["starter", "pro", "max", "hetzner", "monthly_total_eur", "pending_human_go"]:
+        assert term in packs
+    for app in ["ubuntu", "ssh", "ufw", "tailscale", "caddy", "hub", "hermes-agent", "secrets", "backups", "qg-reporting"]:
+        assert app in apps
+
+
+def test_config_javascript_builds_proposal_without_paid_autoprovisioning():
+    build_site()
+    js = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
+    for term in [
+        "configuration_proposal",
+        "pending_human_go",
+        "hetzner_payload",
+        "create_server_payload",
+        "apps_l1",
+        "monthly_total_eur",
+    ]:
+        assert term in js
+    forbidden = ["fetch('https://api.hetzner.cloud", 'fetch("https://api.hetzner.cloud', "POST /servers"]
+    for term in forbidden:
+        assert term not in js
 
 
 def test_account_and_security_boundaries_are_visible():

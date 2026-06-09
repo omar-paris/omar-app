@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
-<header><div class="bar"><div><div class="brand">Omar App · app.omar.paris</div><div class="meta">V0.1.0 · 8 JUIN 2026 · CORE OA</div></div><nav class="nav" aria-label="Navigation principale"><a class="" href="/">Accueil</a><a class="" href="/onboarding/">Onboarding</a><a class="active" href="/config/">Config</a><a class="" href="/buy/">Buy</a><a class="" href="/sav/">SAV</a><a class="" href="/factures/">Factures</a><a class="" href="/compte/">Compte</a><a class="" href="/changelog/">Changelog</a></nav></div></header>
+<header><div class="bar"><div><div class="brand">Omar App · app.omar.paris</div><div class="meta">V0.2.0 · 9 JUIN 2026 · CORE OA</div></div><nav class="nav" aria-label="Navigation principale"><a class="" href="/">Accueil</a><a class="" href="/onboarding/">Onboarding</a><a class="active" href="/config/">Config</a><a class="" href="/buy/">Buy</a><a class="" href="/sav/">SAV</a><a class="" href="/factures/">Factures</a><a class="" href="/compte/">Compte</a><a class="" href="/changelog/">Changelog</a></nav></div></header>
 <main>
   <div class="hero">
     <section class="hero-main">
@@ -27,8 +27,44 @@
     </aside>
   </div>
   <div class="grid"><section class='card'><h2>Pack OA Start</h2><ul><li>VPS Hetzner</li><li>Email et domaine Infomaniak si nécessaire</li><li>Hub local</li><li>Agent Hermes OA</li><li>Support/SAV via App</li></ul></section><section class='card'><h2>Connexions</h2><ul><li>Modèle connection_intent</li><li>OAuth possible plus tard</li><li>Nango = L2 pour le moment</li><li>Infisical pour secrets machine/client</li></ul></section><section class='card'><h2>Sortie attendue</h2><ul><li>Configuration recommandée</li><li>Coûts estimés</li><li>Informations manquantes</li><li>Prochaines actions internes</li></ul></section></div>
+
+  <section class="card wizard" id="configuration_proposal" style="margin-top:22px">
+    <h2>Wizard config V0.2 — Pack OA Start</h2>
+    <p>Ce wizard prépare une proposition exploitable. Il ne crée aucun VPS : statut <strong>pending_human_go</strong> avant tout coût Hetzner.</p>
+    <form id="config_wizard" class="wizard-form">
+      <fieldset><legend>1. Entreprise</legend>
+        <label for="company_name">Entreprise</label><input id="company_name" name="company_name" value="Client Démo" required>
+        <label for="activity">Activité</label><input id="activity" name="activity" value="Artisan / TPE">
+        <label for="contact_email">Email contact</label><input id="contact_email" name="contact_email" type="email" value="client@example.com">
+        <label for="domain_status">Domaine</label><select id="domain_status" name="domain_status"><option>à acheter</option><option>existant à connecter</option><option>à décider</option></select>
+      </fieldset>
+      <fieldset><legend>2. Besoin</legend>
+        <label for="primary_goal">Objectif principal</label><input id="primary_goal" name="primary_goal" value="gagner du temps et mieux répondre aux clients">
+        <label for="urgency">Urgence</label><select id="urgency" name="urgency"><option>cette semaine</option><option>ce mois-ci</option><option>exploration</option></select>
+        <label for="budget">Budget indicatif</label><select id="budget" name="budget"><option>Starter</option><option>Pro</option><option>Max</option></select>
+        <label for="existing_tools">Outils existants</label><textarea id="existing_tools" name="existing_tools">Email, domaine, documents, factures</textarea>
+      </fieldset>
+      <fieldset><legend>3. VPS Hetzner dry-run</legend>
+        <label for="pack">Pack</label><select id="pack" name="pack"><option value="starter">Starter · cax21 · ~9€/mois</option><option value="pro">Pro · cax31 · ~18€/mois</option><option value="max">Max · cax41 · ~36€/mois</option></select>
+        <label for="location">Région</label><select id="location" name="location"><option value="fsn1">fsn1</option><option value="nbg1">nbg1</option><option value="hel1">hel1</option></select>
+        <label class="check" for="backups"><input id="backups" name="backups" type="checkbox" checked> Backups Hetzner inclus dans l’estimation</label>
+      </fieldset>
+    </form>
+  </section>
+  <section class="card" id="apps_l1" style="margin-top:22px">
+    <h2>Apps L1 attendues</h2>
+    <ul class="apps-l1"><li><strong>Ubuntu 24.04</strong><span>ubuntu · expected · OmarTop L1</span></li><li><strong>SSH admin OA</strong><span>ssh · expected · OmarTop L1</span></li><li><strong>UFW / firewall</strong><span>ufw · expected · OmarTop L1</span></li><li><strong>Tailscale</strong><span>tailscale · expected · OmarTop L1</span></li><li><strong>Caddy + TLS</strong><span>caddy · expected · OmarTop L1</span></li><li><strong>Hub local</strong><span>hub · expected · OmarTop L1</span></li><li><strong>Hermes Agent</strong><span>hermes-agent · expected · OmarTop L1</span></li><li><strong>Secrets Vault/Infisical cible</strong><span>secrets · expected · OmarTop L1</span></li><li><strong>Backups serveur</strong><span>backups · expected · OmarTop L1</span></li><li><strong>QG reporting / health</strong><span>qg-reporting · expected · OmarTop L1</span></li></ul>
+  </section>
+  <section class="card" style="margin-top:22px">
+    <h2>Sortie opérateur</h2>
+    <p><strong>hetzner_payload</strong> contient un <strong>create_server_payload</strong> dry-run. Validation humaine obligatoire avant POST /servers.</p>
+    <div class="actions"><a class="btn primary" id="proposal_download" href="#">Télécharger la proposition JSON</a></div>
+    <pre id="proposal_output" class="proposal-output" aria-label="configuration_proposal JSON"></pre>
+  </section>
+
   <section class="card" style="margin-top:22px"><h2>Routes</h2><div class="route-list"><a class="route" href="/"><strong>Accueil</strong><span>/</span></a><a class="route" href="/onboarding/"><strong>Onboarding</strong><span>/onboarding/</span></a><a class="route" href="/buy/"><strong>Buy</strong><span>/buy/</span></a><a class="route" href="/sav/"><strong>SAV</strong><span>/sav/</span></a><a class="route" href="/factures/"><strong>Factures</strong><span>/factures/</span></a><a class="route" href="/compte/"><strong>Compte</strong><span>/compte/</span></a><a class="route" href="/changelog/"><strong>Changelog</strong><span>/changelog/</span></a></div></section>
 </main>
-<footer class="footer">Omar App · app.omar.paris · V0.1.0 · Changelog disponible · Aucun secret client dans cette V0.</footer>
+<footer class="footer">Omar App · app.omar.paris · V0.2.0 · Changelog disponible · Aucun secret client dans cette V0.</footer>
+<script src="/assets/app.js" defer></script>
 </body>
 </html>

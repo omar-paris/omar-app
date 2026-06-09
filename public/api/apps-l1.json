@@ -1,0 +1,67 @@
+{
+  "schema": "apps_l1.v0",
+  "source": "OmarTop L1 draft → AppOmar → Hub",
+  "install_state_default": "expected",
+  "apps": [
+    {
+      "slug": "ubuntu",
+      "name": "Ubuntu 24.04",
+      "required": true,
+      "source": "OmarTop L1"
+    },
+    {
+      "slug": "ssh",
+      "name": "SSH admin OA",
+      "required": true,
+      "source": "OmarTop L1"
+    },
+    {
+      "slug": "ufw",
+      "name": "UFW / firewall",
+      "required": true,
+      "source": "OmarTop L1"
+    },
+    {
+      "slug": "tailscale",
+      "name": "Tailscale",
+      "required": true,
+      "source": "OmarTop L1"
+    },
+    {
+      "slug": "caddy",
+      "name": "Caddy + TLS",
+      "required": true,
+      "source": "OmarTop L1"
+    },
+    {
+      "slug": "hub",
+      "name": "Hub local",
+      "required": true,
+      "source": "OmarTop L1"
+    },
+    {
+      "slug": "hermes-agent",
+      "name": "Hermes Agent",
+      "required": true,
+      "source": "OmarTop L1"
+    },
+    {
+      "slug": "secrets",
+      "name": "Secrets Vault/Infisical cible",
+      "required": true,
+      "source": "OmarTop L1"
+    },
+    {
+      "slug": "backups",
+      "name": "Backups serveur",
+      "required": true,
+      "source": "OmarTop L1"
+    },
+    {
+      "slug": "qg-reporting",
+      "name": "QG reporting / health",
+      "required": true,
+      "source": "OmarTop L1"
+    }
+  ]
+}

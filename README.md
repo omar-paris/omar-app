@@ -9,7 +9,8 @@ Transformer la landing en configuration client exploitable : compte, onboarding 
 ## Statut
 
 ```txt
-2026-06-08: contrat produit créé, app non codée.
+2026-06-09: V0.2.0 live — wizard /config, proposition JSON, dry-run Hetzner, Apps L1.
+2026-06-08: contrat produit créé, app skeleton V0.1.0.
 ```
 
 ## Source produit

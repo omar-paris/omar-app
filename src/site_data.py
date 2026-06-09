@@ -1,6 +1,61 @@
-VERSION = "V0.1.0"
-PUBLISHED = "8 JUIN 2026"
+VERSION = "V0.2.0"
+PUBLISHED = "9 JUIN 2026"
 DOMAIN = "app.omar.paris"
+
+OA_START_PACKS = [
+    {
+        "id": "starter",
+        "label": "Starter",
+        "provider": "hetzner",
+        "server_type": "cax21",
+        "fallback_server_type": "cpx21",
+        "location": "fsn1",
+        "image": "ubuntu-24.04",
+        "backups_default": True,
+        "monthly_total_eur": 9.0,
+        "status": "pending_human_go",
+        "note": "Profil coût-efficace ARM si compatibilité validée ; x86 fallback cpx21.",
+    },
+    {
+        "id": "pro",
+        "label": "Pro",
+        "provider": "hetzner",
+        "server_type": "cax31",
+        "fallback_server_type": "cpx31",
+        "location": "fsn1",
+        "image": "ubuntu-24.04",
+        "backups_default": True,
+        "monthly_total_eur": 18.0,
+        "status": "pending_human_go",
+        "note": "Profil conseillé pour premier client sérieux avec marge RAM/CPU.",
+    },
+    {
+        "id": "max",
+        "label": "Max",
+        "provider": "hetzner",
+        "server_type": "cax41",
+        "fallback_server_type": "cpx41",
+        "location": "fsn1",
+        "image": "ubuntu-24.04",
+        "backups_default": True,
+        "monthly_total_eur": 36.0,
+        "status": "pending_human_go",
+        "note": "Profil confort ; à valider humainement avant coût récurrent.",
+    },
+]
+
+APPS_L1 = [
+    {"slug": "ubuntu", "name": "Ubuntu 24.04", "required": True, "source": "OmarTop L1"},
+    {"slug": "ssh", "name": "SSH admin OA", "required": True, "source": "OmarTop L1"},
+    {"slug": "ufw", "name": "UFW / firewall", "required": True, "source": "OmarTop L1"},
+    {"slug": "tailscale", "name": "Tailscale", "required": True, "source": "OmarTop L1"},
+    {"slug": "caddy", "name": "Caddy + TLS", "required": True, "source": "OmarTop L1"},
+    {"slug": "hub", "name": "Hub local", "required": True, "source": "OmarTop L1"},
+    {"slug": "hermes-agent", "name": "Hermes Agent", "required": True, "source": "OmarTop L1"},
+    {"slug": "secrets", "name": "Secrets Vault/Infisical cible", "required": True, "source": "OmarTop L1"},
+    {"slug": "backups", "name": "Backups serveur", "required": True, "source": "OmarTop L1"},
+    {"slug": "qg-reporting", "name": "QG reporting / health", "required": True, "source": "OmarTop L1"},
+]
 
 NAV = [
     ("/", "Accueil"),
@@ -73,7 +128,10 @@ PAGES = {
     "/changelog/": {
         "title": "Changelog",
         "eyebrow": "Historique Omar App",
-        "summary": "V0.1.0 · 8 juin 2026 · Skeleton local-first de app.omar.paris.",
-        "sections": [("V0.1.0", ["Routes directes créées", "Contrat App aligné", "Onboarding/config/SAV/factures/compte documentés", "No secrets"])]
+        "summary": "V0.2.0 · 9 juin 2026 · Wizard config + proposition JSON + dry-run Hetzner.",
+        "sections": [
+            ("V0.2.0", ["Wizard /config réel", "Proposal JSON configuration_proposal", "Dry-run Hetzner pending_human_go", "Apps L1 alignées OmarTop → Hub", "Aucun POST payant automatique"]),
+            ("V0.1.0", ["Routes directes créées", "Contrat App aligné", "Onboarding/config/SAV/factures/compte documentés", "No secrets"]),
+        ]
     },
 }
