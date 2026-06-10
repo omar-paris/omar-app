@@ -1,0 +1,34 @@
+# Client #0 — Alex (perso) / VPS-Pantheos — dogfooding onboarding AppOmar
+# Pré-rempli le 10 juin 2026 depuis l'audit read-only. Schéma : ONBOARDING_SCHEMA.yaml
+identite: {nom: Alex Willemetz, email: alex@alexgo.eu, activite: "Graphic Ops freelance + perso (famille, finances, passions)"}
+cible: vps_existant
+connexion_vps: {ok: true, methode: "ssh aurel@vps-pantheos (tailnet)", hote: ubuntu-8gb-nbg1-1, ip_tailnet: 100.124.177.55}
+compatibilite:
+  verdict: nettoyage_requis            # compatible après cleanup léger
+  checks:
+    os_version: {ok: true, valeur: "Ubuntu 24.04.4 LTS"}
+    disk_usage: {ok: false, valeur: "73% (>70)"}
+    swap_present: {ok: false, valeur: "aucun swap"}
+    tailscale_up: {ok: true}
+    conflits: {openclaw_gateway: actif, pantheos_os: actif, nginx: "8+ vhosts publics"}
+    ports_publics_inconnus: ["0.0.0.0:8100", "0.0.0.0:8787", "0.0.0.0:8888"]
+ressources_existantes:
+  sites_web: [editing.alexgo.eu (API+notify actifs — NE PAS TOUCHER avant le 21/06), mms-tombola x2, mms-game, gateway/mission/os.willemetz.xyz]
+  git_forge: {forgejo: git.willemetz.xyz, backup_quotidien: true}
+  bases_de_donnees: [pantheos-postgres, pantheos-vault (secrets), postgrest]
+  autres_agents: {oc_aurel: "OpenClaw gateway 3.4G — devenir à trancher (Q3)", omi_bridge: docker, whisper_stt: docker}
+ressources_a_ajouter: [hermes_runtime, agent_h_aurel, hub_local_tailnet, swap_4g, sauvegardes_etendues, oa_doctor_cron]
+materiel: A_REMPLIR        # Q : appareils PC/mobiles d'Alex
+equipe: A_REMPLIR          # Q : qui d'autre accède (famille ? personne ?)
+perimetre_agent: "miroir d'Alex — vie perso entière ; intouchables META jusqu'au 21/06 (editing, mms, nginx, certbot) ; destructif = question obligatoire (décision 7eb872e881)"
+agent_dedie: {nom: h-aurel, identite_agora: pan-aurel (à brancher), canal: telegram @aurel_h_pan_bot, runtime: Hermes v0.16.0, statut: ACTIF}
+historique_onboarding:
+  - {date: 2026-06-10, etape: "audit read-only + record créé", par: fable-main-vps-omar}
+  - {date: 2026-06-10, etape: "Q2 périmètre + Q7 canal répondues via /decisions/ (premières décisions de la boîte)", par: alex}
+  - {date: 2026-06-10, etape: "token bot @aurel_h_pan_bot stocké ~/.oa-secrets (600)", par: fable-main}
+  - {date: 2026-06-10, etape: "rsync hermes-agent v0.16.0 (854 Mo) + venv + pip install", par: fable-main}
+  - {date: 2026-06-10, etape: "config.yaml + .env (providers hérités compte Alex, token telegram h-aurel injecté, 600)", par: fable-main}
+  - {date: 2026-06-10, etape: "SOUL.md h-aurel (miroir, intouchables META, destructif=question)", par: fable-main}
+  - {date: 2026-06-10, etape: "hermes gateway install (prompts Y/Y) + linger + service actif + getMe OK", par: fable-main}
+  - {date: 2026-06-10, etape: "QG vps-doctor: hermes=present mesuré", par: cron}
+  - {date: 2026-06-10, etape: "RESTE: swap (commande Alex), agora pan-aurel, kanban local, backup .hermes, oa-doctor (post-META)", par: fable-main}
