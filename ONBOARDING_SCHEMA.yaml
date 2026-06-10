@@ -1,0 +1,72 @@
+# AppOmar — Schéma d'onboarding client v0.1 (10 juin 2026, dicté par Alex)
+# Principe : chaque client = un enregistrement complet (cible, matériel, équipe,
+# ressources). Le wizard app.omar.paris/onboarding déroule ces étapes ; à terme une
+# version dédiée de H-Omar mène la conversation et remplit ce schéma.
+# Client #0 = VPS-Pantheos (Alex perso) — dogfooding avant Maryse.
+
+steps:
+  - id: cible
+    question: "Où installe-t-on votre assistant ?"
+    type: choice
+    options:
+      - id: pc
+        label: "Sur mon ordinateur (PC/Mac)"
+        status: not_offered_yet        # spike Hermes Desktop en cours (Maryse)
+      - id: vps_neuf
+        label: "Sur un nouveau serveur privé"
+        next: choix_partenaire          # cf. https://qg.omar.paris/partenaires/
+      - id: vps_existant
+        label: "Sur un serveur que je possède déjà"
+        next: connexion_vps
+
+  - id: choix_partenaire
+    when: cible == vps_neuf
+    question: "Choix du pack et du fournisseur"
+    source: src/site_data.py:OA_START_PACKS   # starter cax21 etc.
+
+  - id: connexion_vps
+    when: cible == vps_existant
+    question: "Connexion au serveur (clef SSH + Tailscale)"
+    checks_auto:                         # exécutés par oa-doctor / audit P1.5
+      - os_version                       # Ubuntu 24.04 LTS attendu
+      - disk_usage                       # alerte > 70 %
+      - swap_present
+      - tailscale_up
+      - ports_ecoutes
+      - services_inventories
+      - conflits                         # autre reverse-proxy, autre agent, etc.
+    issue: compatibilite                 # verdict : compatible | nettoyage_requis | bloque
+
+  - id: nettoyage
+    when: compatibilite == nettoyage_requis
+    question: "Plan de nettoyage proposé (validation client requise)"
+    output: cleanup_plan                 # liste datée, réversible, rien sans GO
+
+  - id: ressources_existantes
+    question: "Qu'avez-vous déjà qu'on doit connecter ?"
+    items: [emails, domaines, sites_web, drive_onedrive, facturation, crm,
+            reseaux_sociaux, git_forge, bases_de_donnees, autres_agents]
+    per_item: {fournisseur: str, identifiant: str, mode: lecture|ecriture, prioritaire: bool}
+
+  - id: ressources_a_ajouter
+    question: "Que faut-il créer pour vous ?"
+    items: [hub_local, agent_dedie, sauvegardes, monitoring, site_vitrine, boite_email]
+
+  - id: materiel
+    question: "Vos appareils (pour les accès et le support)"
+    per_device: {type: pc|mac|mobile|tablette, os: str, usage: str, tailscale: bool}
+
+  - id: equipe
+    question: "Qui d'autre accède à quoi ?"
+    per_person: {nom: str, role: str, acces_sites: [], acces_agents: [], niveau: lecture|action|admin}
+
+  - id: perimetre_agent
+    question: "Ce que votre agent a le droit de voir et de faire"
+    default: deny_all                    # liste blanche stricte, finances/perso exclus sauf demande
+    output: soul_md_perimetre            # alimente directement le soul.md de l'agent
+
+record:
+  format: var/clients/<id>.yaml          # var/ gitignored — données client jamais dans git
+  fields: [identite, cible, compatibilite, cleanup_plan, ressources_existantes,
+           ressources_a_ajouter, materiel, equipe, perimetre_agent, agent_dedie,
+           historique_onboarding]
