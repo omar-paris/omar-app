@@ -1,37 +1,44 @@
-# app.omar.paris — vhost durable AppOmar V0.4
-# DÉCISION ALEX 10 juin 2026 03h45 : app.omar.paris PUBLIC + protégé (plus tailnet_only).
-#   "La seule app intelligente accessible par tout le monde, tout le temps."
-# Interim : basic_auth (Caddy v2.11 -> directive basic_auth). Cible : oauth2-proxy forward_auth (M5).
-# Le portail (fichiers statiques) est protégé par basic_auth.
-# /api/proposals garde son auth token applicative (issues app#13/#14, Brief 1).
-# /api/health reste public (monitoring). 
-# Déploiement : copier dans /etc/caddy/sites-enabled/app.omar.paris.caddy
-#   puis caddy validate + systemctl reload caddy. JAMAIS via Caddy Admin API.
-
+# app.omar.paris — OAuth Google (réplique doctrine oauth-oa.md / config JAB CCC2)
+# Décision Alex 10 juin : OAuth Google partout, basic_auth abandonné.
+# Machines (sondes QG, /api) bypassent OAuth ; humains passent par Google.
 app.omar.paris {
 	import security_headers
 
-	root * /home/omar/23-Offre/actifs/omar-app/public
+	# Bypass machines : tailnet + token (sondes QG, agents) — JAMAIS d'OAuth pour les machines
+	@machine {
+		remote_ip 100.64.0.0/10 127.0.0.1/8
+		header X-OA-Token ca5f4565639415534f91e4c0a898cb8181272bc4580e15e8
+	}
+	handle @machine {
+		root * /home/omar/23-Offre/actifs/omar-app/public
+		file_server
+	}
 
 	# Health public (monitoring externe)
 	handle /api/health {
 		reverse_proxy 127.0.0.1:8096
 	}
-
-	# API proposals : protégée par token applicatif côté 8096 (inchangé)
+	# APIs applicatives (auth token propre)
 	handle /api/proposals* {
 		reverse_proxy 127.0.0.1:8096
 	}
-
+	handle /api/onboarding {
+		reverse_proxy 127.0.0.1:8096
+	}
 	handle /api/hetzner/pricing {
 		reverse_proxy 127.0.0.1:8096
 	}
-
-	# Portail front : basic_auth provisoire (creds dans ~/.config/oa-hub/app-basicauth.txt)
+	# Endpoints oauth2-proxy
+	handle /oauth2/* {
+		reverse_proxy 127.0.0.1:4180
+	}
+	# Portail : OAuth Google obligatoire
 	handle {
-		basic_auth {
-			omar $2a$14$RXixuTIdZI/XAdsGk195q.JDn3WmKJt3buIrTt8BltM0N6GX5IJtK
+		forward_auth 127.0.0.1:4180 {
+			uri /oauth2/auth
+			copy_headers X-Auth-Request-User X-Auth-Request-Email
 		}
+		root * /home/omar/23-Offre/actifs/omar-app/public
 		file_server
 	}
 }
