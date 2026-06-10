@@ -7,3 +7,4 @@ __pycache__/
 !.env.example
 var/proposals/
 var/*.json
+var/proposal-server.env

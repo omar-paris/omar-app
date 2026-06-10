@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import os
 import re
@@ -9,6 +10,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -18,7 +20,9 @@ sys.path.insert(0, str(ROOT / "src"))
 from site_data import OA_START_PACKS  # noqa: E402
 
 DEFAULT_DATA_DIR = ROOT / "var"
-PROPOSAL_ID_RE = re.compile(r"^proposal-[0-9]{8}T[0-9]{6}Z-[a-z0-9-]+$")
+# UUID hex (V0.3.1, app#14 non-enumerable) + ancien format timestamp (lecture des
+# propositions déjà stockées uniquement)
+PROPOSAL_ID_RE = re.compile(r"^proposal-(?:[0-9a-f]{32}|[0-9]{8}T[0-9]{6}Z)-[a-z0-9-]+$")
 SECRET_PATTERNS = ["HCLOUD_TOKEN", "Authorization", "Bearer ", "sk-"]
 
 
@@ -33,7 +37,7 @@ def slugify(value: str) -> str:
 
 def proposal_id(payload: dict[str, Any]) -> str:
     company = payload.get("client_profile", {}).get("company_name", "client-demo")
-    return f"proposal-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{slugify(str(company))}"
+    return f"proposal-{uuid.uuid4().hex}-{slugify(str(company))}"
 
 
 def validate_proposal(payload: dict[str, Any]) -> str | None:
@@ -118,6 +122,18 @@ class ProposalHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: Any) -> None:
         sys.stderr.write("proposal_server " + fmt % args + "\n")
 
+    def authorized(self) -> bool:
+        expected = self.server.api_token  # type: ignore[attr-defined]
+        header = self.headers.get("authorization", "")
+        if header.startswith("Bearer "):
+            provided = header[len("Bearer "):].strip()
+        else:
+            provided = self.headers.get("x-oa-token", "").strip()
+        return bool(provided) and hmac.compare_digest(provided, expected)
+
+    def reject_unauthorized(self) -> None:
+        self.send_json(401, {"ok": False, "error": "unauthorized"})
+
     def send_json(self, status: int, payload: dict[str, Any]) -> None:
         body = json_bytes(payload)
         self.send_response(status)
@@ -136,6 +152,9 @@ class ProposalHandler(BaseHTTPRequestHandler):
             return
         prefix = "/api/proposals/"
         if self.path.startswith(prefix):
+            if not self.authorized():
+                self.reject_unauthorized()
+                return
             pid = self.path[len(prefix):].split("?", 1)[0]
             proposal = read_proposal(self.data_dir, pid)
             if not proposal:
@@ -148,6 +167,9 @@ class ProposalHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         if self.path != "/api/proposals":
             self.send_json(404, {"ok": False, "error": "not_found"})
+            return
+        if not self.authorized():
+            self.reject_unauthorized()
             return
         try:
             length = int(self.headers.get("content-length", "0"))
@@ -173,8 +195,12 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8096)
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     args = parser.parse_args()
+    api_token = os.environ.get("OA_PROPOSALS_TOKEN", "").strip()
+    if len(api_token) < 32:
+        sys.exit("OA_PROPOSALS_TOKEN manquant ou trop court (>=32 chars requis) — refus de démarrer sans auth (app#13)")
     server = ReusableServer((args.host, args.port), ProposalHandler)
     server.data_dir = args.data_dir  # type: ignore[attr-defined]
+    server.api_token = api_token  # type: ignore[attr-defined]
     args.data_dir.mkdir(parents=True, exist_ok=True)
     print(f"serving omar-app proposals on http://{args.host}:{args.port} data={args.data_dir}", flush=True)
     server.serve_forever()

@@ -1,15 +1,15 @@
-# app.omar.paris — persistent Caddy snippet for AppOmar V0.3
-# Runtime route currently patched through Caddy Admin API.
+# app.omar.paris — vhost durable AppOmar V0.3
+# Doctrine OA : tailnet_only par défaut (rebuild Caddy 15 mai 2026).
+# Mesure conservatoire 10 juin 2026 (issues app#13/#14) : portail retiré du public
+# tant que l'auth client-facing n'existe pas. Réouverture = décision Alex.
+# Déploiement : copier dans /etc/caddy/sites-enabled/app.omar.paris.caddy
+# puis caddy validate + systemctl reload caddy. JAMAIS via Caddy Admin API.
 
 app.omar.paris {
-	root * /home/omar/23-Offre/actifs/omar-app/public
+	import tailnet_only
+	import security_headers
 
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "SAMEORIGIN"
-		Referrer-Policy "strict-origin-when-cross-origin"
-	}
+	root * /home/omar/23-Offre/actifs/omar-app/public
 
 	handle /api/health {
 		reverse_proxy 127.0.0.1:8096

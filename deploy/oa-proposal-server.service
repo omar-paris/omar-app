@@ -1,0 +1,15 @@
+[Unit]
+Description=AppOmar Proposal Server (app.omar.paris API, app#17)
+After=network.target
+
+[Service]
+WorkingDirectory=/home/omar/23-Offre/actifs/omar-app
+EnvironmentFile=/home/omar/23-Offre/actifs/omar-app/var/proposal-server.env
+ExecStart=/usr/bin/python3 /home/omar/23-Offre/actifs/omar-app/src/proposal_server.py --host 127.0.0.1 --port 8096
+Restart=on-failure
+RestartSec=3
+MemoryMax=256M
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
