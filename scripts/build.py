@@ -21,6 +21,10 @@ CSS += """
 .wizard-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:18px}.wizard-form fieldset{border:1px solid var(--line);border-radius:16px;padding:18px;background:#f8fafc}.wizard-form legend{font-weight:900;color:var(--primary);padding:0 6px}.wizard-form label{display:block;margin-top:10px;font-weight:800;color:#334155}.wizard-form input,.wizard-form select,.wizard-form textarea{width:100%;margin-top:6px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font:inherit}.wizard-form textarea{min-height:86px;resize:vertical}.wizard-form .check{display:flex;gap:10px;align-items:flex-start}.wizard-form .check input{width:auto;margin-top:4px}.apps-l1 li{display:flex;justify-content:space-between;gap:14px;border-bottom:1px solid #e2e8f0;padding:8px 0}.apps-l1 span{color:var(--muted);font-size:13px}.proposal-output{max-height:520px;overflow:auto;padding:16px;border-radius:14px;background:#0f172a;color:#e2e8f0;font-size:13px;line-height:1.45}@media(max-width:980px){.wizard-form{grid-template-columns:1fr}.apps-l1 li{display:block}}
 """
 
+CSS += """
+.plan-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:24px}.plan-col{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(15,23,42,.06)}.plan-col h2{margin:0 0 12px;font-size:17px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}.plan-action{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:10px;background:#fbfdff}.plan-action .t{font-weight:800;font-size:14px}.plan-action .d{color:var(--muted);font-size:12.5px;margin-top:3px}.plan-status{display:inline-block;margin-top:8px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 9px;border-radius:999px}.st-fait{background:#dcfce7;color:#166534}.st-encours{background:#fef9c3;color:#854d0e}.st-afaire{background:#e2e8f0;color:#334155}.st-gate{background:#fee2e2;color:#991b1b}@media(max-width:980px){.plan-board{grid-template-columns:1fr}}
+"""
+
 APP_JS = r"""
 const PACKS = __PACKS__;
 const APPS_L1 = __APPS_L1__;
@@ -168,7 +172,7 @@ def render_config_wizard() -> str:
     )
     return f"""
   <section class="card wizard" id="configuration_proposal" style="margin-top:22px">
-    <h2>Wizard config V0.2 — Pack OA Start</h2>
+    <h2>Wizard config V0.3 — Pack OA Start</h2>
     <p>Ce wizard prépare une proposition exploitable. Il ne crée aucun VPS : statut <strong>pending_human_go</strong> avant tout coût Hetzner.</p>
     <form id="config_wizard" class="wizard-form">
       <fieldset><legend>1. Entreprise</legend>
@@ -257,6 +261,85 @@ def render_page(route: str, page: dict) -> str:
 </html>"""
 
 
+_STATUS_META = {
+    "fait": ("st-fait", "fait"),
+    "en cours": ("st-encours", "en cours"),
+    "a_faire": ("st-afaire", "à faire"),
+    "gate": ("st-gate", "gaté"),
+}
+
+
+def render_jab_plan() -> str | None:
+    """Page /jab : 4 colonnes (Omar/Edilia/JA/Alex) alimentées par data/plan-jab.yaml."""
+    data_file = ROOT / "data" / "plan-jab.yaml"
+    if not data_file.exists():
+        print("WARN: data/plan-jab.yaml absent — page /jab non générée")
+        return None
+    try:
+        import yaml  # PyYAML
+        data = yaml.safe_load(data_file.read_text(encoding="utf-8")) or {}
+    except Exception as exc:  # noqa: BLE001
+        print(f"WARN: lecture plan-jab.yaml échouée ({exc}) — page /jab non générée")
+        return None
+
+    meta = data.get("meta", {})
+    route = "/jab/"
+    nav_html = "".join(
+        f'<a class="{"active" if href == route else ""}" href="{href}">{escape(label)}</a>' for href, label in NAV
+    )
+    cols_html = ""
+    for col in data.get("colonnes", []):
+        actions_html = ""
+        for act in col.get("actions", []):
+            cls, lbl = _STATUS_META.get(act.get("statut", "a_faire"), ("st-afaire", "à faire"))
+            detail = act.get("detail", "")
+            actions_html += (
+                "<div class='plan-action'>"
+                f"<div class='t'>{escape(act.get('titre',''))}</div>"
+                + (f"<div class='d'>{escape(detail)}</div>" if detail else "")
+                + f"<span class='plan-status {cls}'>{escape(lbl)}</span></div>"
+            )
+        cols_html += (
+            "<div class='plan-col'>"
+            f"<h2>{escape(col.get('icon',''))} {escape(col.get('label',''))}</h2>"
+            f"{actions_html}</div>"
+        )
+    return f"""<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{escape(meta.get('title','Plan JAB'))} · Omar App</title>
+  <meta name="description" content="{escape(meta.get('summary',''))}">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<header><div class="bar"><div><div class="brand">Omar App · {DOMAIN}</div><div class="meta">{VERSION} · {PUBLISHED} · CORE OA</div></div><nav class="nav" aria-label="Navigation principale">{nav_html}</nav></div></header>
+<main>
+  <div class="hero">
+    <section class="hero-main">
+      <div class="eyebrow">{escape(meta.get('eyebrow',''))}</div>
+      <h1 class="h1">{escape(meta.get('title','Plan JAB'))}</h1>
+      <p class="summary">{escape(meta.get('summary',''))}</p>
+      <div class="meta">Mis à jour : {escape(meta.get('updated',''))} · source éditable : data/plan-jab.yaml</div>
+    </section>
+    <aside class="card side" aria-label="Légende">
+      <h2>Légende</h2>
+      <div class="status">
+        <div class="pill"><span class="plan-status st-fait">fait</span> livré et vérifié</div>
+        <div class="pill"><span class="plan-status st-encours">en cours</span> démarré</div>
+        <div class="pill"><span class="plan-status st-afaire">à faire</span> planifié</div>
+        <div class="pill"><span class="plan-status st-gate">gaté</span> attend une décision/clé</div>
+      </div>
+    </aside>
+  </div>
+  <div class="plan-board">{cols_html}</div>
+</main>
+<footer class="footer">Omar App · {DOMAIN} · {VERSION} · Plan d'actions JAB · données dans data/plan-jab.yaml.</footer>
+</body>
+</html>"""
+
+
 def write_api_assets() -> None:
     api = PUBLIC / "api"
     api.mkdir(parents=True, exist_ok=True)
@@ -291,6 +374,12 @@ def main() -> None:
         out = route_to_file(route)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(render_page(route, page), encoding="utf-8")
+    jab_html = render_jab_plan()
+    if jab_html:
+        jab_out = PUBLIC / "jab" / "index.html"
+        jab_out.parent.mkdir(parents=True, exist_ok=True)
+        jab_out.write_text(jab_html, encoding="utf-8")
+        print("built /jab/ from data/plan-jab.yaml")
     print(f"built {len(PAGES)} routes into {PUBLIC}")
 
 

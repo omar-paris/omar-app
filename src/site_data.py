@@ -65,6 +65,7 @@ NAV = [
     ("/sav/", "SAV"),
     ("/factures/", "Factures"),
     ("/compte/", "Compte"),
+    ("/jab/", "Plan JAB"),
     ("/changelog/", "Changelog"),
 ]
 
