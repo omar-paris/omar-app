@@ -3,34 +3,119 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Onboarding — formulaire + conversation · Omar App</title>
-  <meta name="description" content="L’onboarding combine formulaire structuré et conversation chatbot pour définir entreprise, objectifs, livrables, outils existants, domaine, préférences et ressources.">
+  <title>Onboarding — Omar App</title>
+  <meta name="description" content="Onboarding guidé : étapes à gauche, conversation à droite. Chaque réponse construit le dossier client et prépare l'installation VPS Hermes OA.">
   <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    .onb{display:grid;grid-template-columns:240px 1fr;gap:20px;align-items:start}
+    @media(max-width:760px){.onb{grid-template-columns:1fr}}
+    .steps{position:sticky;top:12px}
+    .step{padding:8px 12px;border-left:3px solid #d1d5db;color:#9ca3af;font-size:13px;margin-bottom:2px}
+    .step.cur{border-color:#2563eb;color:#111827;font-weight:600;background:#eff6ff}
+    .step.done{border-color:#16a34a;color:#374151}
+    .step.done::after{content:" ✓";color:#16a34a}
+    .step.skip::after{content:" (passée)";color:#9ca3af;font-size:11px}
+    .chat{min-height:380px;display:flex;flex-direction:column;gap:10px}
+    .bub{max-width:85%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.45}
+    .bot{background:#f3f4f6;align-self:flex-start;border-bottom-left-radius:4px}
+    .me{background:#2563eb;color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+    .ctx{font-size:12px;color:#6b7280;align-self:flex-start;margin:-6px 0 0 6px}
+    .opts{display:flex;gap:8px;flex-wrap:wrap;align-self:flex-start}
+    .opt{padding:7px 12px;border:1px solid #2563eb;color:#2563eb;border-radius:10px;font-size:13px;cursor:pointer;background:#fff}
+    .opt:hover{background:#eff6ff}
+    .opt.dis{border-color:#d1d5db;color:#9ca3af;cursor:not-allowed}
+    .inrow{display:flex;gap:8px;align-self:stretch}
+    .inrow input,.inrow textarea{flex:1;border:1px solid #d1d5db;border-radius:10px;padding:8px 12px;font-size:14px;font-family:inherit}
+    .send{padding:8px 14px;background:#2563eb;color:#fff;border:0;border-radius:10px;cursor:pointer;font-size:13px}
+    .skipb{align-self:flex-start;background:none;border:0;color:#9ca3af;font-size:12px;cursor:pointer;text-decoration:underline}
+    .recap{background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px;font-size:12px;white-space:pre-wrap;font-family:ui-monospace,monospace}
+  </style>
 </head>
 <body>
-<header><div class="bar"><div><div class="brand">Omar App · app.omar.paris</div><div class="meta">V0.3.0 · 9 JUIN 2026 · CORE OA</div></div><nav class="nav" aria-label="Navigation principale"><a class="" href="/">Accueil</a><a class="active" href="/onboarding/">Onboarding</a><a class="" href="/config/">Config</a><a class="" href="/buy/">Buy</a><a class="" href="/sav/">SAV</a><a class="" href="/factures/">Factures</a><a class="" href="/compte/">Compte</a><a class="" href="/jab/">Plan JAB</a><a class="" href="/changelog/">Changelog</a></nav></div></header>
+<header><div class="bar"><div><div class="brand">Omar App · app.omar.paris</div><div class="meta">Onboarding V1 · client #0 testé : Pantheos</div></div><nav class="nav" aria-label="Navigation principale"><a href="/">Accueil</a><a class="active" href="/onboarding/">Onboarding</a><a href="/config/">Config</a><a href="/buy/">Buy</a><a href="/sav/">SAV</a><a href="/factures/">Factures</a><a href="/compte/">Compte</a><a href="/changelog/">Changelog</a></nav></div></header>
 <main>
-  <div class="hero">
-    <section class="hero-main">
-      <div class="eyebrow">Qualifier le besoin client</div>
-      <h1 class="h1">Onboarding — formulaire + conversation</h1>
-      <p class="summary">L’onboarding combine formulaire structuré et conversation chatbot pour définir entreprise, objectifs, livrables, outils existants, domaine, préférences et ressources.</p>
-      <div class="actions"><a class="btn primary" href="/onboarding/">Démarrer l’onboarding</a><a class="btn" href="/config/">Voir le wizard config</a></div>
-    </section>
-    <aside class="card side" aria-label="Statut V0">
-      <h2>Statut V0</h2>
-      <div class="status">
-        <div class="pill"><strong>Portail client</strong><br>Skeleton local-first, routes directes.</div>
-        <div class="pill"><strong>Sécurité</strong><br>Multi-tenant cible, aucun secret exposé.</div>
-        <div class="pill"><strong>Prochaine étape</strong><br>Brancher données, assistant, puis QG registry.</div>
-      </div>
-    </aside>
+  <h1 class="h1" style="margin-bottom:4px">Créons votre assistant</h1>
+  <p class="summary" style="margin-bottom:18px">Une conversation, des étapes claires — chaque réponse construit votre dossier. Tout est modifiable, rien n'est payé sans votre accord explicite.</p>
+  <div class="onb">
+    <aside class="steps card" id="steps"></aside>
+    <section class="card"><div class="chat" id="chat"></div></section>
   </div>
-  <div class="grid"><section class='card'><h2>Questions entreprise</h2><ul><li>Nom et activité de l’entreprise</li><li>Interlocuteurs</li><li>Domaine existant ou domaine à acheter</li><li>Contraintes métier ou légales</li></ul></section><section class='card'><h2>Objectifs et livrables</h2><ul><li>Objectifs prioritaires</li><li>Livrables attendus</li><li>Ressources disponibles</li><li>Préférences de communication et souveraineté</li></ul></section><section class='card'><h2>Outils existants</h2><ul><li>Google Workspace</li><li>Microsoft 365</li><li>Infomaniak</li><li>OVH</li><li>Orange / SFR / Laposte</li><li>CRM, facturation, téléphone pro</li></ul></section></div>
-
-  <section class="card" style="margin-top:22px"><h2>Routes</h2><div class="route-list"><a class="route" href="/"><strong>Accueil</strong><span>/</span></a><a class="route" href="/config/"><strong>Config</strong><span>/config/</span></a><a class="route" href="/buy/"><strong>Buy</strong><span>/buy/</span></a><a class="route" href="/sav/"><strong>SAV</strong><span>/sav/</span></a><a class="route" href="/factures/"><strong>Factures</strong><span>/factures/</span></a><a class="route" href="/compte/"><strong>Compte</strong><span>/compte/</span></a><a class="route" href="/jab/"><strong>Plan JAB</strong><span>/jab/</span></a><a class="route" href="/changelog/"><strong>Changelog</strong><span>/changelog/</span></a></div></section>
 </main>
-<footer class="footer">Omar App · app.omar.paris · V0.3.0 · Changelog disponible · Aucun secret client dans cette V0.</footer>
-
+<script>
+const STEPS = [
+ {id:"identite", label:"Identité", q:"Pour commencer : votre nom, et le nom de votre activité ?", type:"text", ph:"Ex. Maryse Dupont — Boulangerie du Marché"},
+ {id:"cible", label:"Où installer ?", q:"Où installe-t-on votre assistant ?", type:"choice", opts:[
+   {v:"vps_neuf", t:"Sur un nouveau serveur privé (on s'occupe de tout)"},
+   {v:"vps_existant", t:"Sur un serveur que je possède déjà"},
+   {v:"pc", t:"Sur mon ordinateur", dis:true, note:"bientôt disponible"}]},
+ {id:"choix_partenaire", label:"Serveur & pack", when:r=>r.cible==="vps_neuf", q:"Le pack Starter (serveur européen, sauvegardes incluses) convient à la plupart des activités. Rien n'est commandé sans votre GO explicite à la fin.", type:"choice", opts:[{v:"starter",t:"Pack Starter (recommandé)"},{v:"a_discuter",t:"J'aimerais en discuter d'abord"}]},
+ {id:"connexion_vps", label:"Connexion serveur", when:r=>r.cible==="vps_existant", q:"Très bien — on auditera votre serveur avant toute installation (système, espace, conflits). Une clef SSH ou un accès vous sera demandé à l'étape technique. Verdict possible : compatible, nettoyage léger, ou bloqué.", type:"ack"},
+ {id:"domaine", label:"Nom de domaine", q:"Avez-vous déjà un nom de domaine (ex. boulangerie-dumarche.fr) ? Donnez-le, ou dites « non » — on peut en acheter un avec vous (OVH).", type:"text", ph:"mondomaine.fr ou « non »"},
+ {id:"connexion_providers", label:"Connexions IA & services", q:"Votre assistant a besoin de comptes connectés (intelligence, e-mail…). Certains se connectent en un clic (fenêtre Google/Microsoft via notre connecteur), d'autres par une clef à coller. RÈGLE : chaque connexion est testée en réel avant d'être validée.", type:"ack"},
+ {id:"ressources_existantes", label:"À connecter", q:"Qu'avez-vous déjà qu'on doit connecter ? (cliquez tout ce qui s'applique, puis Continuer)", type:"multi", opts:["E-mails","Site web","Google Drive / OneDrive","Facturation","Réseaux sociaux","WhatsApp / Telegram","Autre"]},
+ {id:"ressources_a_ajouter", label:"À créer", q:"Que faut-il créer pour vous ?", type:"multi", opts:["Tableau de bord (hub)","Agent dédié","Sauvegardes","Site vitrine","Boîte e-mail pro","Numéro de téléphone"]},
+ {id:"materiel", label:"Vos appareils", q:"Vos appareils (pour les accès et le support) : PC, Mac, mobiles — listez-les simplement.", type:"text", ph:"Ex. PC Windows (boutique), iPhone perso"},
+ {id:"equipe", label:"Équipe & accès", q:"Qui d'autre que vous accédera aux outils ou à l'assistant ? (nom + rôle, ou « personne »)", type:"text", ph:"Ex. Julie (vendeuse) : lecture commandes"},
+ {id:"perimetre_agent", label:"Périmètre de l'agent", q:"Dernière étape, la plus importante : que CONFIEZ-vous à votre assistant, et qu'est-ce qui lui est interdit ? Par défaut : tout est interdit sauf ce que vous listez ici.", type:"text", ph:"Ex. répondre aux e-mails clients OUI, toucher aux paiements NON"},
+];
+const rec = {}; const skipped = new Set(); let cur = 0;
+const $steps = document.getElementById("steps"), $chat = document.getElementById("chat");
+function activeSteps(){ return STEPS.filter(s => !s.when || s.when(rec)); }
+function drawSteps(){
+  const act = activeSteps();
+  $steps.innerHTML = "<h2 style='font-size:13px;color:#6b7280;margin:0 0 8px'>ÉTAPES</h2>" + act.map((s,i)=>{
+    const cls = i<cur ? (skipped.has(s.id)?"step done skip":"step done") : (i===cur?"step cur":"step");
+    return `<div class="${cls}">${i+1}. ${s.label}</div>`;}).join("") +
+    `<div class="${cur>=act.length?'step cur':'step'}">${act.length+1}. Récapitulatif</div>`;
+}
+function bot(t, ctx){ const d=document.createElement("div"); d.className="bub bot"; d.textContent=t; $chat.appendChild(d);
+  if(ctx){const c=document.createElement("div");c.className="ctx";c.textContent=ctx;$chat.appendChild(c);} scroll(); }
+function me(t){ const d=document.createElement("div"); d.className="bub me"; d.textContent=t; $chat.appendChild(d); scroll(); }
+function scroll(){ $chat.scrollTop = $chat.scrollHeight; window.scrollTo(0, document.body.scrollHeight); }
+function controls(step){
+  const wrap=document.createElement("div"); wrap.className = step.type==="choice"||step.type==="multi" ? "opts":"inrow";
+  if(step.type==="choice"){ step.opts.forEach(o=>{ const b=document.createElement("button");
+      b.className="opt"+(o.dis?" dis":""); b.textContent=o.t+(o.note?" — "+o.note:"");
+      if(!o.dis) b.onclick=()=>{ me(o.t); rec[step.id]=o.v; wrap.remove(); sk.remove(); next(); }; wrap.appendChild(b); });
+  } else if(step.type==="multi"){ const sel=new Set();
+    step.opts.forEach(o=>{ const b=document.createElement("button"); b.className="opt"; b.textContent=o;
+      b.onclick=()=>{ sel.has(o)?(sel.delete(o),b.style.background="#fff"):(sel.add(o),b.style.background="#dbeafe"); }; wrap.appendChild(b); });
+    const ok=document.createElement("button"); ok.className="send"; ok.textContent="Continuer";
+    ok.onclick=()=>{ me([...sel].join(", ")||"(rien)"); rec[step.id]=[...sel]; wrap.remove(); sk.remove(); next(); }; wrap.appendChild(ok);
+  } else if(step.type==="ack"){ const b=document.createElement("button"); b.className="send"; b.textContent="Compris, on continue";
+    b.onclick=()=>{ me("Compris"); rec[step.id]="ack"; wrap.remove(); sk.remove(); next(); }; wrap.appendChild(b);
+  } else { const inp=document.createElement("input"); inp.placeholder=step.ph||""; 
+    const b=document.createElement("button"); b.className="send"; b.textContent="Envoyer";
+    const go=()=>{ if(!inp.value.trim())return; me(inp.value.trim()); rec[step.id]=inp.value.trim(); wrap.remove(); sk.remove(); next(); };
+    b.onclick=go; inp.onkeydown=e=>{if(e.key==="Enter")go();}; wrap.appendChild(inp); wrap.appendChild(b); }
+  $chat.appendChild(wrap);
+  const sk=document.createElement("button"); sk.className="skipb"; sk.textContent="passer cette étape";
+  sk.onclick=()=>{ me("(je passe)"); skipped.add(step.id); rec[step.id]=null; wrap.remove(); sk.remove(); next(); };
+  $chat.appendChild(sk); scroll();
+  setTimeout(()=>{const i=wrap.querySelector("input"); if(i)i.focus();},50);
+}
+function next(){ cur++; drawSteps(); ask(); }
+function ask(){
+  const act = activeSteps();
+  if(cur >= act.length){ return finish(); }
+  const s = act[cur]; bot(s.q); controls(s);
+}
+async function finish(){
+  bot("Voilà votre dossier. On l'enregistre ? (rien n'est payé, un humain valide chaque étape suivante)");
+  const r=document.createElement("div"); r.className="recap";
+  r.textContent = JSON.stringify(rec, null, 2); $chat.appendChild(r);
+  const b=document.createElement("button"); b.className="send"; b.textContent="Enregistrer mon dossier";
+  b.onclick=async()=>{ b.disabled=true; b.textContent="Envoi…";
+    try{ const resp=await fetch("/api/onboarding",{method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({record:rec, skipped:[...skipped], source:"onboarding-v1"})});
+      const d=await resp.json();
+      bot(resp.ok ? "✓ Dossier enregistré ("+d.id+"). Notre équipe (humaine + agents) prend le relais : audit, connexions, installation — vous serez tenu informé à chaque étape." 
+                  : "Erreur : "+(d.error||resp.status)+" — réessayez ou contactez-nous.");
+    }catch(e){ bot("Erreur réseau — réessayez."); b.disabled=false; b.textContent="Enregistrer mon dossier"; }
+  };
+  $chat.appendChild(b); scroll();
+}
+drawSteps(); bot("Bonjour ! Je vous guide pas à pas — chaque étape est passable, et vous voyez votre progression à gauche.", "Onboarding Omar & Alex · vos réponses construisent votre dossier"); ask();
+</script>
 </body>
 </html>

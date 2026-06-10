@@ -165,6 +165,9 @@ class ProposalHandler(BaseHTTPRequestHandler):
         self.send_json(404, {"ok": False, "error": "not_found"})
 
     def do_POST(self) -> None:
+        if self.path == "/api/onboarding":
+            self.handle_onboarding()
+            return
         if self.path != "/api/proposals":
             self.send_json(404, {"ok": False, "error": "not_found"})
             return
@@ -183,6 +186,35 @@ class ProposalHandler(BaseHTTPRequestHandler):
             self.send_json(422, {"ok": False, "error": str(exc)})
             return
         self.send_json(201, {"ok": True, "proposal": proposal})
+
+
+    def handle_onboarding(self) -> None:
+        """Dossier d'onboarding v1 (app#22). Pas de Bearer : la couche d'accès est
+        le vhost tailnet_only (puis OAuth au rollout qg#23) — un humain remplit ce
+        formulaire, il n'a pas de token."""
+        try:
+            length = int(self.headers.get("content-length", "0"))
+            if length <= 0 or length > 100_000:
+                raise ValueError("invalid content-length")
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            record = payload.get("record")
+            if not isinstance(record, dict) or not record:
+                raise ValueError("record vide")
+            raw = json.dumps(payload, ensure_ascii=False)
+            for pattern in SECRET_PATTERNS:
+                if pattern in raw:
+                    raise ValueError(f"secret-like literal forbidden: {pattern}")
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+            return
+        slug = slugify(str(record.get("identite", "client"))[:40])
+        oid = f"onboarding-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{slug}"
+        out_dir = self.data_dir / "clients"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        payload["id"] = oid
+        payload["received_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        (out_dir / f"{oid}.json").write_bytes(json_bytes(payload))
+        self.send_json(201, {"ok": True, "id": oid})
 
 
 class ReusableServer(ThreadingHTTPServer):
