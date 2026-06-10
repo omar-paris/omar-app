@@ -42,6 +42,19 @@ steps:
     question: "Plan de nettoyage proposé (validation client requise)"
     output: cleanup_plan                 # liste datée, réversible, rien sans GO
 
+  - id: connexion_providers
+    question: "Connexion des fournisseurs IA et services (étape OBLIGATOIRE — leçon Pantheos 10 juin)"
+    note: |
+      Certains providers exigent une CONNEXION DÉDIÉE par machine (Nous Research,
+      ChatGPT Codex) — une simple copie de clefs ne suffit pas. Le wizard doit
+      dérouler la connexion en direct (Hermes UI/CLI) ou via clef quand c'est possible.
+    items:
+      - {provider: openrouter, mode: clef_api_compte_omar, recharge_auto: "10€+ selon forfait"}
+      - {provider: nous_research, mode: connexion_dediee_machine}
+      - {provider: openai_codex, mode: connexion_dediee_machine}
+      - {provider: telegram, mode: botfather_manuel_2min + token_colle_dans_wizard}
+    verification: "un message de test traverse l'agent (modèle répond) AVANT de déclarer l'install finie"
+
   - id: ressources_existantes
     question: "Qu'avez-vous déjà qu'on doit connecter ?"
     items: [emails, domaines, sites_web, drive_onedrive, facturation, crm,
@@ -70,3 +83,9 @@ record:
   fields: [identite, cible, compatibilite, cleanup_plan, ressources_existantes,
            ressources_a_ajouter, materiel, equipe, perimetre_agent, agent_dedie,
            historique_onboarding]
+
+sav:
+  note: "Le SAV rejoue les MÊMES étapes que l'onboarding (exigence Alex 10 juin) :
+    vérification = checks_auto de connexion_vps ; réinstallation = re-déroulé du
+    wizard depuis le record existant ; reconnexion provider = étape connexion_providers
+    seule. Une seule source de vérité d'étapes, deux portes d'entrée."
