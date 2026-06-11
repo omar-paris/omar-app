@@ -1,0 +1,34 @@
+{
+  "id": "devis-20260611T022825Z-8332d4e9",
+  "created_at": "2026-06-11T02:28:25Z",
+  "client": {
+    "nom": "Test Maryse"
+  },
+  "lignes": [
+    {
+      "id": "formule-pro",
+      "label": "Formule Pro",
+      "prix_mensuel": 99,
+      "prix_unique": null
+    },
+    {
+      "id": "mod-presence",
+      "label": "Présence locale",
+      "prix_mensuel": 20,
+      "prix_unique": null
+    },
+    {
+      "id": "presta-onboarding",
+      "label": "Installation & onboarding",
+      "prix_mensuel": null,
+      "prix_unique": 150
+    }
+  ],
+  "total_mensuel_eur": 119,
+  "total_unique_eur": 150,
+  "devise": "EUR",
+  "statut": "achete",
+  "stripe_session": "cs_test_b13WOOqCQ304WXZRmJRDssWXl8pJuvTWvpzO2IaRQ0lljX3PP90cO9Jqly",
+  "stripe_mode": "test",
+  "paye_le": "2026-06-11T02:28:51Z"
+}

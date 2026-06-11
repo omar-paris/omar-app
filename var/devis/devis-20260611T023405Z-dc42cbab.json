@@ -1,0 +1,19 @@
+{
+  "id": "devis-20260611T023405Z-dc42cbab",
+  "created_at": "2026-06-11T02:34:05Z",
+  "client": {},
+  "lignes": [
+    {
+      "id": "formule-starter",
+      "label": "Formule Starter",
+      "prix_mensuel": 49,
+      "prix_unique": null
+    }
+  ],
+  "total_mensuel_eur": 49,
+  "total_unique_eur": 0,
+  "devise": "EUR",
+  "statut": "en_paiement",
+  "stripe_session": "cs_test_a19AS2CygLurMRupaw84J2u3a8uxjjrZ1OL1w19D0Byq1HCNSRx5wZmynn",
+  "stripe_mode": "test"
+}

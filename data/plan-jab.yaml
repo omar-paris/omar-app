@@ -21,6 +21,7 @@ kit_visite:
         - text: "Accord ChatGPT Plus 20€/mois + activation Codex"
         - text: "OAuth OneDrive (rclone) — backup off-site + arborescence documents"
         - text: "Rythme des relances impayés (qui signe, quel délai)"
+        - text: "3 décisions spec V0.2 : quel agenda (Google/Microsoft) ? périmètre Edilia (facture-brouillon ok ?) ? liste des rôles de parties (client/adversaire/juge/tribunal…) ?"
     - label: "🎬 À montrer (crescendo)"
       items:
         - text: "index.bouboutou-avocats.com — son cockpit (Hub v1.0.0, apps cliquables)"
