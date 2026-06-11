@@ -73,6 +73,60 @@ def safe_write_proposal(data_dir: Path, payload: dict[str, Any]) -> dict[str, An
     return out
 
 
+_CATALOG_CACHE: dict[str, Any] = {}
+
+
+def load_catalog() -> dict[str, Any]:
+    """Catalogue de vente depuis catalog.yaml (parseur minimal, zéro dépendance)."""
+    path = ROOT / "catalog.yaml"
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return {"products": [], "error": "catalog_missing"}
+    if _CATALOG_CACHE.get("mtime") == mtime:
+        return _CATALOG_CACHE["data"]
+    products, cur = [], None
+    list_key = None
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        if raw.strip().startswith("#") or not raw.strip():
+            continue
+        if raw.startswith("  - id:"):
+            cur = {"id": raw.split("id:", 1)[1].strip()}
+            products.append(cur)
+            list_key = None
+        elif raw.startswith("    ") and cur is not None and ":" in raw:
+            k, _, v = raw.strip().partition(":")
+            v = v.strip()
+            if v in ("", "[]"):
+                if v == "":
+                    list_key = k
+                    cur[k] = []
+                else:
+                    cur[k] = []
+                continue
+            list_key = None
+            if v.startswith("[") and v.endswith("]"):
+                cur[k] = [x.strip().strip('"') for x in v[1:-1].split(",") if x.strip()]
+            elif v in ("null", "~"):
+                cur[k] = None
+            elif v.lstrip("-").isdigit():
+                cur[k] = int(v)
+            else:
+                cur[k] = v.strip('"')
+        elif raw.startswith("      - ") and list_key and cur is not None:
+            cur[list_key].append(raw.strip()[2:].strip().strip('"'))
+    data = {"version": "0.1", "currency": "EUR", "products": products}
+    _CATALOG_CACHE.update(mtime=mtime, data=data)
+    return data
+
+
+def read_devis(data_dir: Path, did: str) -> dict[str, Any] | None:
+    if not re.match(r"^devis-[0-9A-Za-z-]+$", did):
+        return None
+    path = data_dir / "devis" / f"{did}.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
 def read_proposal(data_dir: Path, pid: str) -> dict[str, Any] | None:
     if not PROPOSAL_ID_RE.match(pid):
         return None
@@ -145,7 +199,18 @@ class ProposalHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/api/health":
-            self.send_json(200, {"ok": True, "service": "omar-app-proposals", "version": "V0.3.0"})
+            self.send_json(200, {"ok": True, "service": "omar-app-proposals", "version": "V0.4.0"})
+            return
+        if self.path == "/api/catalog":
+            self.send_json(200, load_catalog())
+            return
+        if self.path.startswith("/api/devis/"):
+            did = self.path[len("/api/devis/"):].split("?", 1)[0]
+            dv = read_devis(self.data_dir, did)
+            if not dv:
+                self.send_json(404, {"ok": False, "error": "devis_not_found"})
+                return
+            self.send_json(200, {"ok": True, "devis": dv})
             return
         if self.path == "/api/hetzner/pricing":
             self.send_json(200, pricing_payload())
@@ -168,6 +233,12 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/onboarding":
             self.handle_onboarding()
             return
+        if self.path == "/api/devis":
+            self.handle_devis()
+            return
+        if self.path == "/api/checkout":
+            self.handle_checkout()
+            return
         if self.path != "/api/proposals":
             self.send_json(404, {"ok": False, "error": "not_found"})
             return
@@ -187,6 +258,66 @@ class ProposalHandler(BaseHTTPRequestHandler):
             return
         self.send_json(201, {"ok": True, "proposal": proposal})
 
+
+    def handle_devis(self) -> None:
+        """Crée un devis depuis une sélection de produits du catalogue (app#24/qg#28).
+        Public (un prospect n'a pas de compte) — pas de Bearer."""
+        try:
+            length = int(self.headers.get("content-length", "0"))
+            if length <= 0 or length > 50_000:
+                raise ValueError("invalid content-length")
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            item_ids = payload.get("items") or []
+            if not isinstance(item_ids, list) or not item_ids:
+                raise ValueError("items vide")
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+            return
+        catalog = {p["id"]: p for p in load_catalog().get("products", [])}
+        lignes, mensuel, unique = [], 0, 0
+        for iid in item_ids:
+            p = catalog.get(iid)
+            if not p:
+                continue
+            lignes.append({"id": p["id"], "label": p["label"],
+                           "prix_mensuel": p.get("prix_mensuel"), "prix_unique": p.get("prix_unique")})
+            mensuel += p.get("prix_mensuel") or 0
+            unique += p.get("prix_unique") or 0
+        did = f"devis-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
+        devis = {
+            "id": did, "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "client": payload.get("client", {}), "lignes": lignes,
+            "total_mensuel_eur": mensuel, "total_unique_eur": unique,
+            "devise": "EUR", "statut": "brouillon",
+        }
+        d = self.data_dir / "devis"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{did}.json").write_bytes(json_bytes(devis))
+        self.send_json(201, {"ok": True, "devis": devis})
+
+    def handle_checkout(self) -> None:
+        """Lance le paiement Stripe d'un devis. Stub tant que la clef Stripe n'est
+        pas fournie (app#32) — renvoie 503 explicite, jamais de faux paiement."""
+        try:
+            length = int(self.headers.get("content-length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            did = str(payload.get("devis_id", ""))
+        except Exception as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+            return
+        devis = read_devis(self.data_dir, did)
+        if not devis:
+            self.send_json(404, {"ok": False, "error": "devis_not_found"})
+            return
+        stripe_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+        if not stripe_key:
+            self.send_json(503, {"ok": False, "error": "stripe_non_configure",
+                                 "message": "Paiement bientôt disponible — clef Stripe en attente.",
+                                 "devis_id": did, "total_mensuel_eur": devis["total_mensuel_eur"]})
+            return
+        # Branchement réel Stripe Checkout : à compléter à la réception de la clef (app#32)
+        self.send_json(501, {"ok": False, "error": "stripe_checkout_todo",
+                             "message": "Clef présente — implémentation Checkout à finaliser."})
 
     def handle_onboarding(self) -> None:
         """Dossier d'onboarding v1 (app#22). Pas de Bearer : la couche d'accès est
