@@ -26,6 +26,21 @@ app.omar.paris {
 		reverse_proxy 127.0.0.1:8096
 	}
 
+	# 1c. Pages applicatives (devis, admin) servies par le serveur — survivent au build.py.
+	# Derrière OAuth comme le reste du portail.
+	@apppages path /devis /devis/ /admin/catalog /admin/catalog/
+	handle @apppages {
+		forward_auth 127.0.0.1:4180 {
+			uri /oauth2/auth
+			copy_headers X-Auth-Request-Email
+			@error status 401
+			handle_response @error {
+				redir * /oauth2/start?rd={scheme}://{host}{uri} 302
+			}
+		}
+		reverse_proxy 127.0.0.1:8096
+	}
+
 	# 2. Endpoints oauth2-proxy
 	handle /oauth2/* {
 		reverse_proxy 127.0.0.1:4180

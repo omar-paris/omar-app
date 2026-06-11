@@ -270,6 +270,21 @@ class ProposalHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
+        # Pages applicatives servies par le serveur (hors build.py → survivent au rebuild)
+        APP_PAGES = {"/devis/": "devis.html", "/devis": "devis.html",
+                     "/admin/catalog/": "admin-catalog.html", "/admin/catalog": "admin-catalog.html"}
+        page_file = APP_PAGES.get(self.path.split("?", 1)[0])
+        if page_file:
+            fp = ROOT / "pages-app" / page_file
+            if fp.exists():
+                body = fp.read_bytes()
+                self.send_response(200)
+                self.send_header("content-type", "text/html; charset=utf-8")
+                self.send_header("content-length", str(len(body)))
+                self.send_header("cache-control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+                return
         if self.path == "/api/health":
             self.send_json(200, {"ok": True, "service": "omar-app-proposals", "version": "V0.4.0"})
             return
@@ -390,13 +405,21 @@ class ProposalHandler(BaseHTTPRequestHandler):
                            "prix_mensuel": p.get("prix_mensuel"), "prix_unique": p.get("prix_unique")})
             mensuel += p.get("prix_mensuel") or 0
             unique += p.get("prix_unique") or 0
-        did = f"devis-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
-        devis = {
-            "id": did, "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "client": payload.get("client", {}), "lignes": lignes,
-            "total_mensuel_eur": mensuel, "total_unique_eur": unique,
-            "devise": "EUR", "statut": "brouillon",
-        }
+        # reprise : si devis_id fourni et existe (et pas encore payé), on met à jour le même
+        existing = read_devis(self.data_dir, str(payload.get("devis_id", "")))
+        if existing and existing.get("statut") != "achete":
+            did = existing["id"]
+            devis = {**existing, "lignes": lignes, "total_mensuel_eur": mensuel,
+                     "total_unique_eur": unique,
+                     "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+        else:
+            did = f"devis-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
+            devis = {
+                "id": did, "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "client": payload.get("client", {}), "lignes": lignes,
+                "total_mensuel_eur": mensuel, "total_unique_eur": unique,
+                "devise": "EUR", "statut": "brouillon",
+            }
         d = self.data_dir / "devis"
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{did}.json").write_bytes(json_bytes(devis))
