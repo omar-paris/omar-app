@@ -1,10 +1,24 @@
 # app.omar.paris — OAuth Google (réplique doctrine oauth-oa.md / config JAB CCC2)
 # Décision Alex 10 juin : OAuth Google partout, basic_auth abandonné.
-# Machines (sondes QG, /api) bypassent OAuth ; humains passent par Google.
+# Ordre des handle (Caddy = premier match gagne) :
+#   1. /api/*    → serveur applicatif (auth propre : Bearer/public/Stripe-sig) — AVANT le bypass machine
+#   2. /oauth2/* → oauth2-proxy
+#   3. @machine  → portail statique sans OAuth (sondes QG tailnet+token)
+#   4. reste     → OAuth Google obligatoire
 app.omar.paris {
 	import security_headers
 
-	# Bypass machines : tailnet + token (sondes QG, agents) — JAMAIS d'OAuth pour les machines
+	# 1. Toutes les API → serveur applicatif (machine OU humain OU Stripe externe)
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8096
+	}
+
+	# 2. Endpoints oauth2-proxy
+	handle /oauth2/* {
+		reverse_proxy 127.0.0.1:4180
+	}
+
+	# 3. Bypass machines : portail statique pour sondes QG (tailnet + token), pas d'OAuth
 	@machine {
 		remote_ip 100.64.0.0/10 127.0.0.1/8
 		header X-OA-Token ca5f4565639415534f91e4c0a898cb8181272bc4580e15e8
@@ -14,15 +28,7 @@ app.omar.paris {
 		file_server
 	}
 
-	# Toutes les API → serveur applicatif (auth propre par endpoint : Bearer/public/Stripe-sig)
-	handle /api/* {
-		reverse_proxy 127.0.0.1:8096
-	}
-	# Endpoints oauth2-proxy
-	handle /oauth2/* {
-		reverse_proxy 127.0.0.1:4180
-	}
-	# Portail : OAuth Google obligatoire
+	# 4. Portail : OAuth Google obligatoire
 	handle {
 		forward_auth 127.0.0.1:4180 {
 			uri /oauth2/auth
