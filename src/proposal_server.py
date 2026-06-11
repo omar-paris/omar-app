@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.error
@@ -78,18 +79,37 @@ import urllib.parse  # noqa: E402
 STRIPE_API = "https://api.stripe.com/v1"
 
 
-def _stripe_key(mode: str) -> str:
-    """Lit la clé secrète Stripe depuis le Vault. mode = 'test' | 'live'.
-    SÉCURITÉ : 'test' par défaut ; 'live' uniquement sur OA_STRIPE_MODE=live explicite."""
+def _stripe_secret(mode: str, field: str) -> str:
+    """Lit un champ de secret/stripe/<mode> dans le Vault."""
     try:
         raw = subprocess.check_output(
             ["/usr/bin/vault", "kv", "get", "-format=json", f"secret/stripe/{mode}"],
             text=True, stderr=subprocess.DEVNULL,
             env={**os.environ, "VAULT_ADDR": "http://127.0.0.1:8202"},
         )
-        return json.loads(raw).get("data", {}).get("data", {}).get("STRIPE_SECRET_KEY", "")
+        return json.loads(raw).get("data", {}).get("data", {}).get(field, "")
     except Exception:
         return ""
+
+
+def _stripe_key(mode: str) -> str:
+    """Clé secrète Stripe. 'test' par défaut ; 'live' uniquement sur OA_STRIPE_MODE=live."""
+    return _stripe_secret(mode, "STRIPE_SECRET_KEY")
+
+
+def _verify_stripe_sig(payload: bytes, sig_header: str, secret: str) -> bool:
+    """Vérifie la signature Stripe (schéma t=…,v1=…) — HMAC-SHA256, tolérance 5 min."""
+    import hashlib
+    try:
+        parts = dict(p.split("=", 1) for p in sig_header.split(","))
+        ts, v1 = parts.get("t", ""), parts.get("v1", "")
+        signed = f"{ts}.".encode() + payload
+        expected = hmac.new(secret.encode(), signed, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected, v1):
+            return False
+        return abs(time.time() - int(ts)) < 300
+    except Exception:
+        return False
 
 
 def _stripe_flatten(prefix: str, value: Any, out: list) -> None:
@@ -410,10 +430,19 @@ class ProposalHandler(BaseHTTPRequestHandler):
 
     def handle_stripe_webhook(self) -> None:
         """Reçoit les events Stripe. Marque le devis 'acheté' à la complétion du
-        paiement → débloque la configuration. Signature vérifiée si whsec présent."""
+        paiement → débloque la configuration. Signature OBLIGATOIRE (anti-falsification)."""
         try:
             length = int(self.headers.get("content-length", "0"))
             raw = self.rfile.read(length)
+        except Exception:
+            self.send_json(400, {"ok": False})
+            return
+        mode = "live" if os.environ.get("OA_STRIPE_MODE") == "live" else "test"
+        whsec = _stripe_secret(mode, "STRIPE_WEBHOOK_SECRET")
+        if not whsec or not _verify_stripe_sig(raw, self.headers.get("Stripe-Signature", ""), whsec):
+            self.send_json(400, {"ok": False, "error": "bad_signature"})
+            return
+        try:
             event = json.loads(raw.decode("utf-8"))
         except Exception:
             self.send_json(400, {"ok": False})
