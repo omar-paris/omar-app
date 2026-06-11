@@ -35,8 +35,14 @@
 <header><div class="bar"><div><div class="brand">Omar App · app.omar.paris</div><div class="meta">Onboarding V1 · client #0 testé : Pantheos</div></div><nav class="nav" aria-label="Navigation principale"><a href="/">Accueil</a><a class="active" href="/onboarding/">Onboarding</a><a href="/config/">Config</a><a href="/buy/">Buy</a><a href="/sav/">SAV</a><a href="/factures/">Factures</a><a href="/compte/">Compte</a><a href="/changelog/">Changelog</a></nav></div></header>
 <main>
   <h1 class="h1" style="margin-bottom:4px">Créons votre assistant</h1>
-  <p class="summary" style="margin-bottom:18px">Une conversation, des étapes claires — chaque réponse construit votre dossier. Tout est modifiable, rien n'est payé sans votre accord explicite.</p>
-  <div class="onb">
+  <p class="summary" style="margin-bottom:12px">Une conversation, des étapes claires — chaque réponse construit votre dossier. Tout est modifiable, rien n'est payé sans votre accord explicite.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;padding:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px">
+    <span style="font-size:13px;color:#6b7280;align-self:center">Avant de commencer :</span>
+    <a class="btn" href="/devis/" style="background:#2563eb;color:#fff">Je souhaite acheter une solution</a>
+    <button class="btn" onclick="document.getElementById('onb-start').scrollIntoView({behavior:'smooth'})" style="background:#fff;border:1px solid #d1d5db">Mon onboarding est déjà réalisé</button>
+    <a class="btn" href="/sav/" style="background:#fff;border:1px solid #d1d5db">Faire le point sur mon VPS (SAV)</a>
+  </div>
+  <div class="onb" id="onb-start">
     <aside class="steps card" id="steps"></aside>
     <section class="card"><div class="chat" id="chat"></div></section>
   </div>
