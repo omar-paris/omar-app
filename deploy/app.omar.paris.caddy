@@ -37,6 +37,10 @@ app.omar.paris {
 		forward_auth 127.0.0.1:4180 {
 			uri /oauth2/auth
 			copy_headers X-Auth-Request-User X-Auth-Request-Email
+			@error status 401
+			handle_response @error {
+				redir * /oauth2/start?rd={scheme}://{host}{uri} 302
+			}
 		}
 		root * /home/omar/23-Offre/actifs/omar-app/public
 		file_server
