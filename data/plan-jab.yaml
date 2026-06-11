@@ -7,6 +7,28 @@ meta:
   updated: "10 juin 2026, soir — RDV JA demain 11 juin"
   summary: "Qui fait quoi pour la mise en route de JAB. Quatre couloirs : Omar (l'équipe), Edilia (l'agent), JA (le client), Alex (seulement si indispensable)."
 
+kit_visite:
+  title: "Kit visite JA — 11 juin"
+  note: "Détails opérateur (commandes rclone, pairing WhatsApp, séquence démo) : 11-Pilotage/journal/lancement-100626/KIT-VISITE-JA.md"
+  sections:
+    - label: "✅ À récupérer pendant le RDV"
+      items:
+        - text: "DNS OVH : record A auth → 168.119.172.126 (et idéalement token API OVH scopé zone via api.ovh.com/createToken)"
+        - text: "Le BON dossier de factures avocat (USB/Drive/export) — import en direct ~2 min"
+        - text: "Liste des dossiers/projets 2026 actifs (client + statut)"
+        - text: "Test login Google ja.bouboutou@gmail.com sur clients."
+        - text: "Premier contact Edilia (chat.bouboutou-avocats.com — ou WhatsApp si numéro)"
+        - text: "Accord ChatGPT Plus 20€/mois + activation Codex"
+        - text: "OAuth OneDrive (rclone) — backup off-site + arborescence documents"
+        - text: "Rythme des relances impayés (qui signe, quel délai)"
+    - label: "🎬 À montrer (crescendo)"
+      items:
+        - text: "index.bouboutou-avocats.com — son cockpit (Hub v1.0.0, apps cliquables)"
+        - text: "clients. — CRM : bandeau encours, saisir un paiement partiel → l encours bouge"
+        - text: "Edilia (chat web) — persona « Bonjour Maître »"
+        - text: "Le plan d actions (cette page) — ses 4-5 actions à lui"
+        - text: "Récap 1 page à lui laisser (RECAP-1PAGE-JA.md)"
+
 colonnes:
   - key: omar
     label: "Omar (nous)"

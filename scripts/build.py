@@ -304,6 +304,28 @@ def render_jab_plan() -> str | None:
             f"<h2>{escape(col.get('icon',''))} {escape(col.get('label',''))}</h2>"
             f"{actions_html}</div>"
         )
+    # Kit visite (optionnel) : checklist opérateur intégrée à la page — décision Alex 11/06
+    kit = data.get("kit_visite") or {}
+    kit_html = ""
+    if kit:
+        sections_html = ""
+        for sec in kit.get("sections", []):
+            items_html = "".join(
+                f"<li>{escape(it.get('text',''))}</li>" for it in sec.get("items", [])
+            )
+            sections_html += (
+                f"<div class='plan-col'><h2>{escape(sec.get('label',''))}</h2>"
+                f"<ul class='kit-list' style='margin:0;padding-left:1.1rem;line-height:1.7'>{items_html}</ul></div>"
+            )
+        note = kit.get("note", "")
+        kit_html = (
+            "<section class='card' style='margin:1.5rem 0;padding:1.2rem 1.4rem'>"
+            f"<h2 style='margin-top:0'>📋 {escape(kit.get('title','Kit visite'))}</h2>"
+            f"<div class='plan-board' style='margin-top:.8rem'>{sections_html}</div>"
+            + (f"<div class='meta' style='margin-top:.8rem'>{escape(note)}</div>" if note else "")
+            + "</section>"
+        )
+
     return f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -333,6 +355,7 @@ def render_jab_plan() -> str | None:
       </div>
     </aside>
   </div>
+  {kit_html}
   <div class="plan-board">{cols_html}</div>
 </main>
 <footer class="footer">Omar App · {DOMAIN} · {VERSION} · Plan d'actions JAB · données dans data/plan-jab.yaml.</footer>
