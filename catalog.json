@@ -1,0 +1,93 @@
+{
+  "version": "0.1",
+  "currency": "EUR",
+  "products": [
+    {
+      "id": "formule-starter",
+      "famille": "formule",
+      "label": "Formule Starter",
+      "pitch": "Votre assistant + 1 service métier, sur serveur managé.",
+      "prix_mensuel": 49,
+      "setup": 0,
+      "inclus": [
+        "VPS Hermes OA (serveur EU)",
+        "Agent dédié",
+        "Hub local",
+        "Sauvegardes",
+        "1 connexion (email ou agenda)"
+      ],
+      "cible": "artisan/commerçant qui démarre",
+      "est_pack_initial": true
+    },
+    {
+      "id": "formule-pro",
+      "famille": "formule",
+      "label": "Formule Pro",
+      "pitch": "Plusieurs services métier + CRM + intégrations.",
+      "prix_mensuel": 99,
+      "setup": 0,
+      "inclus": [
+        "Tout Starter",
+        "CRM (clients/projets/factures)",
+        "Jusqu'à 5 connexions",
+        "Veille + relances documents"
+      ],
+      "cible": "TPE avec dossiers clients (avocat, agence)",
+      "est_pack_initial": true
+    },
+    {
+      "id": "formule-sur-mesure",
+      "famille": "formule",
+      "label": "Sur-mesure",
+      "pitch": "Périmètre défini ensemble.",
+      "prix_mensuel": null,
+      "setup": null,
+      "inclus": [
+        "Atelier de cadrage",
+        "Devis personnalisé"
+      ],
+      "cible": "besoin spécifique",
+      "est_pack_initial": true
+    },
+    {
+      "id": "mod-crm",
+      "famille": "module",
+      "label": "Module CRM",
+      "pitch": "Clients, entreprises, projets, factures, encours.",
+      "prix_mensuel": 25,
+      "est_pack_initial": false
+    },
+    {
+      "id": "mod-presence",
+      "famille": "module",
+      "label": "Présence locale",
+      "pitch": "Google Business, avis, fiche à jour.",
+      "prix_mensuel": 20,
+      "est_pack_initial": false
+    },
+    {
+      "id": "mod-paperasse",
+      "famille": "module",
+      "label": "Paperasse & documents",
+      "pitch": "Arborescence Drive/OneDrive + checklists + relances.",
+      "prix_mensuel": 25,
+      "est_pack_initial": false
+    },
+    {
+      "id": "presta-onboarding",
+      "famille": "prestation",
+      "label": "Installation & onboarding",
+      "pitch": "Mise en service complète du VPS Hermes OA.",
+      "prix_unique": 150,
+      "est_pack_initial": false
+    },
+    {
+      "id": "presta-sav",
+      "famille": "prestation",
+      "label": "Intervention SAV",
+      "pitch": "Inspection + correction assistée du VPS (à la demande).",
+      "prix_unique": 60,
+      "est_pack_initial": false
+    }
+  ]
+}

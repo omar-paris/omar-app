@@ -1,0 +1,63 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin catalogue — Omar App</title><link rel="stylesheet" href="/assets/styles.css">
+<style>
+.bar2{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.grp{margin-bottom:22px}
+.grp h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;margin:0 0 8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:#6b7280;font-weight:600;padding:6px 8px;border-bottom:1px solid #e5e7eb}
+td{padding:5px 8px;border-bottom:1px solid #f3f4f6}
+td input{border:1px solid #e5e7eb;border-radius:7px;padding:5px 8px;font-size:13px;width:100%}
+td input.num{width:80px;text-align:right}
+.del{color:#dc2626;cursor:pointer;border:0;background:none;font-size:16px}
+.add{margin-top:6px;font-size:13px;color:#2563eb;background:none;border:1px dashed #93c5fd;border-radius:8px;padding:6px 12px;cursor:pointer}
+.save{background:#2563eb;color:#fff;border:0;border-radius:10px;padding:10px 18px;font-size:14px;cursor:pointer}
+.msg{font-size:13px;padding:8px 12px;border-radius:8px;margin-left:10px}
+.tag{font-size:11px;padding:2px 7px;border-radius:6px}
+.tp{background:#dbeafe;color:#1e40af} .to{background:#f3f4f6;color:#374151}
+</style></head><body>
+<header><div class="bar"><div><div class="brand">Omar App · Admin</div><div class="meta">Catalogue de vente · page privée (Google OAuth)</div></div>
+<nav class="nav"><a href="/devis/">Voir le devis client</a></nav></div></header>
+<main>
+<div class="bar2"><h1 class="h1" style="margin:0">Catalogue & prix</h1>
+<div><button class="save" onclick="save()">Enregistrer</button><span id="msg"></span></div></div>
+<p class="summary" style="margin-bottom:18px">Modifiez les prix, ajoutez des produits, distinguez les <b>packs initiaux</b> (formules) des <b>options</b> (modules/prestations). Enregistré côté serveur, visible immédiatement sur le devis.</p>
+<div id="groups"></div>
+</main>
+<script>
+let P=[];
+const FAM=[["formule","Packs initiaux (formules)","tp"],["module","Options — modules (mensuel)","to"],["prestation","Options — prestations (one-shot)","to"]];
+function msg(t,ok){const m=document.getElementById("msg");m.className="msg";m.style.background=ok?"#dcfce7":"#fef3c7";m.style.color=ok?"#166534":"#92400e";m.textContent=t;}
+async function load(){ const r=await fetch("/api/catalog"); P=(await r.json()).products.map(x=>({...x})); render(); }
+function render(){
+  let h="";
+  for(const [fam,titre,cls] of FAM){
+    h+=`<div class="grp"><h2>${titre}</h2><table><thead><tr><th>id</th><th>Label</th><th>Pitch</th><th>€/mois</th><th>€ unique</th><th></th></tr></thead><tbody>`;
+    P.forEach((p,i)=>{ if(p.famille!==fam)return;
+      h+=`<tr>
+        <td><input value="${p.id||''}" onchange="upd(${i},'id',this.value)" style="width:120px"></td>
+        <td><input value="${(p.label||'').replace(/"/g,'&quot;')}" onchange="upd(${i},'label',this.value)"></td>
+        <td><input value="${(p.pitch||'').replace(/"/g,'&quot;')}" onchange="upd(${i},'pitch',this.value)"></td>
+        <td><input class="num" type="number" value="${p.prix_mensuel??''}" onchange="updn(${i},'prix_mensuel',this.value)"></td>
+        <td><input class="num" type="number" value="${p.prix_unique??''}" onchange="updn(${i},'prix_unique',this.value)"></td>
+        <td><button class="del" onclick="del(${i})" title="supprimer">✕</button></td></tr>`;
+    });
+    h+=`</tbody></table><button class="add" onclick="add('${fam}')">+ ajouter dans ${titre.split(' ')[0].toLowerCase()}</button></div>`;
+  }
+  document.getElementById("groups").innerHTML=h;
+}
+function upd(i,k,v){ P[i][k]=v; }
+function updn(i,k,v){ P[i][k]= v===''?null:parseFloat(v); }
+function del(i){ if(confirm("Supprimer "+(P[i].label||P[i].id)+" ?")){ P.splice(i,1); render(); } }
+function add(fam){ P.push({id:"nouveau-"+Date.now().toString(36),famille:fam,label:"Nouveau produit",pitch:"",prix_mensuel:fam==="prestation"?null:0,prix_unique:fam==="prestation"?0:null,est_pack_initial:fam==="formule"}); render(); }
+async function save(){
+  for(const p of P){ p.est_pack_initial=(p.famille==="formule"); }
+  const r=await fetch("/api/admin/catalog",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({products:P})});
+  const d=await r.json();
+  if(r.ok) msg("✓ Enregistré ("+d.count+" produits) par "+d.par,true);
+  else if(r.status===403) msg("Accès refusé — connecté en tant que "+(d.vu||"?")+" (non admin)",false);
+  else msg("Erreur : "+(d.error||r.status),false);
+}
+load();
+</script></body></html>

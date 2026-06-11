@@ -142,7 +142,14 @@ _CATALOG_CACHE: dict[str, Any] = {}
 
 
 def load_catalog() -> dict[str, Any]:
-    """Catalogue de vente depuis catalog.yaml (parseur minimal, zéro dépendance)."""
+    """Catalogue de vente. catalog.json (éditable via admin) prioritaire,
+    sinon catalog.yaml (référence lisible, parseur minimal)."""
+    jpath = ROOT / "catalog.json"
+    if jpath.exists():
+        try:
+            return json.loads(jpath.read_text(encoding="utf-8"))
+        except Exception:
+            pass
     path = ROOT / "catalog.yaml"
     try:
         mtime = path.stat().st_mtime
@@ -298,6 +305,9 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/onboarding":
             self.handle_onboarding()
             return
+        if self.path == "/api/admin/catalog":
+            self.handle_admin_catalog()
+            return
         if self.path == "/api/devis":
             self.handle_devis()
             return
@@ -326,6 +336,35 @@ class ProposalHandler(BaseHTTPRequestHandler):
             return
         self.send_json(201, {"ok": True, "proposal": proposal})
 
+
+    def handle_admin_catalog(self) -> None:
+        """Sauvegarde du catalogue (prix, produits, packs). Protégé par OAuth :
+        le vhost n'atteint cet endpoint qu'après forward_auth, et injecte
+        X-Auth-Request-Email — on vérifie qu'il est dans la liste admin."""
+        email = self.headers.get("X-Auth-Request-Email", "").strip().lower()
+        admins = {e.strip().lower() for e in
+                  os.environ.get("OA_ADMIN_EMAILS", "alexwillemetz@gmail.com").split(",")}
+        if email not in admins:
+            self.send_json(403, {"ok": False, "error": "not_admin", "vu": email or "(aucun email)"})
+            return
+        try:
+            length = int(self.headers.get("content-length", "0"))
+            if length <= 0 or length > 200_000:
+                raise ValueError("payload invalide")
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            products = payload.get("products")
+            if not isinstance(products, list) or not products:
+                raise ValueError("products vide")
+            for p in products:
+                if not p.get("id") or not p.get("label"):
+                    raise ValueError("chaque produit exige id + label")
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+            return
+        out = {"version": payload.get("version", "0.1"), "currency": "EUR", "products": products}
+        (ROOT / "catalog.json").write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+        _CATALOG_CACHE.clear()
+        self.send_json(200, {"ok": True, "count": len(products), "par": email})
 
     def handle_devis(self) -> None:
         """Crée un devis depuis une sélection de produits du catalogue (app#24/qg#28).

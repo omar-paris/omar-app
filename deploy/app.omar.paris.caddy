@@ -8,7 +8,20 @@
 app.omar.paris {
 	import security_headers
 
-	# 1. Toutes les API → serveur applicatif (machine OU humain OU Stripe externe)
+	# 1a. API ADMIN → OAuth obligatoire (édition catalogue/prix) : l'email Google est injecté
+	handle /api/admin/* {
+		forward_auth 127.0.0.1:4180 {
+			uri /oauth2/auth
+			copy_headers X-Auth-Request-Email
+			@error status 401
+			handle_response @error {
+				respond "auth requise" 401
+			}
+		}
+		reverse_proxy 127.0.0.1:8096
+	}
+
+	# 1b. Autres API → serveur applicatif (machine OU humain OU Stripe externe)
 	handle /api/* {
 		reverse_proxy 127.0.0.1:8096
 	}
