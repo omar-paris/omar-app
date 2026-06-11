@@ -1,14 +1,11 @@
-# app.omar.paris — OAuth Google (réplique doctrine oauth-oa.md / config JAB CCC2)
-# Décision Alex 10 juin : OAuth Google partout, basic_auth abandonné.
-# Ordre des handle (Caddy = premier match gagne) :
-#   1. /api/*    → serveur applicatif (auth propre : Bearer/public/Stripe-sig) — AVANT le bypass machine
-#   2. /oauth2/* → oauth2-proxy
-#   3. @machine  → portail statique sans OAuth (sondes QG tailnet+token)
-#   4. reste     → OAuth Google obligatoire
+# app.omar.paris — Portail unifié OA App (Fable, 11 juin)
+# UN SEUL portail servi par le serveur applicatif (:8096) — fini les collisions build.py.
+# OAuth Google sur tout le portail ; /api/* a son auth propre ; sondes machine bypassent.
+# Ordre des handle (Caddy = premier match gagne).
 app.omar.paris {
 	import security_headers
 
-	# 1a. API ADMIN → OAuth obligatoire (édition catalogue/prix) : l'email Google est injecté
+	# API ADMIN → OAuth obligatoire (édition catalogue/prix), email Google injecté
 	handle /api/admin/* {
 		forward_auth 127.0.0.1:4180 {
 			uri /oauth2/auth
@@ -21,42 +18,30 @@ app.omar.paris {
 		reverse_proxy 127.0.0.1:8096
 	}
 
-	# 1b. Autres API → serveur applicatif (machine OU humain OU Stripe externe)
+	# Autres API + assets du portail → serveur (machine, humain, ou Stripe externe)
 	handle /api/* {
 		reverse_proxy 127.0.0.1:8096
 	}
-
-	# 1c. Pages applicatives (devis, admin) servies par le serveur — survivent au build.py.
-	# Derrière OAuth comme le reste du portail.
-	@apppages path /devis /devis/ /admin/catalog /admin/catalog/
-	handle @apppages {
-		forward_auth 127.0.0.1:4180 {
-			uri /oauth2/auth
-			copy_headers X-Auth-Request-Email
-			@error status 401
-			handle_response @error {
-				redir * /oauth2/start?rd={scheme}://{host}{uri} 302
-			}
-		}
+	handle /pages-app/* {
 		reverse_proxy 127.0.0.1:8096
 	}
 
-	# 2. Endpoints oauth2-proxy
+	# Endpoints oauth2-proxy
 	handle /oauth2/* {
 		reverse_proxy 127.0.0.1:4180
 	}
 
-	# 3. Bypass machines : portail statique pour sondes QG (tailnet + token), pas d'OAuth
+	# Sondes machine (tailnet + token) → portail sans OAuth, servi par le serveur
 	@machine {
 		remote_ip 100.64.0.0/10 127.0.0.1/8
 		header X-OA-Token ca5f4565639415534f91e4c0a898cb8181272bc4580e15e8
 	}
 	handle @machine {
-		root * /home/omar/23-Offre/actifs/omar-app/public
-		file_server
+		reverse_proxy 127.0.0.1:8096
 	}
 
-	# 4. Portail : OAuth Google obligatoire
+	# Tout le portail (/, /devis/, /onboarding/, /sav/, /compte/, /aide/, /changelog/, /admin/…)
+	# → OAuth Google obligatoire → serveur applicatif unifié
 	handle {
 		forward_auth 127.0.0.1:4180 {
 			uri /oauth2/auth
@@ -66,7 +51,6 @@ app.omar.paris {
 				redir * /oauth2/start?rd={scheme}://{host}{uri} 302
 			}
 		}
-		root * /home/omar/23-Offre/actifs/omar-app/public
-		file_server
+		reverse_proxy 127.0.0.1:8096
 	}
 }

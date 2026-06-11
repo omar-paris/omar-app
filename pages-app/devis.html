@@ -1,6 +1,7 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Devis — Omar App</title><link rel="stylesheet" href="/assets/styles.css">
+<title>Devis — Omar App</title>
+<script src="/pages-app/_portal.js" defer></script>
 <style>
 .grid{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
 @media(max-width:760px){.grid{grid-template-columns:1fr}}
@@ -18,11 +19,9 @@
 .msg{font-size:12px;margin-top:8px;padding:8px;border-radius:8px}
 .saved{font-size:11px;color:#16a34a;margin-top:6px;min-height:14px}
 </style></head><body>
-<header><div class="bar"><div><div class="brand">Omar App · app.omar.paris</div><div class="meta">Devis · enregistré en continu</div></div>
-<nav class="nav"><a href="/">Accueil</a><a class="active" href="/devis/">Devis</a><a href="/onboarding/">Onboarding</a><a href="/sav/">SAV</a></nav></div></header>
 <main>
 <h1 class="h1" style="margin-bottom:4px">Composez votre solution</h1>
-<p class="summary" style="margin-bottom:8px">Votre sélection est sauvegardée automatiquement — vous pouvez fermer et reprendre via votre lien. Rien n'est payé sans votre accord.</p>
+<p class="sub" style="margin-bottom:8px">Votre sélection est sauvegardée automatiquement — vous pouvez fermer et reprendre via votre lien. Rien n'est payé sans votre accord.</p>
 <div class="grid"><div id="cat"></div>
 <aside class="cart"><h2>Votre devis</h2><div id="lines"><div style="font-size:13px;color:#9ca3af">Aucune sélection</div></div>
 <div class="tot"><span>Mensuel</span><span id="tm">0 &euro;</span></div>

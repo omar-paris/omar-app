@@ -1,0 +1,62 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onboarding — Omar App</title>
+<script src="/pages-app/_portal.js" defer></script>
+<style>
+.ob{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+@media(max-width:780px){.ob{grid-template-columns:1fr}}
+.prog{position:sticky;top:74px}
+.who{display:flex;gap:8px;margin-bottom:12px}
+.who select{flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:9px;font-size:13px}
+.barwrap{height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin:4px 0 14px}
+.bar{height:100%;background:#16a34a;border-radius:99px;transition:.4s}
+.step{display:flex;gap:9px;padding:8px 4px;font-size:13px;align-items:flex-start}
+.dot{width:18px;height:18px;border-radius:99px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;margin-top:1px}
+.d-done{background:#dcfce7;color:#16a34a}.d-cur{background:#fef9c3;color:#a16207}.d-todo{background:#f1f5f9;color:#94a3b8}
+.step.done{color:#334155}.step.todo{color:#94a3b8}
+.chat{min-height:360px;display:flex;flex-direction:column;gap:9px}
+.bub{max-width:85%;padding:10px 14px;border-radius:14px;font-size:14px}
+.bot{background:#fff;border:1px solid #e5e7eb;align-self:flex-start;border-bottom-left-radius:4px}
+.me{background:#2563eb;color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.inrow{display:flex;gap:8px}.inrow input{flex:1;border:1px solid #e5e7eb;border-radius:10px;padding:9px 12px}
+.send{padding:9px 14px;background:#2563eb;color:#fff;border:0;border-radius:10px;cursor:pointer}
+</style></head><body>
+<main>
+<h1 class="h1">Onboarding</h1>
+<p class="sub">L'installation de votre assistant, étape par étape. Suivez l'avancement à gauche, posez vos questions à droite.</p>
+<div class="ob">
+  <aside class="card prog">
+    <div class="who"><select id="client" onchange="loadProg()"></select></div>
+    <div style="font-size:13px;color:#64748b">Avancement <b id="pct">0%</b></div>
+    <div class="barwrap"><div class="bar" id="bar" style="width:0"></div></div>
+    <div id="steps"></div>
+  </aside>
+  <section class="card"><div class="chat" id="chat"></div>
+    <div class="inrow" style="margin-top:10px"><input id="q" placeholder="Une question sur votre configuration…"><button class="send" onclick="ask()">Envoyer</button></div>
+  </section>
+</div></main>
+<script>
+async function init(){
+  const r=await fetch("/api/onboarding/status"); const data=await r.json();
+  const sel=document.getElementById("client");
+  sel.innerHTML=data.clients.map(c=>`<option value="${c.id}">${c.label}</option>`).join("");
+  window._PROG=data; loadProg();
+  bot("Bonjour ! Je vous accompagne dans la configuration. À gauche, vous voyez ce qui est fait et ce qu'il reste. Posez-moi vos questions à tout moment.");
+}
+function loadProg(){
+  const id=document.getElementById("client").value;
+  const c=window._PROG.clients.find(x=>x.id===id);
+  const done=c.steps.filter(s=>s.statut==="done").length, pct=Math.round(100*done/c.steps.length);
+  document.getElementById("pct").textContent=pct+"%"; document.getElementById("bar").style.width=pct+"%";
+  document.getElementById("steps").innerHTML=c.steps.map(s=>{
+    const cls=s.statut==="done"?"done":(s.statut==="cur"?"cur":"todo");
+    const dot=s.statut==="done"?'<span class="dot d-done">✓</span>':(s.statut==="cur"?'<span class="dot d-cur">●</span>':'<span class="dot d-todo">○</span>');
+    return `<div class="step ${cls}">${dot}<div>${s.label}${s.note?`<div style="font-size:11px;color:#94a3b8">${s.note}</div>`:""}</div></div>`;
+  }).join("");
+}
+function bot(t){const c=document.getElementById("chat");c.insertAdjacentHTML("beforeend",`<div class="bub bot">${t}</div>`);c.scrollTop=c.scrollHeight;}
+function me(t){const c=document.getElementById("chat");c.insertAdjacentHTML("beforeend",`<div class="bub me">${t}</div>`);c.scrollTop=c.scrollHeight;}
+function ask(){const i=document.getElementById("q");if(!i.value.trim())return;me(i.value);const q=i.value;i.value="";
+  setTimeout(()=>bot("Bonne question. Pour l'instant je vous oriente : regardez l'avancement à gauche. Bientôt je répondrai précisément (assistant en cours d'activation). En attendant, le SAV permet de vérifier votre VPS en direct."),400);}
+init();
+</script></body></html>

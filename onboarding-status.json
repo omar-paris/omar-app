@@ -1,0 +1,31 @@
+{
+  "clients": [
+    {
+      "id": "jab", "label": "JAB — Cabinet Bouboutou (en cours)",
+      "steps": [
+        {"label": "VPS provisionné + Tailscale", "statut": "done"},
+        {"label": "Caddy + domaine bouboutou-avocats.com", "statut": "done"},
+        {"label": "OAuth Google (index/clients/chat)", "statut": "done", "note": "validé 10 juin"},
+        {"label": "Hermes — agent Edilia", "statut": "done"},
+        {"label": "CRM clients/projets/factures", "statut": "cur", "note": "en construction, spec V0.2"},
+        {"label": "Nango (emails/contacts du cabinet)", "statut": "cur", "note": "connexion à valider"},
+        {"label": "Arborescence OneDrive + checklists documents", "statut": "todo"},
+        {"label": "Boucle de relance documents manquants", "statut": "todo"},
+        {"label": "Infisical client (ses secrets)", "statut": "todo"},
+        {"label": "Hub local + formation JA", "statut": "todo"}
+      ]
+    },
+    {
+      "id": "pantheos", "label": "Alex — VPS Pantheos (perso)",
+      "steps": [
+        {"label": "Audit read-only + swap", "statut": "done"},
+        {"label": "Hermes — agent H-Aurel", "statut": "done", "note": "actif 10 juin"},
+        {"label": "Bot Telegram @aurel_h_pan_bot", "statut": "done"},
+        {"label": "Provider modèle (OpenRouter)", "statut": "cur", "note": "à recharger"},
+        {"label": "Identité Agora pan-aurel", "statut": "todo"},
+        {"label": "Hub local + Caddy tailnet", "statut": "todo"},
+        {"label": "oa-doctor + backups", "statut": "todo"}
+      ]
+    }
+  ]
+}

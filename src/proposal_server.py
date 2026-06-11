@@ -248,6 +248,15 @@ class ProposalHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: Any) -> None:
         sys.stderr.write("proposal_server " + fmt % args + "\n")
 
+    def _serve_file(self, fp: Path, ctype: str) -> None:
+        body = fp.read_bytes()
+        self.send_response(200)
+        self.send_header("content-type", ctype)
+        self.send_header("content-length", str(len(body)))
+        self.send_header("cache-control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
     def authorized(self) -> bool:
         expected = self.server.api_token  # type: ignore[attr-defined]
         header = self.headers.get("authorization", "")
@@ -270,21 +279,36 @@ class ProposalHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
-        # Pages applicatives servies par le serveur (hors build.py → survivent au rebuild)
-        APP_PAGES = {"/devis/": "devis.html", "/devis": "devis.html",
-                     "/admin/catalog/": "admin-catalog.html", "/admin/catalog": "admin-catalog.html"}
-        page_file = APP_PAGES.get(self.path.split("?", 1)[0])
+        path = self.path.split("?", 1)[0]
+        # Portail unifié — pages servies par le serveur (hors build.py → survivent au rebuild)
+        APP_PAGES = {
+            "/": "home.html",
+            "/devis/": "devis.html", "/devis": "devis.html",
+            "/onboarding/": "onboarding.html", "/onboarding": "onboarding.html",
+            "/sav/": "sav.html", "/sav": "sav.html",
+            "/compte/": "compte.html", "/compte": "compte.html",
+            "/aide/": "aide.html", "/aide": "aide.html",
+            "/changelog/": "changelog.html", "/changelog": "changelog.html",
+            "/admin/catalog/": "admin-catalog.html", "/admin/catalog": "admin-catalog.html",
+        }
+        page_file = APP_PAGES.get(path)
         if page_file:
             fp = ROOT / "pages-app" / page_file
             if fp.exists():
-                body = fp.read_bytes()
-                self.send_response(200)
-                self.send_header("content-type", "text/html; charset=utf-8")
-                self.send_header("content-length", str(len(body)))
-                self.send_header("cache-control", "no-store")
-                self.end_headers()
-                self.wfile.write(body)
+                self._serve_file(fp, "text/html; charset=utf-8")
                 return
+        # assets du portail (_portal.js)
+        if path.startswith("/pages-app/") and path.endswith(".js"):
+            fp = ROOT / "pages-app" / Path(path).name
+            if fp.exists():
+                self._serve_file(fp, "application/javascript; charset=utf-8")
+                return
+        if path == "/api/onboarding/status":
+            try:
+                self.send_json(200, json.loads((ROOT / "onboarding-status.json").read_text(encoding="utf-8")))
+            except Exception:
+                self.send_json(200, {"clients": []})
+            return
         if self.path == "/api/health":
             self.send_json(200, {"ok": True, "service": "omar-app-proposals", "version": "V0.4.0"})
             return
