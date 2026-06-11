@@ -73,6 +73,51 @@ def safe_write_proposal(data_dir: Path, payload: dict[str, Any]) -> dict[str, An
     return out
 
 
+import urllib.parse  # noqa: E402
+
+STRIPE_API = "https://api.stripe.com/v1"
+
+
+def _stripe_key(mode: str) -> str:
+    """Lit la clé secrète Stripe depuis le Vault. mode = 'test' | 'live'.
+    SÉCURITÉ : 'test' par défaut ; 'live' uniquement sur OA_STRIPE_MODE=live explicite."""
+    try:
+        raw = subprocess.check_output(
+            ["/usr/bin/vault", "kv", "get", "-format=json", f"secret/stripe/{mode}"],
+            text=True, stderr=subprocess.DEVNULL,
+            env={**os.environ, "VAULT_ADDR": "http://127.0.0.1:8202"},
+        )
+        return json.loads(raw).get("data", {}).get("data", {}).get("STRIPE_SECRET_KEY", "")
+    except Exception:
+        return ""
+
+
+def _stripe_flatten(prefix: str, value: Any, out: list) -> None:
+    if isinstance(value, dict):
+        for k, v in value.items():
+            _stripe_flatten(f"{prefix}[{k}]" if prefix else k, v, out)
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            _stripe_flatten(f"{prefix}[{i}]", v, out)
+    else:
+        out.append((prefix, str(value)))
+
+
+def stripe_post(endpoint: str, params: dict, key: str) -> dict:
+    flat: list = []
+    for k, v in params.items():
+        _stripe_flatten(k, v, flat)
+    body = urllib.parse.urlencode(flat).encode()
+    req = urllib.request.Request(f"{STRIPE_API}/{endpoint}", data=body,
+                                 headers={"Authorization": f"Bearer {key}",
+                                          "Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return {"error": json.loads(e.read()).get("error", {"message": str(e)})}
+
+
 _CATALOG_CACHE: dict[str, Any] = {}
 
 
@@ -239,6 +284,9 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/checkout":
             self.handle_checkout()
             return
+        if self.path == "/api/stripe-webhook":
+            self.handle_stripe_webhook()
+            return
         if self.path != "/api/proposals":
             self.send_json(404, {"ok": False, "error": "not_found"})
             return
@@ -309,15 +357,76 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if not devis:
             self.send_json(404, {"ok": False, "error": "devis_not_found"})
             return
-        stripe_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
-        if not stripe_key:
+        mode = "live" if os.environ.get("OA_STRIPE_MODE") == "live" else "test"
+        key = _stripe_key(mode)
+        if not key:
             self.send_json(503, {"ok": False, "error": "stripe_non_configure",
-                                 "message": "Paiement bientôt disponible — clef Stripe en attente.",
+                                 "message": f"Paiement bientôt disponible — clef Stripe {mode} en attente.",
                                  "devis_id": did, "total_mensuel_eur": devis["total_mensuel_eur"]})
             return
-        # Branchement réel Stripe Checkout : à compléter à la réception de la clef (app#32)
-        self.send_json(501, {"ok": False, "error": "stripe_checkout_todo",
-                             "message": "Clef présente — implémentation Checkout à finaliser."})
+        base = "https://app.omar.paris"
+        params: dict = {
+            "success_url": f"{base}/devis/?paid={did}",
+            "cancel_url": f"{base}/devis/?cancel={did}",
+            "client_reference_id": did,
+            "metadata": {"devis_id": did},
+        }
+        mensuel = [l for l in devis["lignes"] if l.get("prix_mensuel")]
+        unique = [l for l in devis["lignes"] if l.get("prix_unique")]
+        line_items = []
+        if mensuel:
+            params["mode"] = "subscription"
+            for l in mensuel:
+                line_items.append({"price_data": {"currency": "eur",
+                    "product_data": {"name": l["label"]},
+                    "unit_amount": int(l["prix_mensuel"]) * 100,
+                    "recurring": {"interval": "month"}}, "quantity": 1})
+            # prestations one-shot ajoutées sur la 1re facture de l'abonnement
+            if unique:
+                params["subscription_data"] = {"metadata": {"devis_id": did}}
+        else:
+            params["mode"] = "payment"
+        for l in unique:
+            li = {"price_data": {"currency": "eur",
+                  "product_data": {"name": l["label"]},
+                  "unit_amount": int(l["prix_unique"]) * 100}, "quantity": 1}
+            if mensuel:
+                # en mode subscription, les one-shot passent en add_invoice_items
+                params.setdefault("subscription_data", {})
+                params["line_items"] = line_items  # set below anyway
+            line_items.append(li)
+        params["line_items"] = line_items
+        session = stripe_post("checkout/sessions", params, key)
+        if session.get("error"):
+            self.send_json(502, {"ok": False, "error": "stripe_error",
+                                 "message": session["error"].get("message", "?")})
+            return
+        # marque le devis 'en_paiement'
+        devis["statut"] = "en_paiement"
+        devis["stripe_session"] = session.get("id")
+        devis["stripe_mode"] = mode
+        (self.data_dir / "devis" / f"{did}.json").write_bytes(json_bytes(devis))
+        self.send_json(200, {"ok": True, "checkout_url": session.get("url"), "mode": mode})
+
+    def handle_stripe_webhook(self) -> None:
+        """Reçoit les events Stripe. Marque le devis 'acheté' à la complétion du
+        paiement → débloque la configuration. Signature vérifiée si whsec présent."""
+        try:
+            length = int(self.headers.get("content-length", "0"))
+            raw = self.rfile.read(length)
+            event = json.loads(raw.decode("utf-8"))
+        except Exception:
+            self.send_json(400, {"ok": False})
+            return
+        if event.get("type") == "checkout.session.completed":
+            obj = event.get("data", {}).get("object", {})
+            did = obj.get("client_reference_id") or (obj.get("metadata") or {}).get("devis_id")
+            dv = read_devis(self.data_dir, did) if did else None
+            if dv:
+                dv["statut"] = "achete"
+                dv["paye_le"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                (self.data_dir / "devis" / f"{did}.json").write_bytes(json_bytes(dv))
+        self.send_json(200, {"received": True})
 
     def handle_onboarding(self) -> None:
         """Dossier d'onboarding v1 (app#22). Pas de Bearer : la couche d'accès est

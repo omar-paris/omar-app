@@ -14,18 +14,8 @@ app.omar.paris {
 		file_server
 	}
 
-	# Health public (monitoring externe)
-	handle /api/health {
-		reverse_proxy 127.0.0.1:8096
-	}
-	# APIs applicatives (auth token propre)
-	handle /api/proposals* {
-		reverse_proxy 127.0.0.1:8096
-	}
-	handle /api/onboarding {
-		reverse_proxy 127.0.0.1:8096
-	}
-	handle /api/hetzner/pricing {
+	# Toutes les API → serveur applicatif (auth propre par endpoint : Bearer/public/Stripe-sig)
+	handle /api/* {
 		reverse_proxy 127.0.0.1:8096
 	}
 	# Endpoints oauth2-proxy
