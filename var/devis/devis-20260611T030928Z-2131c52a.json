@@ -1,0 +1,24 @@
+{
+  "id": "devis-20260611T030928Z-2131c52a",
+  "created_at": "2026-06-11T03:09:28Z",
+  "client": {},
+  "lignes": [
+    {
+      "id": "formule-pro",
+      "label": "Formule Pro",
+      "prix_mensuel": 99,
+      "prix_unique": null
+    },
+    {
+      "id": "mod-crm",
+      "label": "Module CRM",
+      "prix_mensuel": 25,
+      "prix_unique": null
+    }
+  ],
+  "total_mensuel_eur": 124,
+  "total_unique_eur": 0,
+  "devise": "EUR",
+  "statut": "brouillon",
+  "updated_at": "2026-06-11T03:09:28Z"
+}

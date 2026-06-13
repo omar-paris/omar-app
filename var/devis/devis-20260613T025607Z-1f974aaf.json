@@ -1,0 +1,18 @@
+{
+  "id": "devis-20260613T025607Z-1f974aaf",
+  "created_at": "2026-06-13T02:56:07Z",
+  "client": {},
+  "lignes": [
+    {
+      "id": "formule-pro",
+      "label": "Formule Pro",
+      "prix_mensuel": 99,
+      "prix_unique": null
+    }
+  ],
+  "total_mensuel_eur": 99,
+  "total_unique_eur": 0,
+  "devise": "EUR",
+  "statut": "brouillon",
+  "updated_at": "2026-06-13T02:56:09Z"
+}
