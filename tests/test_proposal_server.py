@@ -9,6 +9,9 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+# Token d'API requis depuis app#13 (refus de démarrer sans auth >=32 chars).
+API_TOKEN = "x" * 40
+AUTH_HEADERS = {"content-type": "application/json", "authorization": f"Bearer {API_TOKEN}"}
 
 
 def free_port() -> int:
@@ -18,6 +21,7 @@ def free_port() -> int:
 
 
 def start_server(tmp_path: Path):
+    import os
     port = free_port()
     proc = subprocess.Popen(
         ["python3", "src/proposal_server.py", "--host", "127.0.0.1", "--port", str(port), "--data-dir", str(tmp_path)],
@@ -25,6 +29,7 @@ def start_server(tmp_path: Path):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        env={**os.environ, "OA_PROPOSALS_TOKEN": API_TOKEN},
     )
     deadline = time.time() + 5
     while time.time() < deadline:
@@ -40,9 +45,10 @@ def start_server(tmp_path: Path):
     raise AssertionError("server did not become ready")
 
 
-def request_json(method: str, url: str, payload: dict | None = None):
+def request_json(method: str, url: str, payload: dict | None = None, headers: dict | None = None):
     data = None if payload is None else json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method=method, headers={"content-type": "application/json"})
+    req = urllib.request.Request(url, data=data, method=method,
+                                 headers=headers or {"content-type": "application/json"})
     with urllib.request.urlopen(req, timeout=3) as response:
         return response.status, json.loads(response.read().decode("utf-8"))
 
@@ -58,7 +64,7 @@ def test_proposal_api_stores_pending_human_go_json_without_secrets(tmp_path):
             "apps_l1": [{"slug": "hub"}],
             "safety": {"paid_actions": "none"},
         }
-        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/proposals", payload)
+        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/proposals", payload, AUTH_HEADERS)
         assert status == 201
         assert created["ok"] is True
         assert created["proposal"]["status"] == "pending_human_go"
@@ -70,7 +76,7 @@ def test_proposal_api_stores_pending_human_go_json_without_secrets(tmp_path):
         for forbidden in ["HCLOUD_TOKEN", "Authorization", "Bearer ", "sk-"]:
             assert forbidden not in stored_text
 
-        get_status, fetched = request_json("GET", f"http://127.0.0.1:{port}/api/proposals/{created['proposal']['id']}")
+        get_status, fetched = request_json("GET", f"http://127.0.0.1:{port}/api/proposals/{created['proposal']['id']}", None, AUTH_HEADERS)
         assert get_status == 200
         assert fetched["proposal"]["hetzner_payload"]["create_server_payload"]["server_type"] == "cax21"
     finally:
@@ -91,7 +97,7 @@ def test_proposal_api_rejects_paid_or_invalid_payloads(tmp_path):
             f"http://127.0.0.1:{port}/api/proposals",
             data=json.dumps(bad).encode("utf-8"),
             method="POST",
-            headers={"content-type": "application/json"},
+            headers=AUTH_HEADERS,
         )
         try:
             urllib.request.urlopen(req, timeout=3)
