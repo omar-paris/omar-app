@@ -147,3 +147,17 @@ def test_changelog_exists_and_no_secret_like_literals_are_exposed():
     forbidden = [r"sk-[A-Za-z0-9]", r"plane_api_[a-f0-9]", r"BEGIN (RSA|OPENSSH) PRIVATE KEY", r"POSTGRES_PASSWORD="]
     for pattern in forbidden:
         assert not re.search(pattern, all_text), pattern
+
+
+def test_caddy_protects_multitenant_api_before_generic_api_bypass():
+    """Les endpoints qui consomment X-Auth-Request-Email doivent passer par
+    forward_auth avant le handle générique /api/*, sinon le header est forgeable.
+    """
+    caddy = (ROOT / "deploy" / "app.omar.paris.caddy").read_text(encoding="utf-8")
+    generic_pos = caddy.index("handle /api/*")
+    for route in ("/api/onboarding/status", "/api/sav/status"):
+        block_start = caddy.index(f"handle {route}")
+        assert block_start < generic_pos
+        block = caddy[block_start:generic_pos]
+        assert "forward_auth 127.0.0.1:4180" in block
+        assert "copy_headers X-Auth-Request-User X-Auth-Request-Email" in block

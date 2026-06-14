@@ -18,6 +18,31 @@ app.omar.paris {
 		reverse_proxy 127.0.0.1:8096
 	}
 
+	# API client multi-tenant → OAuth obligatoire : ces endpoints consomment
+	# X-Auth-Request-Email et ne doivent jamais accepter un header forgé par le navigateur.
+	handle /api/onboarding/status {
+		forward_auth 127.0.0.1:4180 {
+			uri /oauth2/auth
+			copy_headers X-Auth-Request-User X-Auth-Request-Email
+			@error status 401
+			handle_response @error {
+				respond "auth requise" 401
+			}
+		}
+		reverse_proxy 127.0.0.1:8096
+	}
+	handle /api/sav/status {
+		forward_auth 127.0.0.1:4180 {
+			uri /oauth2/auth
+			copy_headers X-Auth-Request-User X-Auth-Request-Email
+			@error status 401
+			handle_response @error {
+				respond "auth requise" 401
+			}
+		}
+		reverse_proxy 127.0.0.1:8096
+	}
+
 	# Autres API + assets du portail → serveur (machine, humain, ou Stripe externe)
 	handle /api/* {
 		reverse_proxy 127.0.0.1:8096
