@@ -26,6 +26,60 @@ DEFAULT_DATA_DIR = ROOT / "var"
 PROPOSAL_ID_RE = re.compile(r"^proposal-(?:[0-9a-f]{32}|[0-9]{8}T[0-9]{6}Z)-[a-z0-9-]+$")
 SECRET_PATTERNS = ["HCLOUD_TOKEN", "Authorization", "Bearer ", "sk-"]
 
+# Annuaire des clients (app-emails.txt par client) — racine surchargeable pour les
+# tests. Sert au mapping email authentifié -> client (isolation multi-tenant app#13/#14).
+DEFAULT_CLIENTS_DIR = Path(os.environ.get("OA_CLIENTS_DIR", "/home/omar/clients"))
+# Artefacts Hub en lecture seule pour l'état de santé SAV (jamais de SSH/mutation).
+DEFAULT_HUB_API_DIR = Path(
+    os.environ.get("OA_HUB_API_DIR", str(ROOT.parent / "omar-hub" / "public" / "api"))
+)
+_CLIENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
+
+def admin_emails() -> set[str]:
+    return {
+        e.strip().lower()
+        for e in os.environ.get("OA_ADMIN_EMAILS", "alexwillemetz@gmail.com").split(",")
+        if e.strip()
+    }
+
+
+def load_email_to_client(clients_dir: Path) -> dict[str, str]:
+    """Construit le mapping email -> client_id en lisant clients/<id>/app-emails.txt.
+    Les lignes vides et commentaires (#) sont ignorés. Casse normalisée en minuscules."""
+    mapping: dict[str, str] = {}
+    try:
+        entries = sorted(clients_dir.iterdir())
+    except OSError:
+        return mapping
+    for child in entries:
+        if not child.is_dir():
+            continue
+        cid = child.name
+        if cid.startswith("_") or not _CLIENT_ID_RE.match(cid):
+            continue
+        emails_file = child / "app-emails.txt"
+        if not emails_file.exists():
+            continue
+        try:
+            lines = emails_file.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for raw in lines:
+            line = raw.strip().lower()
+            if not line or line.startswith("#"):
+                continue
+            mapping.setdefault(line, cid)
+    return mapping
+
+
+def resolve_client_id(clients_dir: Path, email: str) -> str | None:
+    """Retourne le client_id propriétaire de l'email authentifié, ou None si inconnu."""
+    email = (email or "").strip().lower()
+    if not email:
+        return None
+    return load_email_to_client(clients_dir).get(email)
+
 
 def json_bytes(payload: dict[str, Any]) -> bytes:
     return json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
@@ -238,12 +292,108 @@ def pricing_payload() -> dict[str, Any]:
     }
 
 
+DEFAULT_ONBOARDING_FILE = ROOT / "onboarding-status.json"
+
+
+def load_onboarding_status(onboarding_file: Path | None = None) -> dict[str, Any]:
+    """Lit onboarding-status.json (tous clients). Jamais exposé tel quel : toujours
+    filtré par client authentifié avant envoi."""
+    path = onboarding_file or DEFAULT_ONBOARDING_FILE
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"clients": []}
+
+
+def filter_onboarding_for_client(client_id: str | None, *, all_clients: bool,
+                                 onboarding_file: Path | None = None) -> dict[str, Any]:
+    """Isolation multi-tenant (app#13/#14) : ne renvoie QUE le dossier du client
+    authentifié. Admin (all_clients) voit tout. Email inconnu -> liste vide."""
+    data = load_onboarding_status(onboarding_file)
+    clients = data.get("clients") or []
+    if all_clients:
+        return {"clients": clients}
+    if not client_id:
+        return {"clients": []}
+    return {"clients": [c for c in clients if c.get("id") == client_id]}
+
+
+def _hub_client_vps_state(hub_api_dir: Path, client_id: str) -> str | None:
+    """État du VPS client tel que mesuré par le Hub (lecture seule de
+    maturity-omar.json). Renvoie ex 'green'/'indeterminate' ou None si absent."""
+    path = hub_api_dir / "maturity-omar.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    fields = data.get("maturity_fields") or {}
+    val = fields.get(f"client_vps_{client_id}")
+    return str(val) if val is not None else None
+
+
+def sav_status_payload(clients_dir: Path, hub_api_dir: Path, email: str,
+                       onboarding_file: Path | None = None) -> dict[str, Any]:
+    """État de santé SAV du VPS du client CONNECTÉ — read-only, sans SSH ni mutation.
+    Agrège : avancement onboarding (onboarding-status.json) + état mesuré par le Hub
+    (maturity-omar.json client_vps_<id>). Email inconnu -> ok:False, data vides."""
+    client_id = resolve_client_id(clients_dir, email)
+    if not client_id:
+        return {"ok": False, "error": "unknown_client", "vps": None,
+                "steps": [], "summary": "Aucun VPS associé à votre compte."}
+    filtered = filter_onboarding_for_client(client_id, all_clients=False,
+                                            onboarding_file=onboarding_file)
+    dossier = (filtered["clients"] or [{}])[0]
+    steps = dossier.get("steps") or []
+    done = sum(1 for s in steps if s.get("statut") == "done")
+    total = len(steps)
+    pct = round(100 * done / total) if total else 0
+    hub_state = _hub_client_vps_state(hub_api_dir, client_id)
+    # statut global lisible client, dérivé d'artefacts existants uniquement
+    if hub_state in {"green", "healthy", "ok"}:
+        health = "healthy"
+    elif hub_state in {"red", "blocked"}:
+        health = "attention"
+    elif total and done == total:
+        health = "healthy"
+    elif done:
+        health = "en_cours"
+    else:
+        health = "indetermine"
+    return {
+        "ok": True,
+        "vps": {"client_id": client_id, "label": dossier.get("label", client_id)},
+        "health": health,
+        "hub_measured_state": hub_state,  # peut être None si le Hub n'a pas mesuré
+        "onboarding": {"done": done, "total": total, "pct": pct},
+        "steps": steps,
+        "source": "onboarding-status.json + Hub maturity-omar.json (read-only)",
+        "read_only": True,
+    }
+
+
 class ProposalHandler(BaseHTTPRequestHandler):
     server_version = "OmarAppProposalServer/0.3"
 
     @property
     def data_dir(self) -> Path:
         return self.server.data_dir  # type: ignore[attr-defined]
+
+    @property
+    def clients_dir(self) -> Path:
+        return self.server.clients_dir  # type: ignore[attr-defined]
+
+    @property
+    def hub_api_dir(self) -> Path:
+        return self.server.hub_api_dir  # type: ignore[attr-defined]
+
+    @property
+    def onboarding_file(self) -> Path:
+        return self.server.onboarding_file  # type: ignore[attr-defined]
+
+    def auth_email(self) -> str:
+        """Email authentifié injecté par le forward_auth OAuth en amont (vhost).
+        En dehors de ce chemin, l'en-tête est absent -> chaîne vide."""
+        return self.headers.get("X-Auth-Request-Email", "").strip().lower()
 
     def log_message(self, fmt: str, *args: Any) -> None:
         sys.stderr.write("proposal_server " + fmt % args + "\n")
@@ -304,10 +454,23 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 self._serve_file(fp, "application/javascript; charset=utf-8")
                 return
         if path == "/api/onboarding/status":
-            try:
-                self.send_json(200, json.loads((ROOT / "onboarding-status.json").read_text(encoding="utf-8")))
-            except Exception:
-                self.send_json(200, {"clients": []})
+            # Isolation multi-tenant (app#13/#14) : un client connecté ne voit QUE
+            # son propre dossier. L'email vient du forward_auth OAuth amont.
+            email = self.auth_email()
+            is_admin = bool(email) and email in admin_emails()
+            client_id = resolve_client_id(self.clients_dir, email)
+            self.send_json(
+                200, filter_onboarding_for_client(
+                    client_id, all_clients=is_admin, onboarding_file=self.onboarding_file)
+            )
+            return
+        if path == "/api/sav/status":
+            # SAV read-only : santé du VPS du client connecté, lue d'artefacts
+            # existants (onboarding-status.json + Hub maturity-omar.json). Pas de SSH.
+            email = self.auth_email()
+            payload = sav_status_payload(self.clients_dir, self.hub_api_dir, email,
+                                         onboarding_file=self.onboarding_file)
+            self.send_json(200 if payload.get("ok") else 403, payload)
             return
         if self.path == "/api/health":
             self.send_json(200, {"ok": True, "service": "omar-app-proposals", "version": "V0.4.0"})
@@ -581,12 +744,18 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8096)
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
+    parser.add_argument("--clients-dir", type=Path, default=DEFAULT_CLIENTS_DIR)
+    parser.add_argument("--hub-api-dir", type=Path, default=DEFAULT_HUB_API_DIR)
+    parser.add_argument("--onboarding-file", type=Path, default=DEFAULT_ONBOARDING_FILE)
     args = parser.parse_args()
     api_token = os.environ.get("OA_PROPOSALS_TOKEN", "").strip()
     if len(api_token) < 32:
         sys.exit("OA_PROPOSALS_TOKEN manquant ou trop court (>=32 chars requis) — refus de démarrer sans auth (app#13)")
     server = ReusableServer((args.host, args.port), ProposalHandler)
     server.data_dir = args.data_dir  # type: ignore[attr-defined]
+    server.clients_dir = args.clients_dir  # type: ignore[attr-defined]
+    server.hub_api_dir = args.hub_api_dir  # type: ignore[attr-defined]
+    server.onboarding_file = args.onboarding_file  # type: ignore[attr-defined]
     server.api_token = api_token  # type: ignore[attr-defined]
     args.data_dir.mkdir(parents=True, exist_ok=True)
     print(f"serving omar-app proposals on http://{args.host}:{args.port} data={args.data_dir}", flush=True)

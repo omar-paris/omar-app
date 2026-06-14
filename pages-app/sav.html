@@ -1,17 +1,74 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAV — Omar App</title>
-<script src="/pages-app/_portal.js" defer></script></head><body>
+<script src="/pages-app/_portal.js" defer></script>
+<style>
+.sav-state{margin:0 0 22px;padding:16px 18px;border-radius:14px;border:1px solid var(--line);background:#fff}
+.sav-badge{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:14px;padding:5px 12px;border-radius:999px}
+.s-healthy{background:#dcfce7;color:#16a34a}.s-encours{background:#fef9c3;color:#a16207}
+.s-attention{background:#fee2e2;color:#dc2626}.s-indet{background:#f1f5f9;color:#64748b}
+.sav-bar{height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin:12px 0 6px}
+.sav-bar>span{display:block;height:100%;background:#16a34a;border-radius:99px}
+.sav-steps{list-style:none;padding:0;margin:10px 0 0;font-size:13px}
+.sav-steps li{display:flex;gap:8px;padding:4px 0;color:#334155}
+.sav-steps .st-todo{color:#94a3b8}
+</style></head><body>
 <main>
   <h1 class="h1">SAV — maintenance de votre VPS</h1>
-  <p class="sub">Vérifiez et corrigez votre installation à distance. Chaque action sensible vous demande votre accord avant d'être appliquée.</p>
+  <p class="sub">Vérifiez votre installation à distance. L'état ci-dessous est lu en direct, en lecture seule (aucune action n'est appliquée sans votre accord).</p>
+
+  <div class="sav-state" id="state" aria-live="polite">
+    <span class="sav-badge s-indet">Chargement de l'état…</span>
+  </div>
+
   <div class="cards">
     <div class="card"><h3 style="margin:0 0 6px">🔍 Vérifier mon installation</h3>
-      <p style="color:#64748b;font-size:14px">Un diagnostic complet de votre VPS : services, sécurité, sauvegardes, standards OA.</p>
-      <button class="btn pri" onclick="alert('Connexion à votre VPS requise — agent SAV en cours (app#31).')">Lancer le diagnostic</button></div>
+      <p style="color:#64748b;font-size:14px">Un diagnostic de votre VPS : services, sécurité, sauvegardes, standards OA.</p>
+      <button class="btn pri" id="btn-diag" onclick="loadStatus()">Rafraîchir le diagnostic</button></div>
     <div class="card"><h3 style="margin:0 0 6px">🛠️ Réparer / reconfigurer</h3>
       <p style="color:#64748b;font-size:14px">Un agent inspecte et corrige, en vous expliquant chaque étape et en demandant confirmation avant toute action.</p>
-      <button class="btn" onclick="alert('Bientôt disponible — agent SAV (app#31).')">Demander une intervention</button></div>
+      <button class="btn" id="btn-fix" disabled title="Bientôt disponible (app#31)">Demander une intervention (bientôt)</button></div>
   </div>
   <p class="sub" style="margin-top:22px">Le SAV est aussi un assistant : posez vos questions sur l'état de votre système.</p>
-</main></body></html>
+</main>
+<script>
+const BADGE = {
+  healthy:  ["s-healthy",  "✓ Votre VPS est en bonne santé"],
+  en_cours: ["s-encours",  "● Installation en cours"],
+  attention:["s-attention","⚠ Un point demande attention"],
+  indetermine:["s-indet",  "○ État non encore mesuré"],
+};
+function render(d){
+  const el = document.getElementById("state");
+  if(!d || d.ok === false){
+    el.innerHTML = '<span class="sav-badge s-indet">Aucun VPS associé à votre compte</span>'
+      + '<p style="margin:10px 0 0;color:#64748b;font-size:14px">'
+      + ((d && d.summary) || "Connectez-vous avec le compte fourni par Omar.") + '</p>';
+    return;
+  }
+  const [cls, label] = BADGE[d.health] || BADGE.indetermine;
+  const ob = d.onboarding || {done:0,total:0,pct:0};
+  const steps = (d.steps || []).map(s => {
+    const done = s.statut === "done";
+    const cur = s.statut === "cur";
+    const icon = done ? "✓" : (cur ? "●" : "○");
+    return `<li class="${done?'':'st-todo'}">${icon} ${s.label}${s.note?` <span style="color:#94a3b8">— ${s.note}</span>`:""}</li>`;
+  }).join("");
+  el.innerHTML =
+    `<span class="sav-badge ${cls}">${label}</span>`
+    + `<div style="margin-top:10px;font-size:13px;color:#64748b">VPS : <b>${(d.vps&&d.vps.label)||"—"}</b> · avancement ${ob.pct}% (${ob.done}/${ob.total})</div>`
+    + `<div class="sav-bar"><span style="width:${ob.pct}%"></span></div>`
+    + `<ul class="sav-steps">${steps}</ul>`
+    + `<p style="margin:10px 0 0;font-size:11px;color:#94a3b8">Lecture seule — source : ${d.source||""}</p>`;
+}
+async function loadStatus(){
+  try{
+    const r = await fetch("/api/sav/status", {headers:{accept:"application/json"}});
+    render(await r.json());
+  }catch(e){
+    document.getElementById("state").innerHTML =
+      '<span class="sav-badge s-attention">Impossible de récupérer l\'état</span>';
+  }
+}
+loadStatus();
+</script></body></html>
