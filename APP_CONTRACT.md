@@ -103,6 +103,8 @@ Pack OA Start
 - Pas de secrets en clair.
 - Pas de données inter-tenant visibles.
 - Les tokens/API keys ne sont jamais stockés dans le repo.
+- Les secrets runtime `omar-app` doivent venir soit d'une injection directe du superviseur, soit d'un token Vault service-scopé (`OA_APP_VAULT_TOKEN` ou `OA_APP_VAULT_TOKEN_FILE`) ; le token root/opérateur `/home/omar/.vault-token` est interdit côté runner applicatif.
+- Les chemins Vault applicatifs autorisés sont documentés dans `docs/security/vault-policies.md` et limités à Stripe test/live + Hetzner pricing read-only.
 
 ## Data model draft
 

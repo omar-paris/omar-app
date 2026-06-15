@@ -21,10 +21,19 @@ sys.path.insert(0, str(ROOT / "src"))
 from site_data import OA_START_PACKS  # noqa: E402
 
 DEFAULT_DATA_DIR = ROOT / "var"
+DEFAULT_VAULT_ADDR = os.environ.get("OA_APP_VAULT_ADDR", os.environ.get("VAULT_ADDR", "http://127.0.0.1:8202"))
+DEFAULT_VAULT_TOKEN_FILE = Path(
+    os.environ.get("OA_APP_VAULT_TOKEN_FILE", "/home/omar/.config/omar-app/vault-token")
+)
 # UUID hex (V0.3.1, app#14 non-enumerable) + ancien format timestamp (lecture des
 # propositions déjà stockées uniquement)
 PROPOSAL_ID_RE = re.compile(r"^proposal-(?:[0-9a-f]{32}|[0-9]{8}T[0-9]{6}Z)-[a-z0-9-]+$")
 SECRET_PATTERNS = ["HCLOUD_TOKEN", "Authorization", "Bearer ", "sk-"]
+ALLOWED_VAULT_FIELDS = {
+    "secret/stripe/test": {"STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"},
+    "secret/stripe/live": {"STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"},
+    "secret/integrations/hetzner/test": {"HCLOUD_TOKEN"},
+}
 
 # Annuaire des clients (app-emails.txt par client) — racine surchargeable pour les
 # tests. Sert au mapping email authentifié -> client (isolation multi-tenant app#13/#14).
@@ -133,17 +142,47 @@ import urllib.parse  # noqa: E402
 STRIPE_API = "https://api.stripe.com/v1"
 
 
-def _stripe_secret(mode: str, field: str) -> str:
-    """Lit un champ de secret/stripe/<mode> dans le Vault."""
+def _app_vault_token() -> str:
+    """Token Vault dédié omar-app. N'utilise jamais le token root utilisateur implicite."""
+    token = os.environ.get("OA_APP_VAULT_TOKEN", "").strip()
+    if token:
+        return token
+    try:
+        return DEFAULT_VAULT_TOKEN_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def _app_vault_env() -> dict[str, str] | None:
+    token = _app_vault_token()
+    if not token:
+        return None
+    env = os.environ.copy()
+    env["VAULT_ADDR"] = DEFAULT_VAULT_ADDR
+    env["VAULT_TOKEN"] = token
+    return env
+
+
+def _vault_secret(path: str, field: str) -> str:
+    """Lit uniquement les chemins/champs autorisés avec le token service omar-app."""
+    if field not in ALLOWED_VAULT_FIELDS.get(path, set()):
+        return ""
+    env = _app_vault_env()
+    if env is None:
+        return ""
     try:
         raw = subprocess.check_output(
-            ["/usr/bin/vault", "kv", "get", "-format=json", f"secret/stripe/{mode}"],
-            text=True, stderr=subprocess.DEVNULL,
-            env={**os.environ, "VAULT_ADDR": "http://127.0.0.1:8202"},
+            ["/usr/bin/vault", "kv", "get", "-format=json", path],
+            text=True, stderr=subprocess.DEVNULL, env=env,
         )
         return json.loads(raw).get("data", {}).get("data", {}).get(field, "")
     except Exception:
         return ""
+
+
+def _stripe_secret(mode: str, field: str) -> str:
+    """Lit un champ Stripe via le token Vault service-scopé omar-app."""
+    return _vault_secret(f"secret/stripe/{mode}", field)
 
 
 def _stripe_key(mode: str) -> str:
@@ -263,8 +302,9 @@ def read_proposal(data_dir: Path, pid: str) -> dict[str, Any] | None:
 
 
 def pricing_payload() -> dict[str, Any]:
-    # V0.3 is intentionally read-only. If HCLOUD_TOKEN is present, we only call pricing.
-    token = os.environ.get("HCLOUD_TOKEN")
+    # V0.3 is intentionally read-only. HCLOUD_TOKEN may be injected directly; otherwise
+    # read it with the omar-app Vault service token only (never /home/omar/.vault-token).
+    token = os.environ.get("HCLOUD_TOKEN") or _vault_secret("secret/integrations/hetzner/test", "HCLOUD_TOKEN")
     mode = "static_fallback"
     source = "src/site_data.py"
     hcloud_error = None
