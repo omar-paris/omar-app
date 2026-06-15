@@ -3,12 +3,15 @@ from __future__ import annotations
 import json
 import socket
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+import proposal_server  # noqa: E402
 # Token d'API requis depuis app#13 (refus de démarrer sans auth >=32 chars).
 API_TOKEN = "x" * 40
 AUTH_HEADERS = {"content-type": "application/json", "authorization": f"Bearer {API_TOKEN}"}
@@ -54,6 +57,57 @@ def request_json(method: str, url: str, payload: dict | None = None, headers: di
                                  headers=headers or {"content-type": "application/json"})
     with urllib.request.urlopen(req, timeout=3) as response:
         return response.status, json.loads(response.read().decode("utf-8"))
+
+
+def test_vault_secret_uses_only_scoped_omar_app_token(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_check_output(cmd, text, stderr, env):
+        calls.append({"cmd": cmd, "env": env})
+        return json.dumps({"data": {"data": {"STRIPE_SECRET_KEY": "stripe-test-key"}}})
+
+    monkeypatch.setenv("VAULT_TOKEN", "root-token-must-not-be-used")
+    monkeypatch.setenv("OA_APP_VAULT_TOKEN", "scoped-omar-app-token")
+    monkeypatch.setattr(proposal_server, "DEFAULT_VAULT_ADDR", "http://vault.local:8200")
+    monkeypatch.setattr(proposal_server, "DEFAULT_VAULT_TOKEN_FILE", tmp_path / "missing-token")
+    monkeypatch.setattr(proposal_server.subprocess, "check_output", fake_check_output)
+
+    assert proposal_server._vault_secret("secret/stripe/test", "STRIPE_SECRET_KEY") == "stripe-test-key"
+    assert len(calls) == 1
+    assert calls[0]["cmd"] == ["/usr/bin/vault", "kv", "get", "-format=json", "secret/stripe/test"]
+    assert calls[0]["env"]["VAULT_ADDR"] == "http://vault.local:8200"
+    assert calls[0]["env"]["VAULT_TOKEN"] == "scoped-omar-app-token"
+
+
+def test_vault_secret_ignores_inherited_root_token_without_service_token(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_check_output(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("vault CLI must not be called without omar-app service token")
+
+    monkeypatch.delenv("OA_APP_VAULT_TOKEN", raising=False)
+    monkeypatch.setenv("VAULT_TOKEN", "root-token-must-not-be-used")
+    monkeypatch.setattr(proposal_server, "DEFAULT_VAULT_TOKEN_FILE", tmp_path / "missing-token")
+    monkeypatch.setattr(proposal_server.subprocess, "check_output", fake_check_output)
+
+    assert proposal_server._vault_secret("secret/stripe/test", "STRIPE_SECRET_KEY") == ""
+    assert calls == []
+
+
+def test_vault_secret_rejects_unscoped_path_or_field(monkeypatch):
+    calls = []
+
+    def fake_check_output(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("vault CLI must not be called for unscoped secrets")
+
+    monkeypatch.setenv("OA_APP_VAULT_TOKEN", "scoped-omar-app-token")
+    monkeypatch.setattr(proposal_server.subprocess, "check_output", fake_check_output)
+
+    assert proposal_server._vault_secret("secret/stripe/test", "UNRELATED_SECRET") == ""
+    assert proposal_server._vault_secret("secret/other/service", "STRIPE_SECRET_KEY") == ""
+    assert calls == []
 
 
 def test_proposal_api_stores_pending_human_go_json_without_secrets(tmp_path):
