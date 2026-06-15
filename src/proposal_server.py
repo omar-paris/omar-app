@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import subprocess
 import sys
 import time
@@ -21,9 +22,12 @@ sys.path.insert(0, str(ROOT / "src"))
 from site_data import OA_START_PACKS  # noqa: E402
 
 DEFAULT_DATA_DIR = ROOT / "var"
-# UUID hex (V0.3.1, app#14 non-enumerable) + ancien format timestamp (lecture des
-# propositions déjà stockées uniquement)
-PROPOSAL_ID_RE = re.compile(r"^proposal-(?:[0-9a-f]{32}|[0-9]{8}T[0-9]{6}Z)-[a-z0-9-]+$")
+# IDs de proposition opaques (app#14) : token URL-safe aléatoire, sans nom client
+# ni timestamp. Legacy timestamp accepté seulement pour lecture de propositions déjà
+# stockées, avec contrôle propriétaire ci-dessous.
+PROPOSAL_ID_RE = re.compile(
+    r"^proposal-(?:[A-Za-z0-9_-]{43}|[0-9a-f]{32}-[a-z0-9-]+|[0-9]{8}T[0-9]{6}Z-[a-z0-9-]+)$"
+)
 SECRET_PATTERNS = ["HCLOUD_TOKEN", "Authorization", "Bearer ", "sk-"]
 
 # Annuaire des clients (app-emails.txt par client) — racine surchargeable pour les
@@ -91,8 +95,22 @@ def slugify(value: str) -> str:
 
 
 def proposal_id(payload: dict[str, Any]) -> str:
-    company = payload.get("client_profile", {}).get("company_name", "client-demo")
-    return f"proposal-{uuid.uuid4().hex}-{slugify(str(company))}"
+    # 32 bytes = 256 bits de hasard, encodés URL-safe (~43 caractères).
+    return f"proposal-{secrets.token_urlsafe(32)}"
+
+
+def proposal_owner_email(proposal: dict[str, Any]) -> str:
+    profile = proposal.get("client_profile") or {}
+    return str(profile.get("contact_email") or "").strip().lower()
+
+
+def can_read_proposal(proposal: dict[str, Any], email: str, *, is_admin: bool) -> bool:
+    email = (email or "").strip().lower()
+    if not email:
+        return False
+    if is_admin:
+        return True
+    return bool(proposal_owner_email(proposal)) and email == proposal_owner_email(proposal)
 
 
 def validate_proposal(payload: dict[str, Any]) -> str | None:
@@ -491,12 +509,13 @@ class ProposalHandler(BaseHTTPRequestHandler):
             return
         prefix = "/api/proposals/"
         if self.path.startswith(prefix):
-            if not self.authorized():
-                self.reject_unauthorized()
-                return
             pid = self.path[len(prefix):].split("?", 1)[0]
             proposal = read_proposal(self.data_dir, pid)
             if not proposal:
+                self.send_json(404, {"ok": False, "error": "proposal_not_found"})
+                return
+            email = self.auth_email()
+            if not can_read_proposal(proposal, email, is_admin=bool(email) and email in admin_emails()):
                 self.send_json(404, {"ok": False, "error": "proposal_not_found"})
                 return
             self.send_json(200, {"ok": True, "proposal": proposal})
