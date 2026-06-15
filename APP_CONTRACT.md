@@ -15,7 +15,7 @@
 - Code namespace recommendation: `app_omar` or `oa_app` at build time, but choose one before backend implementation.
 - Stack: CORE OA
 - Tenant/client: multi-tenant, à définir
-- Public/private/tailnet-only: public avec authentification à terme
+- Public/private/tailnet-only: public avec authentification obligatoire pour le portail client et `/api/proposals*` (OAuth Google via Caddy `forward_auth` côté vhost public ; token opérateur >=32 chars uniquement pour accès interne direct au serveur).
 - Repo/path: `/home/omar/23-Offre/actifs/omar-app`
 
 ## Objective
@@ -99,7 +99,8 @@ Pack OA Start
 
 ## Data boundaries
 
-- Chaque client ne voit que ses données.
+- Chaque client ne voit que ses données (`/api/onboarding/status`, `/api/sav/status`, `/api/proposals/{id}` filtrés par email OAuth → `clients/<id>/app-emails.txt`).
+- `/api/proposals` refuse tout POST/GET sans credential valide : OAuth client connu/admin ou token opérateur interne.
 - Pas de secrets en clair.
 - Pas de données inter-tenant visibles.
 - Les tokens/API keys ne sont jamais stockés dans le repo.

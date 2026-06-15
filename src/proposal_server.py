@@ -407,7 +407,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def authorized(self) -> bool:
+    def operator_authorized(self) -> bool:
         expected = self.server.api_token  # type: ignore[attr-defined]
         header = self.headers.get("authorization", "")
         if header.startswith("Bearer "):
@@ -416,8 +416,35 @@ class ProposalHandler(BaseHTTPRequestHandler):
             provided = self.headers.get("x-oa-token", "").strip()
         return bool(provided) and hmac.compare_digest(provided, expected)
 
+    def proposal_auth_context(self) -> dict[str, Any] | None:
+        """Auth proposals app#13.
+
+        Deux chemins sont acceptés :
+        - token opérateur (Bearer/X-OA-Token) pour automatisations internes ;
+        - email OAuth injecté par Caddy forward_auth, mappé vers clients/<id>/app-emails.txt.
+        """
+        email = self.auth_email()
+        client_id = resolve_client_id(self.clients_dir, email)
+        is_admin = bool(email) and email in admin_emails()
+        if self.operator_authorized():
+            return {"mode": "operator", "email": email, "client_id": client_id, "is_admin": True}
+        if is_admin:
+            return {"mode": "admin", "email": email, "client_id": client_id, "is_admin": True}
+        if client_id:
+            return {"mode": "client", "email": email, "client_id": client_id, "is_admin": False}
+        return None
+
+    def can_read_proposal(self, proposal: dict[str, Any], ctx: dict[str, Any]) -> bool:
+        if ctx.get("is_admin") or ctx.get("mode") == "operator":
+            return True
+        owner_client_id = proposal.get("owner_client_id")
+        return bool(owner_client_id) and owner_client_id == ctx.get("client_id")
+
     def reject_unauthorized(self) -> None:
         self.send_json(401, {"ok": False, "error": "unauthorized"})
+
+    def reject_forbidden(self) -> None:
+        self.send_json(403, {"ok": False, "error": "forbidden"})
 
     def send_json(self, status: int, payload: dict[str, Any]) -> None:
         body = json_bytes(payload)
@@ -491,13 +518,17 @@ class ProposalHandler(BaseHTTPRequestHandler):
             return
         prefix = "/api/proposals/"
         if self.path.startswith(prefix):
-            if not self.authorized():
+            ctx = self.proposal_auth_context()
+            if ctx is None:
                 self.reject_unauthorized()
                 return
             pid = self.path[len(prefix):].split("?", 1)[0]
             proposal = read_proposal(self.data_dir, pid)
             if not proposal:
                 self.send_json(404, {"ok": False, "error": "proposal_not_found"})
+                return
+            if not self.can_read_proposal(proposal, ctx):
+                self.reject_forbidden()
                 return
             self.send_json(200, {"ok": True, "proposal": proposal})
             return
@@ -522,7 +553,8 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if self.path != "/api/proposals":
             self.send_json(404, {"ok": False, "error": "not_found"})
             return
-        if not self.authorized():
+        ctx = self.proposal_auth_context()
+        if ctx is None:
             self.reject_unauthorized()
             return
         try:
@@ -532,6 +564,14 @@ class ProposalHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("payload must be object")
+            if ctx.get("mode") == "client":
+                contact_email = str(payload.get("client_profile", {}).get("contact_email", "")).strip().lower()
+                if contact_email and contact_email != ctx.get("email"):
+                    self.reject_forbidden()
+                    return
+                payload = dict(payload)
+                payload["owner_client_id"] = ctx["client_id"]
+                payload["owner_email"] = ctx["email"]
             proposal = safe_write_proposal(self.data_dir, payload)
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
             self.send_json(422, {"ok": False, "error": str(exc)})
