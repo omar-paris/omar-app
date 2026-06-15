@@ -20,11 +20,14 @@ def free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def start_server(tmp_path: Path):
+def start_server(tmp_path: Path, clients_dir: Path | None = None):
     import os
     port = free_port()
+    cmd = ["python3", "src/proposal_server.py", "--host", "127.0.0.1", "--port", str(port), "--data-dir", str(tmp_path)]
+    if clients_dir is not None:
+        cmd.extend(["--clients-dir", str(clients_dir)])
     proc = subprocess.Popen(
-        ["python3", "src/proposal_server.py", "--host", "127.0.0.1", "--port", str(port), "--data-dir", str(tmp_path)],
+        cmd,
         cwd=ROOT,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -107,6 +110,80 @@ def test_proposal_api_rejects_paid_or_invalid_payloads(tmp_path):
             assert exc.code == 422
             assert body["ok"] is False
             assert "pending_human_go" in body["error"] or "paid" in body["error"]
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
+def test_oauth_client_can_only_read_own_proposals(tmp_path):
+    clients_dir = tmp_path / "clients"
+    (clients_dir / "client-a").mkdir(parents=True)
+    (clients_dir / "client-b").mkdir(parents=True)
+    (clients_dir / "client-a" / "app-emails.txt").write_text("alice@example.com\n", encoding="utf-8")
+    (clients_dir / "client-b" / "app-emails.txt").write_text("bob@example.com\n", encoding="utf-8")
+    proc, port = start_server(tmp_path / "data", clients_dir)
+    try:
+        payload = {
+            "type": "configuration_proposal",
+            "status": "pending_human_go",
+            "client_profile": {"company_name": "Client A", "contact_email": "alice@example.com"},
+            "hetzner_payload": {"mode": "dry_run_no_paid_resource"},
+            "safety": {"paid_actions": "none"},
+        }
+        alice_headers = {"content-type": "application/json", "X-Auth-Request-Email": "alice@example.com"}
+        bob_headers = {"content-type": "application/json", "X-Auth-Request-Email": "bob@example.com"}
+        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/proposals", payload, alice_headers)
+        assert status == 201
+        pid = created["proposal"]["id"]
+        assert created["proposal"]["owner_client_id"] == "client-a"
+
+        get_status, fetched = request_json("GET", f"http://127.0.0.1:{port}/api/proposals/{pid}", None, alice_headers)
+        assert get_status == 200
+        assert fetched["proposal"]["id"] == pid
+
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/proposals/{pid}", method="GET", headers=bob_headers
+        )
+        try:
+            urllib.request.urlopen(req, timeout=3)
+            raise AssertionError("cross-client proposal read accepted")
+        except urllib.error.HTTPError as exc:
+            body = json.loads(exc.read().decode("utf-8"))
+            assert exc.code == 403
+            assert body["ok"] is False
+            assert body["error"] == "forbidden"
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
+def test_unknown_oauth_email_cannot_create_proposal(tmp_path):
+    clients_dir = tmp_path / "clients"
+    (clients_dir / "client-a").mkdir(parents=True)
+    (clients_dir / "client-a" / "app-emails.txt").write_text("alice@example.com\n", encoding="utf-8")
+    proc, port = start_server(tmp_path / "data", clients_dir)
+    try:
+        payload = {
+            "type": "configuration_proposal",
+            "status": "pending_human_go",
+            "client_profile": {"company_name": "Intrus", "contact_email": "intrus@example.com"},
+            "hetzner_payload": {"mode": "dry_run_no_paid_resource"},
+            "safety": {"paid_actions": "none"},
+        }
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/proposals",
+            data=json.dumps(payload).encode("utf-8"),
+            method="POST",
+            headers={"content-type": "application/json", "X-Auth-Request-Email": "intrus@example.com"},
+        )
+        try:
+            urllib.request.urlopen(req, timeout=3)
+            raise AssertionError("unknown OAuth email accepted")
+        except urllib.error.HTTPError as exc:
+            body = json.loads(exc.read().decode("utf-8"))
+            assert exc.code == 401
+            assert body["ok"] is False
+            assert body["error"] == "unauthorized"
     finally:
         proc.terminate()
         proc.wait(timeout=3)
