@@ -280,16 +280,36 @@ function pcSmokeStatus(d){
   return d.appareils.length ? "pending" : "fail";
 }
 
+function deviceTypeFromValue(value){
+  const v=String(value||"").toLowerCase();
+  if(v.includes("mac")) return "mac";
+  if(v.includes("pc")||v.includes("windows")||v.includes("linux")) return "pc";
+  if(v.includes("mobile")||v.includes("telephone")||v.includes("phone")) return "mobile";
+  if(v.includes("tablet")||v.includes("tablette")) return "tablette";
+  return "autre";
+}
+
+function deviceObjects(d){
+  return d.appareils.map((value, idx)=>({
+    id: String(value||`device-${idx+1}`),
+    type: deviceTypeFromValue(value),
+    state: "inconnu"
+  }));
+}
+
 function agentSpec(d){
   const pc_smoke = pcSmokeStatus(d);
+  const devices = deviceObjects(d);
   return {
     agent_name: d.agent_nom||"Omar",
     personality:{ ton:d.ton, tutoiement:d.tutoiement, autonomie:d.autonomie },
     canaux: d.canaux,
     perimetre:{ pro:true, perso_limite:false, sujets_interdits:[] },
     modules: d.objectifs,
+    infra: d.infra,
     infra_preference: d.infra,
-    devices: d.appareils,
+    devices,
+    device_labels: d.appareils,
     pc_smoke,
     pc_smoke_checklist: pc_smoke==="not_applicable"?[]:["os", "droits_admin", "tailscale_ou_reseau", "docker_ou_runner_local", "connectivite"]
   };

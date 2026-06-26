@@ -149,7 +149,11 @@ def test_onboarding_pc_option_has_reproducible_smoke_contract():
         "droits_admin",
         "tailscale_ou_reseau",
         "docker_ou_runner_local",
+        "infra: d.infra",
         "infra_preference",
+        "deviceObjects",
+        "device_labels",
+        "state: \"inconnu\"",
         "devices",
     ]:
         assert term in text
