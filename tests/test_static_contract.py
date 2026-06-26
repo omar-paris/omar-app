@@ -8,10 +8,8 @@ PUBLIC = ROOT / "public"
 ROUTES = {
     "/": PUBLIC / "index.html",
     "/onboarding": PUBLIC / "onboarding" / "index.html",
-    "/config": PUBLIC / "config" / "index.html",
-    "/buy": PUBLIC / "buy" / "index.html",
+    "/devis": PUBLIC / "buy" / "index.html",  # /buy/ built from site_data, redirected at runtime
     "/sav": PUBLIC / "sav" / "index.html",
-    "/factures": PUBLIC / "factures" / "index.html",
     "/compte": PUBLIC / "compte" / "index.html",
     "/changelog": PUBLIC / "changelog" / "index.html",
 }
@@ -31,14 +29,14 @@ def test_build_generates_all_direct_routes():
         assert path.exists(), f"Missing route {route}: {path}"
         text = html(path)
         assert "Omar App" in text
-        assert "V0.3.0" in text
+        assert "V0.5.0" in text
         assert "app.omar.paris" in text
 
 
 def test_navigation_links_are_real_direct_urls():
     build_site()
     text = html(PUBLIC / "index.html")
-    for route in ["/onboarding/", "/config/", "/buy/", "/sav/", "/factures/", "/compte/", "/changelog/"]:
+    for route in ["/onboarding/", "/devis/", "/sav/", "/compte/", "/changelog/"]:
         assert f'href="{route}"' in text
     assert 'href="#"' not in text
 

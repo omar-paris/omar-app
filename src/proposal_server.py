@@ -412,7 +412,7 @@ def sav_status_payload(clients_dir: Path, hub_api_dir: Path, email: str,
 
 
 class ProposalHandler(BaseHTTPRequestHandler):
-    server_version = "OmarAppProposalServer/0.3"
+    server_version = "OmarAppProposalServer/0.5"
 
     @property
     def data_dir(self) -> Path:
@@ -508,6 +508,20 @@ class ProposalHandler(BaseHTTPRequestHandler):
             "/changelog/": "changelog.html", "/changelog": "changelog.html",
             "/admin/catalog/": "admin-catalog.html", "/admin/catalog": "admin-catalog.html",
         }
+        # Canonical redirects: old routes → new canonical routes
+        REDIRECTS = {
+            "/config/": "/onboarding/", "/config": "/onboarding/",
+            "/buy/": "/devis/", "/buy": "/devis/",
+            "/factures/": "/compte/", "/factures": "/compte/",
+            "/jab/": "/", "/jab": "/",
+        }
+        redirect_target = REDIRECTS.get(path)
+        if redirect_target:
+            self.send_response(301)
+            self.send_header("location", redirect_target)
+            self.send_header("content-length", "0")
+            self.end_headers()
+            return
         page_file = APP_PAGES.get(path)
         if page_file:
             fp = ROOT / "pages-app" / page_file
@@ -523,13 +537,16 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if path == "/api/onboarding/status":
             # Isolation multi-tenant (app#13/#14) : un client connecté ne voit QUE
             # son propre dossier. L'email vient du forward_auth OAuth amont.
+            # Sans email authentifié, renvoie une liste vide (prospects en tunnel).
+            # V0.5.0: ajout champ auth_required pour traçabilité.
             email = self.auth_email()
             is_admin = bool(email) and email in admin_emails()
             client_id = resolve_client_id(self.clients_dir, email)
-            self.send_json(
-                200, filter_onboarding_for_client(
-                    client_id, all_clients=is_admin, onboarding_file=self.onboarding_file)
-            )
+            payload = filter_onboarding_for_client(
+                client_id, all_clients=is_admin, onboarding_file=self.onboarding_file)
+            if not email:
+                payload["auth_required"] = True
+            self.send_json(200, payload)
             return
         if path == "/api/sav/status":
             # SAV read-only : santé du VPS du client connecté, lue d'artefacts
@@ -540,7 +557,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
             self.send_json(200 if payload.get("ok") else 403, payload)
             return
         if self.path == "/api/health":
-            self.send_json(200, {"ok": True, "service": "omar-app-proposals", "version": "V0.4.0"})
+            self.send_json(200, {"ok": True, "service": "omar-app-proposals", "version": "V0.5.0"})
             return
         if self.path == "/api/catalog":
             self.send_json(200, load_catalog())

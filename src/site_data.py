@@ -1,5 +1,5 @@
-VERSION = "V0.3.0"
-PUBLISHED = "9 JUIN 2026"
+VERSION = "V0.5.0"
+PUBLISHED = "26 JUIN 2026"
 DOMAIN = "app.omar.paris"
 
 OA_START_PACKS = [
@@ -60,12 +60,10 @@ APPS_L1 = [
 NAV = [
     ("/", "Accueil"),
     ("/onboarding/", "Onboarding"),
-    ("/config/", "Config"),
-    ("/buy/", "Buy"),
+    ("/devis/", "Devis"),
     ("/sav/", "SAV"),
-    ("/factures/", "Factures"),
     ("/compte/", "Compte"),
-    ("/jab/", "Plan JAB"),
+    ("/aide/", "Aide"),
     ("/changelog/", "Changelog"),
 ]
 
