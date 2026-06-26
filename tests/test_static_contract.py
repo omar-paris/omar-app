@@ -8,7 +8,8 @@ PUBLIC = ROOT / "public"
 ROUTES = {
     "/": PUBLIC / "index.html",
     "/onboarding": PUBLIC / "onboarding" / "index.html",
-    "/devis": PUBLIC / "buy" / "index.html",  # /buy/ built from site_data, redirected at runtime
+    "/devis": PUBLIC / "devis" / "index.html",
+    "/aide": PUBLIC / "aide" / "index.html",
     "/sav": PUBLIC / "sav" / "index.html",
     "/compte": PUBLIC / "compte" / "index.html",
     "/changelog": PUBLIC / "changelog" / "index.html",
