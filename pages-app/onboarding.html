@@ -275,7 +275,13 @@ function collectData(){
   return d;
 }
 
+function pcSmokeStatus(d){
+  if(d.infra!=="pc"&&d.infra!=="hybride") return "not_applicable";
+  return d.appareils.length ? "pending" : "fail";
+}
+
 function agentSpec(d){
+  const pc_smoke = pcSmokeStatus(d);
   return {
     agent_name: d.agent_nom||"Omar",
     personality:{ ton:d.ton, tutoiement:d.tutoiement, autonomie:d.autonomie },
@@ -283,6 +289,9 @@ function agentSpec(d){
     perimetre:{ pro:true, perso_limite:false, sujets_interdits:[] },
     modules: d.objectifs,
     infra_preference: d.infra,
+    devices: d.appareils,
+    pc_smoke,
+    pc_smoke_checklist: pc_smoke==="not_applicable"?[]:["os", "droits_admin", "tailscale_ou_reseau", "docker_ou_runner_local", "connectivite"]
   };
 }
 
@@ -307,8 +316,8 @@ function updateChat4(){
   const infra=radioValue("infra");
   const el=document.getElementById("chat4");
   if(infra==="vps_managé") el.textContent="Excellent choix ! Un serveur managé en Europe, c'est la tranquillité : sauvegardes automatiques, accès sécurisé, et je suis joignable 24h/24.";
-  else if(infra==="pc") el.textContent="L'installation sur votre PC est possible — je serai là en local. On vous guidera pour la mise en place.";
-  else if(infra==="hybride") el.textContent="Mode hybride : le meilleur des deux mondes. Serveur pour la fiabilité, PC pour la proximité.";
+  else if(infra==="pc") el.textContent="Option PC promise : on vérifie votre ordinateur avant activation (OS, droits admin, réseau/Tailscale, Docker ou runner local), puis on lance l'installation accompagnée.";
+  else if(infra==="hybride") el.textContent="Mode hybride : serveur pour la fiabilité, PC pour les usages locaux. Le PC passera aussi par un smoke test avant activation.";
   else el.textContent="Pas de souci ! On choisira ensemble la meilleure option lors du devis.";
 }
 function updateChat5(){

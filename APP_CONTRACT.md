@@ -211,12 +211,25 @@ support_request:
 ## Non-goals V0.5.0
 
 - Pas de paiement réel live (Stripe test uniquement).
-- Pas de marketplace multi-options.
+- Pas de marketplace multi-options complète.
 - Pas de CRM complet.
 - Pas de provider automation risquée sans validation.
 - Pas de Nango obligatoire.
 - Pas de true agent backend (chat simulé avec agent_spec exploitable).
-- Pas de PC complet promis publiquement avant smoke.
+- Pas de provisioning PC réel sans smoke test préalable et validation humaine.
+
+## Option PC — promesse prépublique et smoke test V0.5.x
+
+L'option PC est promise publiquement comme **installation accompagnée**. Elle ne doit pas déclencher d'action payante ni de modification machine sans validation.
+
+Smoke test attendu avant installation réelle :
+
+1. Collecter `infra=pc` ou `infra=hybride` dans l'onboarding.
+2. Collecter OS/appareils et contraintes d'accès admin.
+3. Produire un `agent_profile` indiquant clairement la cible PC.
+4. Afficher que le PC sera vérifié avant activation : OS, droits admin, Tailscale/Docker ou alternative, connectivité.
+5. Garder `paid_actions=none` en mode test.
+6. Remonter un statut lisible : `pc_smoke=pending|pass|fail|not_applicable`.
 
 ## Success criteria V0.5.0
 
@@ -225,6 +238,7 @@ support_request:
 - Devis non vide avec produits catalogue cohérents.
 - Stripe test simulé lisible (503 attendu, pas faux paiement).
 - Provisioning timeline visible (simulée).
+- Option PC promise comme installation accompagnée avec smoke test préalable (`pc_smoke`) et aucune action payante.
 - `/api/onboarding/status` ne fuit pas les données d'autres clients.
 - Routes canoniques : `/onboarding/` + `/devis/` + `/sav/` + `/compte/`.
 - Routes historiques `/config/`, `/buy/`, `/factures/` redirigées.

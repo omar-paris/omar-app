@@ -137,6 +137,24 @@ def test_account_and_security_boundaries_are_visible():
         assert term in text
 
 
+def test_onboarding_pc_option_has_reproducible_smoke_contract():
+    text = (ROOT / "pages-app" / "onboarding.html").read_text(encoding="utf-8")
+    for term in [
+        'value="pc"',
+        'value="hybride"',
+        "Option PC promise",
+        "pcSmokeStatus",
+        "pc_smoke",
+        "pc_smoke_checklist",
+        "droits_admin",
+        "tailscale_ou_reseau",
+        "docker_ou_runner_local",
+        "infra_preference",
+        "devices",
+    ]:
+        assert term in text
+
+
 def test_changelog_exists_and_no_secret_like_literals_are_exposed():
     build_site()
     changelog = html(PUBLIC / "changelog" / "index.html")
