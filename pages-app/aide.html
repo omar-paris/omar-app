@@ -1,17 +1,52 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aide — Omar App</title>
-<script src="/pages-app/_portal.js" defer></script></head><body>
+<script src="/pages-app/_portal.js" defer></script>
+<style>
+.faq{margin-bottom:16px}.faq h3{font-size:15px;margin:0 0 4px;color:var(--ink)}.faq p{margin:0;font-size:14px;color:var(--muted)}
+.flow{border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:22px}
+.flow h2{margin:0 0 12px;font-size:18px}
+.flow ol{margin:0;padding:0 0 0 20px;font-size:14px;color:#334155}.flow li{padding:4px 0}
+.flow a{color:var(--pri)}
+</style></head><body>
 <main>
-  <h1 class="h1">Aide — par où commencer ?</h1>
-  <p class="sub">Omar App en 3 minutes.</p>
-  <div class="card" style="max-width:680px">
-    <ol style="line-height:1.9;color:#334155">
-      <li><b>Composez votre devis</b> — choisissez une formule (le pack de base) et des options. Le prix s'affiche en direct, votre sélection est sauvegardée.</li>
-      <li><b>Payez en ligne</b> — paiement sécurisé. Rien n'est engagé avant votre accord explicite.</li>
-      <li><b>Configuration</b> — on installe votre assistant sur votre serveur. Suivez l'avancement dans l'onglet Onboarding.</li>
-      <li><b>Au quotidien</b> — votre assistant gère la paperasse et le marketing. Le SAV vérifie et répare si besoin.</li>
-    </ol>
-    <p style="color:#64748b">Une question ? Écrivez-nous depuis l'Onboarding ou le SAV.</p>
+<h1 class="h1">Aide</h1>
+<p class="sub">Que faire selon votre situation ?</p>
+
+<div class="flow">
+  <h2>Parcours A→Z</h2>
+  <ol>
+    <li><a href="/onboarding/">Onboarding</a> — Décrivez votre activité et personnalisez votre assistant</li>
+    <li><a href="/devis/">Devis</a> — Choisissez votre formule et vos options</li>
+    <li>Paiement test — Aucun coût réel en mode test</li>
+    <li>Provisioning — On installe votre serveur et votre agent Omar</li>
+    <li><a href="/sav/">SAV</a> — Vérifiez votre installation à tout moment</li>
+  </ol>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <h3 style="margin:0 0 6px">🆕 Je suis nouveau</h3>
+    <p style="margin:0;color:var(--muted);font-size:14px">Commencez par l'<a href="/onboarding/">onboarding</a>. Quelques questions suffisent pour configurer votre assistant.</p>
   </div>
+  <div class="card">
+    <h3 style="margin:0 0 6px">💰 Je veux voir les tarifs</h3>
+    <p style="margin:0;color:var(--muted);font-size:14px">Rendez-vous sur la page <a href="/devis/">devis</a>. Composez votre solution et obtenez un devis personnalisé.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin:0 0 6px">🔧 Mon installation a un souci</h3>
+    <p style="margin:0;color:var(--muted);font-size:14px">Le <a href="/sav/">SAV</a> vous permet de diagnostiquer votre VPS en lecture seule.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin:0 0 6px">👤 Je gère mon compte</h3>
+    <p style="margin:0;color:var(--muted);font-size:14px">Accédez à votre <a href="/compte/">compte</a> pour les factures, l'abonnement et les accès.</p>
+  </div>
+</div>
+
+<div style="margin-top:22px">
+  <div class="faq"><h3>Est-ce que je paie quelque chose ?</h3><p>Non en mode test. Stripe test simule le paiement sans aucun coût réel. Vous verrez un badge « mode test » sur les pages concernées.</p></div>
+  <div class="faq"><h3>Mes données sont-elles sécurisées ?</h3><p>Oui. Chaque client ne voit que ses propres données. L'authentification OAuth garantit l'isolation multi-tenant. Aucun secret n'est exposé dans l'app.</p></div>
+  <div class="faq"><h3>Qu'est-ce que l'agent_spec ?</h3><p>L'onboarding produit un profil d'agent structuré (nom, ton, autonomie, canaux) exploitable par Hermes pour bootstrapper votre assistant automatiquement.</p></div>
+  <div class="faq"><h3>Où est installé mon assistant ?</h3><p>Par défaut sur un serveur managé en Europe (Hetzner). L'option PC local est disponible en mode accompagné.</p></div>
+</div>
 </main></body></html>

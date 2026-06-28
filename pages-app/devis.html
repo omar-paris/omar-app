@@ -10,38 +10,58 @@
 .prod:hover{border-color:#93c5fd}.prod.sel{border-color:#2563eb;background:#eff6ff}
 .prod h3{margin:0 0 2px;font-size:15px}.prod .pitch{font-size:13px;color:#6b7280;margin:0 0 6px}
 .prod .price{font-size:14px;font-weight:600;color:#111827}.prod .inc{font-size:12px;color:#6b7280;margin-top:6px}
-.cart{position:sticky;top:12px;border:1px solid #e5e7eb;border-radius:12px;padding:16px}
+.cart{position:sticky;top:74px;border:1px solid #e5e7eb;border-radius:12px;padding:16px}
 .cart h2{margin:0 0 10px;font-size:15px}
 .line{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid #f3f4f6}
 .tot{display:flex;justify-content:space-between;font-weight:700;margin-top:10px;font-size:15px}
 .cart button{width:100%;margin-top:8px;padding:10px;border:0;border-radius:10px;font-size:14px;cursor:pointer}
-.buy{background:#2563eb;color:#fff}.save{background:#f3f4f6;color:#111827}.share{background:#f3f4f6;color:#111827}
+.buy{background:#2563eb;color:#fff}.save{background:#f3f4f6;color:#111827}
 .msg{font-size:12px;margin-top:8px;padding:8px;border-radius:8px}
 .saved{font-size:11px;color:#16a34a;margin-top:6px;min-height:14px}
+/* provisioning timeline */
+.tl{margin-top:14px;border-top:1px solid #e5e7eb;padding-top:14px}
+.tl h3{font-size:14px;margin:0 0 10px;color:#334155}
+.tl-step{display:flex;gap:10px;padding:6px 0;align-items:flex-start;font-size:13px}
+.tl-dot{width:20px;height:20px;border-radius:99px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;border:2px solid #e5e7eb;background:#fff;color:#94a3b8}
+.tl-step.done .tl-dot{border-color:#16a34a;background:#dcfce7;color:#16a34a}.tl-step.done .tl-lbl{color:#16a34a}
+.tl-step.cur .tl-dot{border-color:#2563eb;background:#eff6ff;color:#2563eb}
+.tl-lbl{color:#334155}.tl-sub{font-size:11px;color:#94a3b8}
+.safe{font-size:11px;color:#16a34a;margin-top:8px;display:flex;align-items:center;gap:5px}
 </style></head><body>
 <main>
 <h1 class="h1" style="margin-bottom:4px">Composez votre solution</h1>
 <p class="sub" style="margin-bottom:8px">Votre sélection est sauvegardée automatiquement — vous pouvez fermer et reprendre via votre lien. Rien n'est payé sans votre accord.</p>
+<div class="safe">🔒 Mode test — aucun coût réel. Stripe test uniquement.</div>
 <div class="grid"><div id="cat"></div>
 <aside class="cart"><h2>Votre devis</h2><div id="lines"><div style="font-size:13px;color:#9ca3af">Aucune sélection</div></div>
 <div class="tot"><span>Mensuel</span><span id="tm">0 &euro;</span></div>
 <div class="tot" style="font-weight:500;font-size:13px"><span>Installation</span><span id="tu">0 &euro;</span></div>
 <button class="save" onclick="saveDevis(true)">Sauvegarder &amp; copier mon lien</button>
-<button class="buy" onclick="buy()">Acheter</button>
-<div class="saved" id="saved"></div><div id="msg"></div></aside></div></main>
+<button class="buy" onclick="buy()">Acheter (test)</button>
+<div class="saved" id="saved"></div><div id="msg"></div>
+<div class="tl" id="prov-tl" style="display:none">
+  <h3>Provisioning après paiement</h3>
+  <div class="tl-step cur"><div class="tl-dot">●</div><div><div class="tl-lbl">Paiement validé</div></div></div>
+  <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-lbl">VPS provisionné</div><div class="tl-sub">Hetzner EU + sauvegardes</div></div></div>
+  <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-lbl">Caddy + domaine</div><div class="tl-sub">HTTPS + routage</div></div></div>
+  <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-lbl">Hub local</div><div class="tl-sub">Cockpit santé</div></div></div>
+  <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-lbl">Agent Omar</div><div class="tl-sub">Bootstrappé avec votre profil</div></div></div>
+  <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-lbl">Connexions outils</div><div class="tl-sub">Google/Microsoft/Email</div></div></div>
+</div>
+</aside></div></main>
 <script>
 let CAT=[], sel=new Set(), devisId=null, saveTimer=null;
 const FAM={formule:"Formules",module:"Modules à la carte",prestation:"Prestations"};
 const params=new URLSearchParams(location.search);
 async function load(){
   const r=await fetch("/api/catalog"); CAT=(await r.json()).products;
-  // reprise : si ?id= dans l'URL, recharger le devis existant
   const rid=params.get("id");
   if(rid){ try{ const dr=await fetch("/api/devis/"+rid); if(dr.ok){ const dv=(await dr.json()).devis;
     devisId=dv.id; sel=new Set(dv.lignes.map(l=>l.id));
-    if(dv.statut==="achete"){ document.getElementById("saved").textContent="✓ Ce devis a déjà été acheté le "+(dv.paye_le||"").slice(0,10); }
+    if(dv.statut==="achete"||dv.statut==="paid_test"){ document.getElementById("saved").textContent="✓ Ce devis a été acheté le "+(dv.paye_le||"").slice(0,10);
+      showProvisioningTimeline(); }
   } }catch(e){} }
-  if(params.get("paid")){ document.getElementById("msg").className="msg"; document.getElementById("msg").style.background="#dcfce7"; document.getElementById("msg").style.color="#166534"; document.getElementById("msg").textContent="✓ Paiement reçu — merci ! Votre configuration va démarrer."; }
+  if(params.get("paid")){ msg("✓ Paiement test reçu — merci ! Votre configuration va démarrer.",true); showProvisioningTimeline(); }
   render();
 }
 function render(){
@@ -64,8 +84,8 @@ function cart(){
   document.getElementById("tm").textContent=tm+" €"; document.getElementById("tu").textContent=tu+" €";
 }
 function msg(t,ok){const m=document.getElementById("msg");m.className="msg";m.style.background=ok?"#dcfce7":"#fef3c7";m.style.color=ok?"#166534":"#92400e";m.textContent=t;}
-function autosave(){ // sauvegarde continue (débounce 800ms)
-  clearTimeout(saveTimer); document.getElementById("saved").textContent="…";
+function showProvisioningTimeline(){document.getElementById("prov-tl").style.display="block";}
+function autosave(){ clearTimeout(saveTimer); document.getElementById("saved").textContent="…";
   saveTimer=setTimeout(()=>saveDevis(false), 800);
 }
 async function saveDevis(showLink){
@@ -82,8 +102,11 @@ async function saveDevis(showLink){
 async function buy(){ const id=await saveDevis(false); if(!id){msg("Choisissez au moins un produit.",false);return;}
   const r=await fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({devis_id:id})});
   const d=await r.json();
-  if(r.status===503){ msg("💳 "+d.message+" Votre devis ("+d.total_mensuel_eur+" €/mois) est sauvegardé.",true); }
-  else if(r.ok&&d.checkout_url){ location.href=d.checkout_url; }
+  if(r.status===503){
+    // Stripe test non configuré — simuler un paid_test pour la démo
+    msg("💳 Paiement test simulé — Stripe non configuré. Votre devis est enregistré.",true);
+    showProvisioningTimeline();
+  } else if(r.ok&&d.checkout_url){ location.href=d.checkout_url; }
   else { msg("Paiement indisponible ("+(d.error||r.status)+")",false); }
 }
 load();

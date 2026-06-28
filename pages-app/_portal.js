@@ -1,20 +1,20 @@
 // _portal.js — header/nav unifié + helpers, partagé par toutes les pages du portail OA App.
-// Injecté en haut de chaque page. Source unique de la navigation.
+// Injecté en haut de chaque page. Source unique de la navigation. V0.5.0.
 (function () {
   const NAV = [
-    { href: "/devis/", label: "Devis" },
     { href: "/onboarding/", label: "Onboarding" },
+    { href: "/devis/", label: "Devis" },
     { href: "/sav/", label: "SAV" },
     { href: "/compte/", label: "Compte" },
   ];
-  const path = location.pathname.replace(/\/$/, "/") ;
+  const path = location.pathname.replace(/\/$/, "/");
   const links = NAV.map(n => {
     const active = path.startsWith(n.href) ? ' aria-current="page"' : "";
     return `<a href="${n.href}"${active}>${n.label}</a>`;
   }).join("");
   const header = `
   <header class="oa-hd"><div class="oa-bar">
-    <a class="oa-brand" href="/">Omar&nbsp;App<span>app.omar.paris</span></a>
+    <a class="oa-brand" href="/">Omar&nbsp;App<span>app.omar.paris · V0.5.0</span></a>
     <nav class="oa-nav">${links}</nav>
     <div class="oa-ico">
       <a href="/aide/" title="Aide — quoi faire ?" class="oa-i">?</a>
@@ -32,6 +32,7 @@
   .oa-nav a{padding:7px 13px;border-radius:999px;font-size:14px;font-weight:600;color:#334155}
   .oa-nav a[aria-current]{background:var(--ink);color:#fff}
   .oa-nav a:hover:not([aria-current]){background:#eef2f7}
+  @media(max-width:600px){.oa-nav{gap:2px}.oa-nav a{padding:6px 8px;font-size:12px}}
   .oa-ico{margin-left:auto;display:flex;gap:6px}
   .oa-i{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:15px;background:#fff}
   .oa-i:hover{border-color:var(--pri);color:var(--pri)}
@@ -40,7 +41,7 @@
   .sub{font-size:17px;color:var(--muted);margin:0 0 22px;max-width:680px}
   .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px}
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:11px;font-weight:700;font-size:14px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:11px;font-weight:700;font-size:14px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;text-decoration:none}
   .btn.pri{background:var(--pri);color:#fff;border-color:var(--pri)}
   </style>`;
   document.head.insertAdjacentHTML("beforeend", style);

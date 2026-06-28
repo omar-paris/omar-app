@@ -1,62 +1,396 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Onboarding — Omar App</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Onboarding — votre assistant Omar · Omar App</title>
 <script src="/pages-app/_portal.js" defer></script>
 <style>
-.ob{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
-@media(max-width:780px){.ob{grid-template-columns:1fr}}
-.prog{position:sticky;top:74px}
-.who{display:flex;gap:8px;margin-bottom:12px}
-.who select{flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:9px;font-size:13px}
-.barwrap{height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin:4px 0 14px}
-.bar{height:100%;background:#16a34a;border-radius:99px;transition:.4s}
-.step{display:flex;gap:9px;padding:8px 4px;font-size:13px;align-items:flex-start}
-.dot{width:18px;height:18px;border-radius:99px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;margin-top:1px}
-.d-done{background:#dcfce7;color:#16a34a}.d-cur{background:#fef9c3;color:#a16207}.d-todo{background:#f1f5f9;color:#94a3b8}
-.step.done{color:#334155}.step.todo{color:#94a3b8}
-.chat{min-height:360px;display:flex;flex-direction:column;gap:9px}
-.bub{max-width:85%;padding:10px 14px;border-radius:14px;font-size:14px}
-.bot{background:#fff;border:1px solid #e5e7eb;align-self:flex-start;border-bottom-left-radius:4px}
-.me{background:#2563eb;color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
-.inrow{display:flex;gap:8px}.inrow input{flex:1;border:1px solid #e5e7eb;border-radius:10px;padding:9px 12px}
-.send{padding:9px 14px;background:#2563eb;color:#fff;border:0;border-radius:10px;cursor:pointer}
+/* --- tunnel layout --- */
+.ob{max-width:720px;margin:0 auto}
+.steps-bar{display:flex;gap:4px;margin-bottom:28px;overflow-x:auto;padding-bottom:4px}
+.sdot{width:40px;height:6px;border-radius:99px;background:#e5e7eb;flex-shrink:0;transition:.3s}
+.sdot.done{background:#16a34a}.sdot.cur{background:#2563eb}
+@media(max-width:600px){.steps-bar{gap:3px}.sdot{width:28px;height:5px}}
+
+/* --- step sections --- */
+.step-panel{display:none}.step-panel.active{display:block}
+.step-panel h2{font-size:22px;margin:0 0 6px;letter-spacing:-.02em}
+.step-panel .desc{color:#64748b;font-size:15px;margin:0 0 22px;max-width:560px}
+
+/* --- form fields --- */
+.fg{margin-bottom:18px}
+.fg label{display:block;font-weight:600;font-size:13px;margin-bottom:5px;color:#334155}
+.fg input,.fg select,.fg textarea{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:15px;font-family:inherit;background:#fff;transition:.15s}
+.fg input:focus,.fg select:focus,.fg textarea:focus{outline:0;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.fg textarea{min-height:80px;resize:vertical}
+.fg .hint{font-size:12px;color:#94a3b8;margin-top:3px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 14px;border:1px solid #e5e7eb;border-radius:99px;font-size:13px;cursor:pointer;transition:.1s;background:#fff;-webkit-user-select:none;user-select:none}
+.chip:hover{border-color:#93c5fd}.chip.on{border-color:#2563eb;background:#eff6ff;color:#1d4ed8;font-weight:600}
+.chip input{display:none}
+
+/* --- nav buttons --- */
+.nav{display:flex;gap:10px;margin-top:28px}
+.nav .btn{flex:none}.nav .btn.next{margin-left:auto}
+
+/* --- chat preview --- */
+.chat-box{background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin-top:18px;min-height:120px}
+.chat-msg{max-width:85%;padding:9px 13px;border-radius:12px;font-size:14px;margin-bottom:8px;animation:fadein .3s}
+.chat-msg.bot{background:#fff;border:1px solid #e5e7eb;border-bottom-left-radius:4px}
+.chat-msg.sim{font-size:11px;color:#94a3b8;font-style:italic;margin-top:2px}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* --- recap --- */
+.recap{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:20px;margin-top:12px}
+.recap h3{margin:0 0 10px;font-size:16px;color:#166534}
+.recap table{width:100%;font-size:14px;border-collapse:collapse}
+.recap td{padding:5px 0;vertical-align:top}.recap td:first-child{color:#64748b;width:140px}
+.recap .agent-spec{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-top:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;max-height:200px;overflow:auto}
+
+/* --- provisioning timeline preview --- */
+.timeline{margin-top:18px}
+.tl-step{display:flex;gap:12px;padding:10px 0;align-items:flex-start}
+.tl-dot{width:24px;height:24px;border-radius:99px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid #e5e7eb;background:#fff;color:#94a3b8}
+.tl-step.done .tl-dot{border-color:#16a34a;background:#dcfce7;color:#16a34a}
+.tl-step.cur .tl-dot{border-color:#2563eb;background:#eff6ff;color:#2563eb}
+.tl-label{font-size:14px;color:#334155}.tl-step.done .tl-label{color:#16a34a}
+.tl-sub{font-size:12px;color:#94a3b8}
 </style></head><body>
-<main>
-<h1 class="h1">Onboarding</h1>
-<p class="sub">L'installation de votre assistant, étape par étape. Suivez l'avancement à gauche, posez vos questions à droite.</p>
-<div class="ob">
-  <aside class="card prog">
-    <div class="who"><select id="client" onchange="loadProg()"></select></div>
-    <div style="font-size:13px;color:#64748b">Avancement <b id="pct">0%</b></div>
-    <div class="barwrap"><div class="bar" id="bar" style="width:0"></div></div>
-    <div id="steps"></div>
-  </aside>
-  <section class="card"><div class="chat" id="chat"></div>
-    <div class="inrow" style="margin-top:10px"><input id="q" placeholder="Une question sur votre configuration…"><button class="send" onclick="ask()">Envoyer</button></div>
-  </section>
-</div></main>
+<main class="ob">
+<h1 class="h1">Configurer votre assistant Omar</h1>
+<p class="sub">Quelques questions pour personnaliser votre secrétaire IA. Répondez à votre rythme — tout est sauvegardé automatiquement.</p>
+
+<div class="steps-bar" id="sbar"></div>
+
+<!-- STEP 1: Identité -->
+<div class="step-panel active" data-step="0">
+  <h2>Qui êtes-vous ?</h2>
+  <p class="desc">Dites-nous ce que vous faites pour que Omar s'adapte à votre quotidien.</p>
+  <div class="fg"><label>Votre nom ou prénom</label><input id="f_nom" placeholder="ex : Marie"></div>
+  <div class="fg"><label>Nom de votre activité</label><input id="f_entreprise" placeholder="ex : Atelier Durand"></div>
+  <div class="fg"><label>Votre métier / secteur</label>
+    <select id="f_activite"><option value="">— Choisir —</option>
+    <option>Artisan / BTP</option><option>Commerçant</option><option>Profession libérale</option>
+    <option>Agence / Conseil</option><option>Auto-entrepreneur</option><option>TPE / PME</option><option>Autre</option></select>
+  </div>
+  <div class="fg"><label>Email professionnel</label><input id="f_email" type="email" placeholder="marie@atelier-durand.fr"></div>
+  <div class="fg"><label>Domaine existant ?</label>
+    <select id="f_domaine"><option value="">— Choisir —</option>
+    <option value="oui">Oui, j'ai un domaine</option><option value="non">Non, il m'en faut un</option><option value="sais-pas">Je ne sais pas</option></select>
+    <div class="hint">Omar peut gérer l'achat et la configuration si besoin.</div>
+  </div>
+  <div class="chat-box"><div class="chat-msg bot" id="chat1">Bonjour ! Je suis Omar, votre futur assistant. Commençons par quelques informations pour que je puisse au mieux vous servir. 😊</div><div class="chat-msg sim">Assistant simulé — un vrai agent Omar prendra le relais après installation.</div></div>
+  <div class="nav"><button class="btn next" onclick="go(1)">Continuer →</button></div>
+</div>
+
+<!-- STEP 2: Objectifs -->
+<div class="step-panel" data-step="1">
+  <h2>Que doit faire votre assistant ?</h2>
+  <p class="desc">Sélectionnez les fonctions qui vous intéressent — vous pourrez ajuster plus tard.</p>
+  <div class="fg"><label>Objectifs prioritaires</label>
+    <div class="chips" id="chips_goals">
+      <label class="chip"><input type="checkbox" value="tri_messages">Trier mes messages</label>
+      <label class="chip"><input type="checkbox" value="rediger_reponses">Rédiger des réponses</label>
+      <label class="chip"><input type="checkbox" value="organiser_journee">Organiser ma journée</label>
+      <label class="chip"><input type="checkbox" value="produire_documents">Produire devis & documents</label>
+      <label class="chip"><input type="checkbox" value="surveiller_environnement">Surveiller mon environnement</label>
+    </div>
+  </div>
+  <div class="fg"><label>Autre chose ?</label><textarea id="f_objectifs_libre" placeholder="ex : Relancer mes clients en retard, gérer mes factures…"></textarea></div>
+  <div class="chat-box"><div class="chat-msg bot" id="chat2"></div></div>
+  <div class="nav"><button class="btn" onclick="go(0)">← Retour</button><button class="btn next" onclick="go(2)">Continuer →</button></div>
+</div>
+
+<!-- STEP 3: Outils existants -->
+<div class="step-panel" data-step="2">
+  <h2>Comment travaillez-vous aujourd'hui ?</h2>
+  <p class="desc">Omar se connecte à vos outils existants pour être plus efficace.</p>
+  <div class="fg"><label>Vos outils actuels</label>
+    <div class="chips" id="chips_outils">
+      <label class="chip"><input type="checkbox" value="google_workspace">Google Workspace</label>
+      <label class="chip"><input type="checkbox" value="microsoft_365">Microsoft 365</label>
+      <label class="chip"><input type="checkbox" value="infomaniak">Infomaniak</label>
+      <label class="chip"><input type="checkbox" value="ovh">OVH</label>
+      <label class="chip"><input type="checkbox" value="drive_onedrive">Drive / OneDrive</label>
+      <label class="chip"><input type="checkbox" value="agenda">Agenda pro</label>
+      <label class="chip"><input type="checkbox" value="crm">CRM</label>
+      <label class="chip"><input type="checkbox" value="facturation">Facturation</label>
+      <label class="chip"><input type="checkbox" value="telephone_pro">Téléphone pro</label>
+      <label class="chip"><input type="checkbox" value="aucun">Rien de tout ça</label>
+    </div>
+  </div>
+  <div class="chat-box"><div class="chat-msg bot" id="chat3"></div></div>
+  <div class="nav"><button class="btn" onclick="go(1)">← Retour</button><button class="btn next" onclick="go(3)">Continuer →</button></div>
+</div>
+
+<!-- STEP 4: Infrastructure -->
+<div class="step-panel" data-step="3">
+  <h2>Où installer votre assistant ?</h2>
+  <p class="desc">Votre assistant vit sur un serveur sécurisé. Choisissez ce qui vous convient.</p>
+  <div class="fg"><label>Infrastructure préférée</label>
+    <div class="chips" id="chips_infra">
+      <label class="chip"><input type="radio" name="infra" value="vps_managé">Serveur managé (recommandé)</label>
+      <label class="chip"><input type="radio" name="infra" value="pc">Sur mon propre PC</label>
+      <label class="chip"><input type="radio" name="infra" value="hybride">Hybride (serveur + PC)</label>
+      <label class="chip"><input type="radio" name="infra" value="inconnu">Je ne sais pas encore</label>
+    </div>
+    <div class="hint">Si vous ne savez pas, Omar choisira l'option recommandée pour vous.</div>
+  </div>
+  <div class="fg"><label>Vos appareils</label>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" value="pc_windows">PC Windows</label>
+      <label class="chip"><input type="checkbox" value="mac">Mac</label>
+      <label class="chip"><input type="checkbox" value="smartphone">Smartphone</label>
+      <label class="chip"><input type="checkbox" value="tablet">Tablette</label>
+    </div>
+  </div>
+  <div class="chat-box"><div class="chat-msg bot" id="chat4"></div></div>
+  <div class="nav"><button class="btn" onclick="go(2)">← Retour</button><button class="btn next" onclick="go(4)">Continuer →</button></div>
+</div>
+
+<!-- STEP 5: Personnalité agent -->
+<div class="step-panel" data-step="4">
+  <h2>Personnalisez votre assistant</h2>
+  <p class="desc">Un nom, un ton, un niveau d'autonomie — votre Omar, votre style.</p>
+  <div class="fg"><label>Nom de votre assistant</label><input id="f_agent_nom" placeholder="ex : Omar, Héra, Célestine…"></div>
+  <div class="fg"><label>Ton de communication</label>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="ton" value="professionnel">Professionnel</label>
+      <label class="chip"><input type="radio" name="ton" value="amical">Amical</label>
+      <label class="chip"><input type="radio" name="ton" value="neutre">Neutre</label>
+    </div>
+  </div>
+  <div class="fg"><label>On se tutoie ?</label>
+    <div class="chips">
+      <label class="chip on"><input type="radio" name="tutoiement" value="true" checked>Oui, tutoiement</label>
+      <label class="chip"><input type="radio" name="tutoiement" value="false">Non, vouvoiement</label>
+    </div>
+  </div>
+  <div class="fg"><label>Autonomie</label>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="autonomie" value="moderee">Modérée — je valide les actions sensibles</label>
+      <label class="chip"><input type="radio" name="autonomie" value="elevee">Élevée — agis, je vérifie après</label>
+      <label class="chip"><input type="radio" name="autonomie" value="conservative">Conservatrice — je valide tout</label>
+    </div>
+  </div>
+  <div class="fg"><label>Canaux souhaités</label>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" value="appomar" checked>App Omar</label>
+      <label class="chip"><input type="checkbox" value="telegram">Telegram</label>
+      <label class="chip"><input type="checkbox" value="email">Email</label>
+    </div>
+  </div>
+  <div class="chat-box"><div class="chat-msg bot" id="chat5"></div></div>
+  <div class="nav"><button class="btn" onclick="go(3)">← Retour</button><button class="btn next" onclick="go(5)">Voir le récap →</button></div>
+</div>
+
+<!-- STEP 6: Récap + submit -->
+<div class="step-panel" data-step="5">
+  <h2>Récapitulatif</h2>
+  <p class="desc">Vérifiez vos réponses avant de valider. Vous pourrez modifier à tout moment depuis votre compte.</p>
+  <div class="recap" id="recap"></div>
+
+  <div class="timeline" id="timeline">
+    <h3 style="font-size:16px;margin:18px 0 8px">Prochaines étapes après validation</h3>
+    <div class="tl-step cur"><div class="tl-dot">●</div><div><div class="tl-label">Validation de votre profil</div><div class="tl-sub">Vous êtes ici</div></div></div>
+    <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-label">Devis personnalisé</div><div class="tl-sub">Basé sur vos choix</div></div></div>
+    <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-label">Paiement (test)</div><div class="tl-sub">Stripe test — aucun coût réel</div></div></div>
+    <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-label">Provisioning serveur</div><div class="tl-sub">VPS + Caddy + Hub</div></div></div>
+    <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-label">Agent Omar opérationnel</div><div class="tl-sub">Votre assistant est prêt !</div></div></div>
+    <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-label">Connexions outils</div><div class="tl-sub">Google/Microsoft/Email</div></div></div>
+  </div>
+
+  <div id="submit-msg" style="margin-top:16px"></div>
+  <div class="nav">
+    <button class="btn" onclick="go(4)">← Retour</button>
+    <button class="btn pri next" onclick="submitOnboarding()">Valider et passer au devis →</button>
+  </div>
+</div>
+
+<!-- STEP 7: Done → redirect to /devis/ -->
+<div class="step-panel" data-step="6">
+  <h2>Profil enregistré !</h2>
+  <p class="desc">Votre assistant Omar est en cours de préparation. Passons au devis pour finaliser votre configuration.</p>
+  <div class="recap" id="recap_final"></div>
+  <div class="nav"><a class="btn pri" href="/devis/">Composer mon devis →</a></div>
+</div>
+
+</main>
 <script>
-async function init(){
-  const r=await fetch("/api/onboarding/status"); const data=await r.json();
-  const sel=document.getElementById("client");
-  sel.innerHTML=data.clients.map(c=>`<option value="${c.id}">${c.label}</option>`).join("");
-  window._PROG=data; loadProg();
-  bot("Bonjour ! Je vous accompagne dans la configuration. À gauche, vous voyez ce qui est fait et ce qu'il reste. Posez-moi vos questions à tout moment.");
-}
-function loadProg(){
-  const id=document.getElementById("client").value;
-  const c=window._PROG.clients.find(x=>x.id===id);
-  const done=c.steps.filter(s=>s.statut==="done").length, pct=Math.round(100*done/c.steps.length);
-  document.getElementById("pct").textContent=pct+"%"; document.getElementById("bar").style.width=pct+"%";
-  document.getElementById("steps").innerHTML=c.steps.map(s=>{
-    const cls=s.statut==="done"?"done":(s.statut==="cur"?"cur":"todo");
-    const dot=s.statut==="done"?'<span class="dot d-done">✓</span>':(s.statut==="cur"?'<span class="dot d-cur">●</span>':'<span class="dot d-todo">○</span>');
-    return `<div class="step ${cls}">${dot}<div>${s.label}${s.note?`<div style="font-size:11px;color:#94a3b8">${s.note}</div>`:""}</div></div>`;
+const STEPS = ["Identité", "Objectifs", "Outils", "Infra", "Agent", "Récap"];
+let cur = 0;
+
+// --- step navigation ---
+function renderBar(){
+  document.getElementById("sbar").innerHTML = STEPS.map((s,i)=>{
+    const cls = i<cur?"done":i===cur?"cur":"";
+    return `<div class="sdot ${cls}" title="${s}"></div>`;
   }).join("");
 }
-function bot(t){const c=document.getElementById("chat");c.insertAdjacentHTML("beforeend",`<div class="bub bot">${t}</div>`);c.scrollTop=c.scrollHeight;}
-function me(t){const c=document.getElementById("chat");c.insertAdjacentHTML("beforeend",`<div class="bub me">${t}</div>`);c.scrollTop=c.scrollHeight;}
-function ask(){const i=document.getElementById("q");if(!i.value.trim())return;me(i.value);const q=i.value;i.value="";
-  setTimeout(()=>bot("Bonne question. Pour l'instant je vous oriente : regardez l'avancement à gauche. Bientôt je répondrai précisément (assistant en cours d'activation). En attendant, le SAV permet de vérifier votre VPS en direct."),400);}
-init();
+function go(n){
+  cur=n; renderBar();
+  document.querySelectorAll(".step-panel").forEach(p=>p.classList.toggle("active",+p.dataset.step===n));
+  if(n===1) updateChat2();
+  if(n===2) updateChat3();
+  if(n===3) updateChat4();
+  if(n===4) updateChat5();
+  if(n===5) buildRecap();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+// --- chip toggle ---
+document.addEventListener("click",e=>{
+  const chip=e.target.closest(".chip");
+  if(!chip)return;
+  const inp=chip.querySelector("input");
+  if(!inp)return;
+  if(inp.type==="radio"){
+    chip.parentElement.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
+    chip.classList.add("on");
+  } else {
+    setTimeout(()=>chip.classList.toggle("on",inp.checked),0);
+  }
+});
+
+// --- collect form data ---
+function chipsValues(id){return[...document.querySelectorAll(`#${id} input:checked`)].map(i=>i.value)}
+function radioValue(name){const c=document.querySelector(`input[name="${name}"]:checked`);return c?c.value:null}
+
+function collectData(){
+  const d={
+    identite: document.getElementById("f_nom").value,
+    entreprise: document.getElementById("f_entreprise").value,
+    activite: document.getElementById("f_activite").value,
+    email: document.getElementById("f_email").value,
+    domaine: document.getElementById("f_domaine").value,
+    objectifs: chipsValues("chips_goals"),
+    objectifs_libre: document.getElementById("f_objectifs_libre").value,
+    outils: chipsValues("chips_outils"),
+    infra: radioValue("infra")||"inconnu",
+    appareils: [...document.querySelectorAll('.step-panel[data-step="3"] .chips input:checked')].map(i=>i.value),
+    agent_nom: document.getElementById("f_agent_nom").value,
+    ton: radioValue("ton")||"neutre",
+    tutoiement: radioValue("tutoiement")!=="false",
+    autonomie: radioValue("autonomie")||"moderee",
+    canaux: [...document.querySelectorAll('.step-panel[data-step="4"] .chips input[type=checkbox]:checked')].map(i=>i.value),
+  };
+  return d;
+}
+
+function pcSmokeStatus(d){
+  if(d.infra!=="pc"&&d.infra!=="hybride") return "not_applicable";
+  return d.appareils.length ? "pending" : "fail";
+}
+
+function deviceTypeFromValue(value){
+  const v=String(value||"").toLowerCase();
+  if(v.includes("mac")) return "mac";
+  if(v.includes("pc")||v.includes("windows")||v.includes("linux")) return "pc";
+  if(v.includes("mobile")||v.includes("telephone")||v.includes("phone")) return "mobile";
+  if(v.includes("tablet")||v.includes("tablette")) return "tablette";
+  return "autre";
+}
+
+function deviceObjects(d){
+  return d.appareils.map((value, idx)=>({
+    id: String(value||`device-${idx+1}`),
+    type: deviceTypeFromValue(value),
+    state: "inconnu"
+  }));
+}
+
+function agentSpec(d){
+  const pc_smoke = pcSmokeStatus(d);
+  const devices = deviceObjects(d);
+  return {
+    agent_name: d.agent_nom||"Omar",
+    personality:{ ton:d.ton, tutoiement:d.tutoiement, autonomie:d.autonomie },
+    canaux: d.canaux,
+    perimetre:{ pro:true, perso_limite:false, sujets_interdits:[] },
+    modules: d.objectifs,
+    infra: d.infra,
+    infra_preference: d.infra,
+    devices,
+    device_labels: d.appareils,
+    pc_smoke,
+    pc_smoke_checklist: pc_smoke==="not_applicable"?[]:["os", "droits_admin", "tailscale_ou_reseau", "docker_ou_runner_local", "connectivite"]
+  };
+}
+
+// --- contextual chat messages ---
+const GOAL_LABELS = {tri_messages:"Trier vos messages",rediger_reponses:"Rédiger des réponses",organiser_journee:"Organiser votre journée",produire_documents:"Produire devis & documents",surveiller_environnement:"Surveiller votre environnement"};
+const OUTIL_LABELS = {google_workspace:"Google Workspace",microsoft_365:"Microsoft 365",infomaniak:"Infomaniak",ovh:"OVH",drive_onedrive:"Drive/OneDrive",agenda:"Agenda pro",crm:"CRM",facturation:"Facturation",telephone_pro:"Téléphone pro",aucun:"Aucun outil"};
+const INFRA_LABELS = {vps_managé:"serveur managé",pc:"votre PC",hybride:"mode hybride",inconnu:"à définir ensemble"};
+
+function updateChat2(){
+  const g=chipsValues("chips_goals").map(v=>GOAL_LABELS[v]||v);
+  const el=document.getElementById("chat2");
+  if(g.length) el.textContent=`Très bien ! ${g.join(", ")} — je vais m'en occuper. C'est exactement ce qu'un bon assistant doit faire. 👍`;
+  else el.textContent="Choisissez vos objectifs et je vous expliquerai comment je peux vous aider pour chacun.";
+}
+function updateChat3(){
+  const o=chipsValues("chips_outils").map(v=>OUTIL_LABELS[v]||v);
+  const el=document.getElementById("chat3");
+  if(o.length&&o[0]!=="Aucun outil") el.textContent=`${o.join(", ")} — je pourrai m'y connecter pour être encore plus efficace. Vos outils, mon terrain de jeu. 🔗`;
+  else el.textContent="Pas de souci ! On peut commencer sans connexion et ajouter vos outils plus tard.";
+}
+function updateChat4(){
+  const infra=radioValue("infra");
+  const el=document.getElementById("chat4");
+  if(infra==="vps_managé") el.textContent="Excellent choix ! Un serveur managé en Europe, c'est la tranquillité : sauvegardes automatiques, accès sécurisé, et je suis joignable 24h/24.";
+  else if(infra==="pc") el.textContent="Option PC promise : on vérifie votre ordinateur avant activation (OS, droits admin, réseau/Tailscale, Docker ou runner local), puis on lance l'installation accompagnée.";
+  else if(infra==="hybride") el.textContent="Mode hybride : serveur pour la fiabilité, PC pour les usages locaux. Le PC passera aussi par un smoke test avant activation.";
+  else el.textContent="Pas de souci ! On choisira ensemble la meilleure option lors du devis.";
+}
+function updateChat5(){
+  const d=collectData();
+  const name=d.agent_nom||"Omar";
+  const ton=d.ton==="amical"?"amical":d.ton==="professionnel"?"professionnel":"neutre";
+  document.getElementById("chat5").textContent=`Enchanté, je suis ${name} ! Ton ${ton}, à votre service. Prêt à démarrer ? 🚀`;
+}
+
+// --- recap ---
+function buildRecap(){
+  const d=collectData();
+  const spec=agentSpec(d);
+  const rows=[
+    ["Nom",d.identite||"—"],["Activité",d.entreprise||"—"],["Métier",d.activite||"—"],
+    ["Email",d.email||"—"],["Domaine",d.domaine==="oui"?"Oui":d.domaine==="non"?"À acheter":"À définir"],
+    ["Objectifs",(d.objectifs.map(v=>GOAL_LABELS[v]||v).join(", ")||"—")+(d.objectifs_libre?" + "+d.objectifs_libre:"")],
+    ["Outils",(d.outils.map(v=>OUTIL_LABELS[v]||v).join(", ")||"Aucun")],
+    ["Infra",INFRA_LABELS[d.infra]||"À définir"],
+    ["Appareils",d.appareils.join(", ")||"—"],
+    ["Agent",d.agent_nom||"Omar"],["Ton",d.ton],["Tutoiement",d.tutoiement?"Oui":"Non"],
+    ["Autonomie",d.autonomie],["Canaux",d.canaux.join(", ")||"—"],
+  ];
+  document.getElementById("recap").innerHTML=`<h3>Votre profil</h3><table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("")}</table>
+  <div class="agent-spec" id="agent-spec-preview">agent_profile = ${JSON.stringify(spec,null,2)}</div>
+  <div style="font-size:11px;color:#94a3b8;margin-top:6px">Ce spec sera exploitable par Hermes pour bootstrapper votre agent.</div>`;
+}
+
+// --- submit ---
+async function submitOnboarding(){
+  const d=collectData();
+  const spec=agentSpec(d);
+  const payload={record:{identite:d.identite,entreprise:d.entreprise,activite:d.activite,email:d.email,domaine:d.domaine,
+    objectifs:d.objectifs,objectifs_libre:d.objectifs_libre,outils:d.outils,
+    infra:d.infra,appareils:d.appareils},
+    agent_profile:spec};
+  const msgEl=document.getElementById("submit-msg");
+  msgEl.innerHTML='<div class="chat-msg bot">Envoi en cours…</div>';
+  try{
+    const r=await fetch("/api/onboarding",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
+    const j=await r.json();
+    if(r.ok&&j.ok){
+      msgEl.innerHTML='<div style="color:#16a34a;font-weight:600">✓ Profil enregistré !</div>';
+      document.getElementById("recap_final").innerHTML=document.getElementById("recap").innerHTML;
+      go(6);
+    } else {
+      msgEl.innerHTML=`<div style="color:#dc2626">Erreur : ${j.error||r.status}</div>`;
+    }
+  }catch(e){
+    msgEl.innerHTML=`<div style="color:#dc2626">Erreur réseau : ${e.message}</div>`;
+  }
+}
+
+// init
+renderBar();
 </script></body></html>

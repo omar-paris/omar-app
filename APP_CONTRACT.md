@@ -1,6 +1,6 @@
 # OA App Contract — app.omar.paris
 
-> Date : 2026-06-08. Statut : V0 draft. Source : `/home/omar/11-Pilotage/doctrine/oa-operating-manifest/APP-V0-PRD.md`.
+> Date : 2026-06-26. Statut : V0.5.0. Source : A2Z tunnel build (issue omar-app#46).
 
 ## Identity
 
@@ -11,10 +11,8 @@
 - Public domain: `app.omar.paris`
 - Naming rule: `AppOmar` is the internal codename; the customer-facing surface remains `app.omar.paris` / `Omar App`.
 - QG remains distinct: internal CORE OA registry/backoffice, not the customer portal.
-- Do not introduce `AAPP` unless Alex/H-Omar later define a distinct acronym; it is too ambiguous for now.
-- Code namespace recommendation: `app_omar` or `oa_app` at build time, but choose one before backend implementation.
 - Stack: CORE OA
-- Tenant/client: multi-tenant, à définir
+- Tenant/client: multi-tenant
 - Public/private/tailnet-only: public avec authentification obligatoire pour le portail client et `/api/proposals*` (OAuth Google via Caddy `forward_auth` côté vhost public ; token opérateur >=32 chars uniquement pour accès interne direct au serveur).
 - Repo/path: `/home/omar/23-Offre/actifs/omar-app`
 
@@ -22,7 +20,7 @@
 
 Primary job-to-be-done:
 
-> Transformer un prospect/client en configuration OA exploitable : compte, onboarding conversationnel, besoins, outils existants, proposition de configuration, support et suivi.
+> Transformer un prospect/client en configuration OA exploitable via le tunnel A→Z : onboarding conversationnel → devis → Stripe test/simulation → provisioning timeline → agent_spec.
 
 ## Audience
 
@@ -31,83 +29,125 @@ Primary job-to-be-done:
 - Alex/OA operator
 - Agents OA via données structurées
 
-## Routes/pages V0
+## Routes/pages V0.5.0
 
 ```txt
 /
-  Accueil portail client/prospect.
+  Accueil portail client/prospect. CTA principal vers /onboarding/.
 
-/onboarding
-  Formulaire + conversation chatbot pour définir besoin, objectifs, livrables, outils, entreprise, domaine, préférences.
+/onboarding/
+  Tunnel conversationnel multi-étapes mobile-first :
+  1. Identité (qui êtes-vous ?)
+  2. Objectifs (que veut votre assistant ?)
+  3. Outils (comment travaillez-vous aujourd'hui ?)
+  4. Infra (VPS/PC/hybride — ou "je ne sais pas")
+  5. Préférences agent (nom, ton, autonomie)
+  6. Récap → POST /api/onboarding → /devis/
 
-/config
-  Wizard actionnable qui produit une configuration OA Start.
+/devis/
+  Composez votre solution : formule + modules + prestations.
+  Autosave continu, lien repreneur, checkout Stripe test.
 
-/buy
-  Démarrage commande/demande de devis/paiement placeholder.
+/sav/
+  Support, bugs, incidents, demandes, feedback. Diagnostic VPS read-only.
 
-/sav
-  Support, bugs, incidents, demandes, feedback.
-
-/factures
-  Factures/abonnement placeholder V0.
-
-/compte
+/compte/
   Entreprise, membres, rôles, domaines, connexions, préférences.
+
+/aide/
+  Aide contextuelle : quoi faire selon l'état du client.
+
+/changelog/
+  Historique des versions Omar App.
+
+/admin/catalog/
+  Édition catalogue (admin only).
+
+# Routes historiques redirigées (compat) :
+/config/  → 301 /onboarding/
+/buy/     → 301 /devis/
+/factures/ → 301 /compte/
+/jab/     → supprimé (spécifique pilote, pas canonique)
 ```
 
 ## Core concepts
 
-### Onboarding
+### Onboarding conversationnel (V0.5.0)
 
-Onboarding = formulaire + conversation.
+Onboarding = tunnel multi-étapes avec chat simulé + collecte structurée.
 
-Collecte :
+Collecte progressive :
+- identité client et activité ;
+- objectifs pro et personnels autorisés ;
+- nom de l'agent, personnalité (ton, tutoiement/vouvoiement, autonomie, seuil de validation) ;
+- canaux : AppOmar, Telegram, email, Google/Microsoft, autres plus tard ;
+- notifications : urgences, résumé quotidien, relances, documents à valider ;
+- périmètre d'accès : pro, perso limité, sujets interdits, validation obligatoire ;
+- infrastructure préférée : VPS managé, PC, hybride, "je ne sais pas" ;
+- appareils : PC/Mac/mobile, OS, accès admin, Tailscale possible ;
+- connecteurs : Google Workspace, Microsoft 365, Infomaniak, OVH, Drive/OneDrive, agenda ;
+- modules/fonctions sélectionnés ;
+- devis et consentements.
 
-- entreprise ;
-- objectifs ;
-- livrables attendus ;
-- outils existants ;
-- domaine actuel ou achat ;
-- préférences ;
-- ressources ;
-- contraintes.
+Chat : assistant simulé avec `agent_spec` exploitable — le backend renvoie des messages
+pré-programmés contextuels. Quand un vrai agent sera connecté, le même endpoint
+sera utilisé sans changement UI.
 
-### Config
+### Devis (V0.5.0)
 
-Config = wizard actionnable.
+Devis = sélection catalogue → devise JSON → checkout Stripe test/simulation.
 
-V0 propose une option principale :
+- Produits du `catalog.json` : formules (Starter 49€, Pro 99€, Sur-mesure), modules, prestations.
+- Autosave continu, lien repreneur.
+- Aucun coût réel : `paid_actions=none`, Stripe test uniquement.
+- Statut `paid_test` pour simulation de paiement réussi.
 
-```txt
-Pack OA Start
-- VPS Hetzner
-- domaine/email Infomaniak si nécessaire
-- compte Omar client
-- Hub local
-- agent Hermes OA
-- support/SAV via App
-- configuration initiale accompagnée
+### Provisioning timeline (V0.5.0)
+
+Après devis (payé ou simulé), le client voit une timeline de provisioning :
+- Étapes visibles simulées (VPS, Caddy, Hub, agent, connexions).
+- Aucune action automatique sans GO humain.
+- Utilise `onboarding-status.json` existant.
+
+### Agent spec (V0.5.0)
+
+L'onboarding produit un `agent_profile` JSON structuré :
+```json
+{
+  "agent_name": "...",
+  "personality": { "ton": "...", "tutoiement": true, "autonomie": "moderee" },
+  "canaux": [...],
+  "perimetre": { "pro": true, "perso_limite": false, "sujets_interdits": [...] },
+  "modules": [...],
+  "infra_preference": "vps_managé|pc|hybride|inconnu"
+}
 ```
+Ce spec est exploitable par Hermes pour bootstrapper l'agent client.
 
-### Connexions
+## Simulation sans coût
 
-- Nango = L2 pour le moment.
-- Le modèle App doit prévoir `connection_intent` compatible OAuth/Nango plus tard.
-- Infisical = secrets machine/client cible.
-- Hermes Agent Vault reste distinct pour runtime agents.
+| Étape | Simulation | Preuve |
+|---|---|---|
+| Onboarding | profil client + agent_profile JSON | `POST /api/onboarding` |
+| Devis | lignes catalogue non vides | `POST /api/devis` |
+| Paiement | Stripe test statut `paid_test` | `POST /api/checkout` (503 attendu) |
+| Infra | Hetzner dry-run / `paid_actions=none` | `GET /api/hetzner/pricing` |
+| Provisioning | timeline visible status steps | `GET /api/onboarding/status` |
+| Agent | `agent_profile` dans onboarding record | onboarding JSON |
+| SAV | diagnostic read-only | `GET /api/sav/status` |
 
 ## Data boundaries
 
 - Chaque client ne voit que ses données (`/api/onboarding/status`, `/api/sav/status`, `/api/proposals/{id}` filtrés par email OAuth → `clients/<id>/app-emails.txt`).
+- `/api/onboarding/status` et `/api/sav/status` refusent l'accès sans email authentifié (403 unknown, [] vide données).
 - `/api/proposals` refuse tout POST/GET sans credential valide : OAuth client connu/admin ou token opérateur interne.
 - Pas de secrets en clair.
 - Pas de données inter-tenant visibles.
 - Les tokens/API keys ne sont jamais stockés dans le repo.
-- Les secrets runtime `omar-app` doivent venir soit d'une injection directe du superviseur, soit d'un token Vault service-scopé (`OA_APP_VAULT_TOKEN` ou `OA_APP_VAULT_TOKEN_FILE`) ; le token root/opérateur `/home/omar/.vault-token` est interdit côté runner applicatif.
-- Les chemins Vault applicatifs autorisés sont documentés dans `docs/security/vault-policies.md` et limités à Stripe test/live + Hetzner pricing read-only.
+- Les secrets runtime `omar-app` doivent venir soit d'une injection directe du superviseur, soit d'un token Vault service-scopé.
+- Les chemins Vault applicatifs autorisés sont documentés dans `docs/security/vault-policies.md`.
 
-## Data model draft
+## Data model V0.5.0
 
 ```yaml
 client_profile:
@@ -119,22 +159,48 @@ client_profile:
   goals:
   expected_deliverables:
   preferences:
+  infra_preference: vps_managé | pc | hybride | inconnu
+  appareils:
+  connecteurs_intention:
+
+agent_profile:
+  agent_name:
+  personality:
+    ton: professionnel | amical | neutre
+    tutoiement: bool
+    autonomie: moderee | elevee | conservative
+    seuil_validation: toujours | risqué | jamais
+  canaux: [appomar, telegram, email]
+  perimetre:
+    pro: bool
+    perso_limite: bool
+    sujets_interdits: []
+  modules: []
+  notifications: []
 
 onboarding_session:
-  status: draft | submitted | needs_clarification | ready_for_config
-  conversation_summary:
-  missing_information:
+  id:
+  record: { client_profile, agent_profile }
+  status: draft | submitted | ready_for_config
+  received_at:
+
+devis:
+  id:
+  client:
+  lignes: [{ id, label, prix_mensuel, prix_unique }]
+  total_mensuel_eur:
+  total_unique_eur:
+  statut: brouillon | en_paiement | achete | paid_test
+  stripe_session:
+  stripe_mode: test | live
 
 configuration_proposal:
   pack: oa-start
-  providers:
-    hetzner:
-    infomaniak:
-    phone_operator:
-  apps:
-  integrations:
+  providers: { hetzner, infomaniak }
+  apps: []
+  integrations: []
   estimated_costs:
-  next_actions:
+  safety: { paid_actions: none }
 
 support_request:
   type: bug | request | incident | question
@@ -142,29 +208,48 @@ support_request:
   status:
 ```
 
-## Non-goals V0
+## Non-goals V0.5.0
 
-- Pas de paiement complet complexe.
-- Pas de marketplace multi-options.
+- Pas de paiement réel live (Stripe test uniquement).
+- Pas de marketplace multi-options complète.
 - Pas de CRM complet.
 - Pas de provider automation risquée sans validation.
 - Pas de Nango obligatoire.
-- Pas de promesse opérateur mobile géré OA tant que modèle légal/facturation non tranché.
+- Pas de true agent backend (chat simulé avec agent_spec exploitable).
+- Pas de provisioning PC réel sans smoke test préalable et validation humaine.
 
-## Success criteria V0
+## Option PC — promesse prépublique et smoke test V0.5.x
 
-- Un prospect peut exprimer son besoin.
-- OA reçoit une synthèse exploitable.
-- Une configuration recommandée est produite.
-- Le client comprend inclus/non inclus.
-- Une prochaine action interne est créée.
-- QG/Lab peuvent suivre l'état.
+L'option PC est promise publiquement comme **installation accompagnée**. Elle ne doit pas déclencher d'action payante ni de modification machine sans validation.
+
+Smoke test attendu avant installation réelle :
+
+1. Collecter `infra=pc` ou `infra=hybride` dans l'onboarding.
+2. Collecter OS/appareils et contraintes d'accès admin.
+3. Produire un `agent_profile` indiquant clairement la cible PC.
+4. Afficher que le PC sera vérifié avant activation : OS, droits admin, Tailscale/Docker ou alternative, connectivité.
+5. Garder `paid_actions=none` en mode test.
+6. Remonter un statut lisible : `pc_smoke=pending|pass|fail|not_applicable`.
+
+## Success criteria V0.5.0
+
+- Un prospect peut parcourir le tunnel A→Z sur mobile.
+- Onboarding collecte identité, objectifs, outils, infra, agent_spec.
+- Devis non vide avec produits catalogue cohérents.
+- Stripe test simulé lisible (503 attendu, pas faux paiement).
+- Provisioning timeline visible (simulée).
+- Option PC promise comme installation accompagnée avec smoke test préalable (`pc_smoke`) et aucune action payante.
+- `/api/onboarding/status` ne fuit pas les données d'autres clients.
+- Routes canoniques : `/onboarding/` + `/devis/` + `/sav/` + `/compte/`.
+- Routes historiques `/config/`, `/buy/`, `/factures/` redirigées.
+- Tests passent ; smokes API OK.
 
 ## Build gates
 
-- Version visible.
+- Version visible (V0.5.0 header + changelog).
 - Changelog visible.
 - Routes fonctionnelles.
 - No secrets.
 - Test/smoke minimal.
 - Contract mis à jour avant build.
+- Review-gate H-Athena avant merge.

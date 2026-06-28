@@ -1,5 +1,5 @@
-VERSION = "V0.3.0"
-PUBLISHED = "9 JUIN 2026"
+VERSION = "V0.5.0"
+PUBLISHED = "26 JUIN 2026"
 DOMAIN = "app.omar.paris"
 
 OA_START_PACKS = [
@@ -60,12 +60,10 @@ APPS_L1 = [
 NAV = [
     ("/", "Accueil"),
     ("/onboarding/", "Onboarding"),
-    ("/config/", "Config"),
-    ("/buy/", "Buy"),
+    ("/devis/", "Devis"),
     ("/sav/", "SAV"),
-    ("/factures/", "Factures"),
     ("/compte/", "Compte"),
-    ("/jab/", "Plan JAB"),
+    ("/aide/", "Aide"),
     ("/changelog/", "Changelog"),
 ]
 
@@ -73,7 +71,7 @@ PAGES = {
     "/": {
         "title": "Omar App — portail client OA",
         "eyebrow": "CORE OA · Portail client/prospect",
-        "summary": "Transformer un prospect en configuration OA exploitable : onboarding, config, buy, SAV, factures et compte Omar.",
+        "summary": "Transformer un prospect en configuration OA exploitable : onboarding, devis, paiement test, SAV et compte Omar.",
         "sections": [
             ("Parcours V0", ["1. Comprendre le besoin", "2. Proposer une configuration OA Start", "3. Préparer installation et support", "4. Suivre le client dans QG/Lab"]),
             ("Statut", ["Skeleton V0 local-first", "Pas encore de paiement réel", "Pas encore d’OAuth réel", "Nango reste L2 pour le moment"]),
@@ -99,11 +97,23 @@ PAGES = {
             ("Sortie attendue", ["Configuration recommandée", "Coûts estimés", "Informations manquantes", "Prochaines actions internes"]),
         ],
     },
-    "/buy/": {
-        "title": "Buy — démarrer OA",
-        "eyebrow": "Pré-commande / devis",
-        "summary": "Page placeholder pour transformer la configuration en demande de démarrage, devis ou paiement futur.",
-        "sections": [("V0", ["Pas de paiement réel", "Demande de démarrage", "Récapitulatif de configuration", "Validation humaine OA"])]
+    "/devis/": {
+        "title": "Devis — composer l'offre OA",
+        "eyebrow": "Pré-commande / paiement test",
+        "summary": "Le devis transforme l'onboarding en sélection de formules et options. Paiement réel désactivé tant que Stripe n'est pas configuré ; le 1er mois devra être payé avant activation réelle.",
+        "sections": [
+            ("Flux", ["Sélection produits catalogue", "Création devis JSON", "Checkout Stripe test ou message explicite", "paid_actions=none tant que non configuré"]),
+            ("Offre", ["Prix à partir de", "Coupons/bons/remises pilotes", "Option PC accompagnée", "VPS ou hybride selon profil"]),
+        ],
+    },
+    "/aide/": {
+        "title": "Aide — comprendre le parcours OA",
+        "eyebrow": "FAQ et prochaines étapes",
+        "summary": "Aide courte pour prospects et clients : onboarding, devis, paiement du premier mois, option PC, SAV et compte.",
+        "sections": [
+            ("Questions fréquentes", ["Que se passe-t-il après l'onboarding ?", "Quand paie-t-on le premier mois ?", "Comment fonctionne l'option PC ?", "Que veut dire paiement test ?"]),
+            ("Support", ["SAV depuis /sav/", "Compte client isolé", "Validation humaine avant actions risquées"]),
+        ],
     },
     "/sav/": {
         "title": "SAV — support client",
@@ -129,8 +139,10 @@ PAGES = {
     "/changelog/": {
         "title": "Changelog",
         "eyebrow": "Historique Omar App",
-        "summary": "V0.3.0 · 9 juin 2026 · Stockage serveur des propositions + pricing Hetzner read-only.",
+        "summary": "V0.5.0 · 26 juin 2026 · Tunnel A→Z onboarding → devis → agent + option PC smoke.",
         "sections": [
+            ("V0.5.0", ["Onboarding conversationnel 6 étapes", "Routes canoniques /onboarding/, /devis/, /sav/, /compte/", "Agent profile exploitable par Hermes", "Option PC alignée OmarTop pc-smoke-check", "paid_actions=none tant que non configuré"]),
+            ("V0.4.0", ["Sécurité anti-énumération PII", "Statuts onboarding/SAV isolés par client", "Forward-auth requis pour endpoints multi-tenant", "Catalogue et pricing exposés en read-only"]),
             ("V0.3.0", ["POST /api/proposals pour stocker les propositions", "GET /api/proposals/<id> pour relecture opérateur", "GET /api/hetzner/pricing read-only", "Fallback statique si token Hetzner non disponible", "Toujours aucun coût sans GO humain"]),
             ("V0.2.0", ["Wizard /config réel", "Proposal JSON configuration_proposal", "Dry-run Hetzner pending_human_go", "Apps L1 alignées OmarTop → Hub", "Aucun POST payant automatique"]),
             ("V0.1.0", ["Routes directes créées", "Contrat App aligné", "Onboarding/config/SAV/factures/compte documentés", "No secrets"]),

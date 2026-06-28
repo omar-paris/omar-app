@@ -8,10 +8,9 @@ PUBLIC = ROOT / "public"
 ROUTES = {
     "/": PUBLIC / "index.html",
     "/onboarding": PUBLIC / "onboarding" / "index.html",
-    "/config": PUBLIC / "config" / "index.html",
-    "/buy": PUBLIC / "buy" / "index.html",
+    "/devis": PUBLIC / "devis" / "index.html",
+    "/aide": PUBLIC / "aide" / "index.html",
     "/sav": PUBLIC / "sav" / "index.html",
-    "/factures": PUBLIC / "factures" / "index.html",
     "/compte": PUBLIC / "compte" / "index.html",
     "/changelog": PUBLIC / "changelog" / "index.html",
 }
@@ -31,14 +30,14 @@ def test_build_generates_all_direct_routes():
         assert path.exists(), f"Missing route {route}: {path}"
         text = html(path)
         assert "Omar App" in text
-        assert "V0.3.0" in text
+        assert "V0.5.0" in text
         assert "app.omar.paris" in text
 
 
 def test_navigation_links_are_real_direct_urls():
     build_site()
     text = html(PUBLIC / "index.html")
-    for route in ["/onboarding/", "/config/", "/buy/", "/sav/", "/factures/", "/compte/", "/changelog/"]:
+    for route in ["/onboarding/", "/devis/", "/sav/", "/compte/", "/changelog/"]:
         assert f'href="{route}"' in text
     assert 'href="#"' not in text
 
@@ -136,6 +135,28 @@ def test_account_and_security_boundaries_are_visible():
     build_site()
     text = html(PUBLIC / "compte" / "index.html").lower()
     for term in ["multi-tenant", "ne voit que ses données", "rôles", "aucun secret", "infisical", "hermes agent vault"]:
+        assert term in text
+
+
+def test_onboarding_pc_option_has_reproducible_smoke_contract():
+    text = (ROOT / "pages-app" / "onboarding.html").read_text(encoding="utf-8")
+    for term in [
+        'value="pc"',
+        'value="hybride"',
+        "Option PC promise",
+        "pcSmokeStatus",
+        "pc_smoke",
+        "pc_smoke_checklist",
+        "droits_admin",
+        "tailscale_ou_reseau",
+        "docker_ou_runner_local",
+        "infra: d.infra",
+        "infra_preference",
+        "deviceObjects",
+        "device_labels",
+        "state: \"inconnu\"",
+        "devices",
+    ]:
         assert term in text
 
 
