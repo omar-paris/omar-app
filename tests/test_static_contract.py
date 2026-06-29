@@ -7,6 +7,7 @@ PUBLIC = ROOT / "public"
 
 ROUTES = {
     "/": PUBLIC / "index.html",
+    "/audit": PUBLIC / "audit" / "index.html",
     "/onboarding": PUBLIC / "onboarding" / "index.html",
     "/devis": PUBLIC / "devis" / "index.html",
     "/aide": PUBLIC / "aide" / "index.html",
@@ -37,7 +38,7 @@ def test_build_generates_all_direct_routes():
 def test_navigation_links_are_real_direct_urls():
     build_site()
     text = html(PUBLIC / "index.html")
-    for route in ["/onboarding/", "/devis/", "/sav/", "/compte/", "/changelog/"]:
+    for route in ["/audit/", "/onboarding/", "/devis/", "/sav/", "/compte/", "/changelog/"]:
         assert f'href="{route}"' in text
     assert 'href="#"' not in text
 
@@ -57,6 +58,48 @@ def test_onboarding_page_collects_required_client_context():
     ]
     for term in required_terms:
         assert term in text
+
+
+def test_audit_page_is_conversation_cockpit_not_static_form():
+    build_site()
+    text = html(PUBLIC / "audit" / "index.html").lower()
+    for term in [
+        "cockpit conversationnel",
+        "conversation avec omar",
+        "étapes",
+        "livrables",
+        "valider cette étape",
+        "préparer recherches",
+        "générer le rapport",
+        "audit_cockpit_conversationnel.v1_rigoureux",
+        "consentements audit rgpd",
+        "recherche web publique",
+        "données légales publiques",
+        "amélioration anonymisée",
+        "propositions de solutions justifiées",
+        "/api/audit-sessions",
+        "télécharger md",
+        "copier texte linkedin",
+        "envoyer par email",
+        "rapport_audit.md",
+        "recommandations_source.json",
+        "sources publiques",
+        "réponses rapides",
+        "oui c’est moi",
+        "ce n’est pas moi",
+        "mode guidé",
+        "prioriser l’activité",
+        "rang #1",
+        "hypercentre",
+        "périurbain",
+        "enregistrer et reprendre plus tard",
+        "passer cette question",
+        "pourquoi cette question",
+        "auditbizia",
+    ]:
+        assert term in text
+    assert "question métier" not in text
+    assert "<form id=\"audit-form\"" not in text
 
 
 def test_config_page_defines_actionable_oa_start_wizard():
