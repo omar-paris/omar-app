@@ -256,3 +256,83 @@ def test_pricing_endpoint_is_read_only_and_reports_unconfigured_token(tmp_path):
     finally:
         proc.terminate()
         proc.wait(timeout=3)
+
+
+def test_devis_accepts_dict_items_and_exports_pdf(tmp_path):
+    proc, port = start_server(tmp_path)
+    try:
+        payload = {
+            "client": {"nom": "Smoke Maryse", "email": "maryse@example.test"},
+            "items": [{"id": "formule-starter", "qty": 2}, {"id": "presta-onboarding", "qty": 1}],
+        }
+        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/devis", payload)
+        assert status == 201
+        devis = created["devis"]
+        assert devis["statut"] == "brouillon"
+        assert devis["total_mensuel_eur"] == 98
+        assert devis["total_unique_eur"] == 150
+        assert devis["lignes"][0]["qty"] == 2
+
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/devis/{devis['id']}.pdf", method="GET")
+        with urllib.request.urlopen(req, timeout=3) as response:
+            body = response.read()
+            assert response.status == 200
+            assert response.headers["content-type"] == "application/pdf"
+            assert body.startswith(b"%PDF-1.4")
+            assert b"Omar & Alex" in body
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
+def test_devis_rejects_unknown_items_instead_of_empty_quote(tmp_path):
+    proc, port = start_server(tmp_path)
+    try:
+        payload = {"client": {"nom": "Smoke"}, "items": [{"id": "unknown", "qty": 1}]}
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/devis",
+            data=json.dumps(payload).encode("utf-8"),
+            method="POST",
+            headers={"content-type": "application/json"},
+        )
+        try:
+            urllib.request.urlopen(req, timeout=3)
+            raise AssertionError("unknown-only devis accepted")
+        except urllib.error.HTTPError as exc:
+            body = json.loads(exc.read().decode("utf-8"))
+            assert exc.code == 422
+            assert body["error"] == "aucun item catalogue valide"
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
+def test_appomar_creates_provisioning_dry_run_contract_from_devis(tmp_path):
+    proc, port = start_server(tmp_path)
+    try:
+        _, created = request_json("POST", f"http://127.0.0.1:{port}/api/devis", {
+            "client": {"nom": "Maryse"},
+            "items": ["formule-starter", "presta-onboarding"],
+        })
+        did = created["devis"]["id"]
+        status, payload = request_json("POST", f"http://127.0.0.1:{port}/api/provisioning/dry-run", {
+            "devis_id": did,
+            "target": "hybride",
+        })
+        assert status == 201
+        contract = payload["provisioning"]
+        assert contract["schema"] == "omartop.provisioning-contract.v1"
+        assert contract["source_devis_id"] == did
+        assert contract["target"] == "hybride"
+        assert contract["mode"] == "dry-run"
+        assert contract["paid_actions"] == "none"
+        assert contract["status"] == "pending_go"
+        assert contract["pc_smoke"]["present"] is True
+        assert contract["vps_smoke"]["present"] is True
+
+        get_status, fetched = request_json("GET", f"http://127.0.0.1:{port}/api/provisioning/{did}")
+        assert get_status == 200
+        assert fetched["provisioning"]["source_devis_id"] == did
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)

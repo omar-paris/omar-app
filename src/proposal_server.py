@@ -94,6 +94,72 @@ def json_bytes(payload: dict[str, Any]) -> bytes:
     return json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
 
 
+def _pdf_escape(value: Any) -> str:
+    text = str(value).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+    return text.encode("latin-1", "replace").decode("latin-1")
+
+
+def devis_pdf_bytes(devis: dict[str, Any]) -> bytes:
+    """Produit un PDF minimal sans dépendance externe pour l'export DIY.
+
+    Ce n'est pas une facture ni une mise en page finale : c'est un devis lisible,
+    téléchargeable, et vérifiable en smoke-test navigateur/API.
+    """
+    client = devis.get("client") or {}
+    lines = [
+        "Omar & Alex - Devis",
+        f"Reference: {devis.get('id', '')}",
+        f"Client: {client.get('nom') or client.get('name') or client.get('company_name') or ''}",
+        f"Statut: {devis.get('statut', '')}",
+        "",
+        "Lignes:",
+    ]
+    for item in devis.get("lignes", []):
+        label = item.get("label", item.get("id", "ligne"))
+        mensuel = item.get("prix_mensuel")
+        unique = item.get("prix_unique")
+        price = []
+        if mensuel is not None:
+            price.append(f"{mensuel} EUR/mois")
+        if unique is not None:
+            price.append(f"{unique} EUR setup")
+        lines.append(f"- {label}: {', '.join(price) if price else 'sur devis'}")
+    lines.extend([
+        "",
+        f"Total mensuel HT: {devis.get('total_mensuel_eur', 0)} EUR",
+        f"Total initial HT: {devis.get('total_unique_eur', 0)} EUR",
+        "",
+        "DIY: export pour validation humaine. Aucune action payante n'est declenchee par ce PDF.",
+    ])
+    text_ops = ["BT", "/F1 11 Tf", "50 790 Td", "14 TL"]
+    for line in lines:
+        text_ops.append(f"({_pdf_escape(line)}) Tj")
+        text_ops.append("T*")
+    text_ops.append("ET")
+    stream = "\n".join(text_ops).encode("latin-1", "replace")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"\nendstream",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for idx, obj in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out.extend(f"{idx} 0 obj\n".encode("ascii"))
+        out.extend(obj)
+        out.extend(b"\nendobj\n")
+    xref = len(out)
+    out.extend(f"xref\n0 {len(objects)+1}\n".encode("ascii"))
+    out.extend(b"0000000000 65535 f \n")
+    for off in offsets[1:]:
+        out.extend(f"{off:010d} 00000 n \n".encode("ascii"))
+    out.extend(f"trailer << /Size {len(objects)+1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode("ascii"))
+    return bytes(out)
+
+
 def slugify(value: str) -> str:
     cleaned = re.sub(r"[^a-zA-Z0-9]+", "-", value.lower()).strip("-")
     return cleaned or "client-demo"
@@ -290,6 +356,44 @@ def read_devis(data_dir: Path, did: str) -> dict[str, Any] | None:
         return None
     path = data_dir / "devis" / f"{did}.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def read_provisioning(data_dir: Path, did: str) -> dict[str, Any] | None:
+    if not re.match(r"^devis-[0-9A-Za-z-]+$", did):
+        return None
+    path = data_dir / "provisioning" / f"{did}.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def build_provisioning_contract(devis: dict[str, Any], target: str) -> dict[str, Any]:
+    if target not in {"vps", "pc", "hybride"}:
+        raise ValueError("target invalide")
+    checks = [
+        {"key": "devis_present", "label": "Devis AppOmar présent", "result": "pass", "detail": devis.get("id", "")},
+        {"key": "paid_actions_none", "label": "Aucune action payante déclenchée", "result": "pass", "detail": "dry-run"},
+        {"key": "go_humain_required", "label": "GO humain requis avant réel", "result": "manual", "detail": "pending_go avant provisioning réel"},
+    ]
+    return {
+        "schema": "omartop.provisioning-contract.v1",
+        "source": "appomar.api.provisioning.dry_run",
+        "source_devis_id": devis["id"],
+        "vps_id": target,
+        "target": target,
+        "mode": "dry-run",
+        "paid_actions": "none",
+        "go_humain": {"required": True, "provided": False, "token_present": False},
+        "status": "pending_go",
+        "score": 67,
+        "checks": {"pass_count": 2, "fail_count": 0, "manual_count": 1, "items": checks},
+        "pc_smoke": {"present": True} if target in {"pc", "hybride"} else None,
+        "vps_smoke": {"present": True} if target in {"vps", "hybride"} else None,
+        "errors": [],
+        "warnings": ["dry-run AppOmar: aucune installation réelle sans GO H-Omar/Alex"],
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "generated_by": "appomar-proposal-server",
+        "commit_ref": None,
+        "dry_run": True,
+    }
 
 
 def read_proposal(data_dir: Path, pid: str) -> dict[str, Any] | None:
@@ -564,11 +668,32 @@ class ProposalHandler(BaseHTTPRequestHandler):
             return
         if self.path.startswith("/api/devis/"):
             did = self.path[len("/api/devis/"):].split("?", 1)[0]
+            wants_pdf = did.endswith(".pdf")
+            if wants_pdf:
+                did = did[:-4]
             dv = read_devis(self.data_dir, did)
             if not dv:
                 self.send_json(404, {"ok": False, "error": "devis_not_found"})
                 return
+            if wants_pdf:
+                body = devis_pdf_bytes(dv)
+                self.send_response(200)
+                self.send_header("content-type", "application/pdf")
+                self.send_header("content-disposition", f'attachment; filename="{did}.pdf"')
+                self.send_header("content-length", str(len(body)))
+                self.send_header("cache-control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+                return
             self.send_json(200, {"ok": True, "devis": dv})
+            return
+        if self.path.startswith("/api/provisioning/"):
+            did = self.path[len("/api/provisioning/"):].split("?", 1)[0]
+            contract = read_provisioning(self.data_dir, did)
+            if not contract:
+                self.send_json(404, {"ok": False, "error": "provisioning_not_found"})
+                return
+            self.send_json(200, {"ok": True, "provisioning": contract})
             return
         if self.path == "/api/hetzner/pricing":
             self.send_json(200, pricing_payload())
@@ -603,6 +728,9 @@ class ProposalHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/api/checkout":
             self.handle_checkout()
+            return
+        if self.path == "/api/provisioning/dry-run":
+            self.handle_provisioning_dry_run()
             return
         if self.path == "/api/stripe-webhook":
             self.handle_stripe_webhook()
@@ -681,14 +809,30 @@ class ProposalHandler(BaseHTTPRequestHandler):
             return
         catalog = {p["id"]: p for p in load_catalog().get("products", [])}
         lignes, mensuel, unique = [], 0, 0
-        for iid in item_ids:
+        for raw_item in item_ids:
+            if isinstance(raw_item, str):
+                iid = raw_item
+                qty = 1
+            elif isinstance(raw_item, dict):
+                iid = str(raw_item.get("id", ""))
+                try:
+                    qty = max(1, int(raw_item.get("qty", 1)))
+                except (TypeError, ValueError):
+                    qty = 1
+            else:
+                continue
             p = catalog.get(iid)
             if not p:
                 continue
-            lignes.append({"id": p["id"], "label": p["label"],
-                           "prix_mensuel": p.get("prix_mensuel"), "prix_unique": p.get("prix_unique")})
-            mensuel += p.get("prix_mensuel") or 0
-            unique += p.get("prix_unique") or 0
+            line_mensuel = p.get("prix_mensuel")
+            line_unique = p.get("prix_unique")
+            lignes.append({"id": p["id"], "label": p["label"], "qty": qty,
+                           "prix_mensuel": line_mensuel, "prix_unique": line_unique})
+            mensuel += (line_mensuel or 0) * qty
+            unique += (line_unique or 0) * qty
+        if not lignes:
+            self.send_json(422, {"ok": False, "error": "aucun item catalogue valide"})
+            return
         # reprise : si devis_id fourni et existe (et pas encore payé), on met à jour le même
         existing = read_devis(self.data_dir, str(payload.get("devis_id", "")))
         if existing and existing.get("statut") != "achete":
@@ -708,6 +852,34 @@ class ProposalHandler(BaseHTTPRequestHandler):
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{did}.json").write_bytes(json_bytes(devis))
         self.send_json(201, {"ok": True, "devis": devis})
+
+    def handle_provisioning_dry_run(self) -> None:
+        """Pont AppOmar → OmarTop : produit un contrat provisioning dry-run.
+
+        Aucun provisioning réel, aucun call provider, aucune dépense. Le contrat est
+        stocké pour Hub/QG et reste en pending_go jusqu'à arbitrage humain.
+        """
+        try:
+            length = int(self.headers.get("content-length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            did = str(payload.get("devis_id", ""))
+            target = str(payload.get("target", "pc"))
+        except Exception as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+            return
+        devis = read_devis(self.data_dir, did)
+        if not devis:
+            self.send_json(404, {"ok": False, "error": "devis_not_found"})
+            return
+        try:
+            contract = build_provisioning_contract(devis, target)
+        except ValueError as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+            return
+        out_dir = self.data_dir / "provisioning"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / f"{did}.json").write_bytes(json_bytes(contract))
+        self.send_json(201, {"ok": True, "provisioning": contract})
 
     def handle_checkout(self) -> None:
         """Lance le paiement Stripe d'un devis. Stub tant que la clef Stripe n'est

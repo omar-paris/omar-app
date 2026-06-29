@@ -93,14 +93,23 @@ Chat : assistant simulé avec `agent_spec` exploitable — le backend renvoie de
 pré-programmés contextuels. Quand un vrai agent sera connecté, le même endpoint
 sera utilisé sans changement UI.
 
-### Devis (V0.5.0)
+### Devis (V0.6.0)
 
-Devis = sélection catalogue → devise JSON → checkout Stripe test/simulation.
+Devis = sélection catalogue → devis JSON/PDF → checkout Stripe test/simulation.
 
 - Produits du `catalog.json` : formules (Starter 49€, Pro 99€, Sur-mesure), modules, prestations.
-- Autosave continu, lien repreneur.
-- Aucun coût réel : `paid_actions=none`, Stripe test uniquement.
+- API accepte les items simples (`"formule-starter"`) et quantifiés (`{"id":"formule-starter","qty":2}`).
+- Export DIY minimal : `GET /api/devis/<id>.pdf` renvoie un PDF téléchargeable sans dépendance externe.
+- Aucun coût réel : `paid_actions=none`, Stripe test uniquement tant que la clef n'est pas configurée.
 - Statut `paid_test` pour simulation de paiement réussi.
+
+### Provisioning dry-run (V0.6.0)
+
+Après devis, AppOmar peut produire un contrat de provisioning dry-run consommable par OmarTop/Hub/QG :
+- `POST /api/provisioning/dry-run` avec `devis_id` + `target` (`vps|pc|hybride`).
+- `GET /api/provisioning/<devis_id>` relit le contrat stocké.
+- Contrat `omartop.provisioning-contract.v1`, `status=pending_go`, `paid_actions=none`.
+- Aucune action automatique sans GO humain.
 
 ### Provisioning timeline (V0.5.0)
 
