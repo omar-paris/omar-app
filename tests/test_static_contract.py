@@ -203,6 +203,57 @@ def test_onboarding_pc_option_has_reproducible_smoke_contract():
         assert term in text
 
 
+def test_connector_readiness_json_and_account_surface_expose_catalogue_statuses():
+    build_site()
+    api_path = PUBLIC / "api" / "connector-readiness.json"
+    assert api_path.exists()
+    data = __import__("json").loads(api_path.read_text(encoding="utf-8"))
+    assert data["schema"] == "appomar.connector_readiness.v1"
+    assert data["status_vocabulary"] == ["potential", "blocked", "configured", "proven", "unknown"]
+    assert data["safety"]["secrets_exposed"] is False
+    assert data["safety"]["proven_requires_measured_or_read_proof"] is True
+    assert len(data["items"]) >= 8
+    seen = {item["classification"] for item in data["items"]}
+    assert {"potential", "blocked", "proven"}.issubset(seen)
+    for item in data["items"]:
+        assert set(item) >= {"capability", "classification", "proof", "gap", "owner"}
+        assert item["classification"] in data["status_vocabulary"]
+        assert item["proof"]
+        assert item["gap"]
+        assert item["owner"]
+    jab_blocked = [
+        item for item in data["items"]
+        if "jab" in item["capability"].lower()
+        and ("google" in item["capability"].lower() or "nango connect" in item["capability"].lower())
+    ]
+    assert jab_blocked
+    for item in jab_blocked:
+        assert item["classification"] == "blocked"
+        assert "t_d76b3974" in item["proof"] or "tenant-local Nango JAB" in item["proof"]
+    compte = html(PUBLIC / "compte" / "index.html").lower()
+    for term in [
+        "readiness connecteurs",
+        "potential",
+        "blocked",
+        "configured",
+        "proven",
+        "preuve courte",
+        "next action",
+        "owner",
+        "/api/connector-readiness.json",
+        "aucun secret",
+    ]:
+        assert term in compte
+
+
+def test_jab_plan_does_not_present_google_nango_as_available():
+    build_site()
+    plan = html(PUBLIC / "jab" / "index.html").lower()
+    assert "google contacts/gmail via nango interdit" in plan
+    assert "décision t_d76b3974" in plan
+    assert "gaté" in plan
+
+
 def test_changelog_exists_and_no_secret_like_literals_are_exposed():
     build_site()
     changelog = html(PUBLIC / "changelog" / "index.html")
