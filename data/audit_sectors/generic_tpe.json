@@ -1,0 +1,55 @@
+{
+  "sector_id": "generic_tpe",
+  "labels": [
+    "tpe",
+    "pme",
+    "commerce",
+    "artisan",
+    "indépendant",
+    "entreprise"
+  ],
+  "important_dimensions": [
+    "taille",
+    "localisation",
+    "ancienneté",
+    "chiffre d’affaires",
+    "typologie clients",
+    "canaux entrants",
+    "outils",
+    "risques données"
+  ],
+  "question_blocks": {
+    "activity": [
+      "Quel est le métier exact et le secteur principal de l'entreprise ?",
+      "Où est située l'entreprise et quelle zone sert-elle ?",
+      "Quelle est sa taille : solo, associés, salariés, prestataires ?",
+      "Depuis combien de temps existe-t-elle ?",
+      "Quel est l'ordre de grandeur du chiffre d'affaires annuel ?",
+      "Quels sont les clients principaux et les demandes les plus fréquentes ?"
+    ],
+    "pain": [
+      "Quelles tâches reviennent chaque semaine ?",
+      "Combien de temps prennent-elles ?",
+      "Quelles erreurs ou oublis coûtent le plus cher ?"
+    ],
+    "risk": [
+      "Quelles données sont sensibles ?",
+      "Quelles actions nécessitent toujours une validation humaine ?"
+    ]
+  },
+  "risk_flags": [
+    "données clients",
+    "prix",
+    "paiement",
+    "publication externe"
+  ],
+  "benchmarks": {
+    "automation_candidates": [
+      "réponses clients",
+      "relances",
+      "devis",
+      "synthèses",
+      "planning"
+    ]
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "sector_id": "restaurant",
+  "labels": [
+    "restaurant",
+    "restaurateur",
+    "brasserie",
+    "café",
+    "traiteur",
+    "bistrot"
+  ],
+  "important_dimensions": [
+    "localisation et zone de chalandise",
+    "âge de l’établissement",
+    "chiffre d’affaires ordre de grandeur",
+    "nombre d’employés par service",
+    "couverts midi/soir",
+    "réservations/no-show",
+    "menus et allergènes",
+    "avis publics",
+    "saisonnalité/tourisme",
+    "livraison/plateformes",
+    "privatisation/événements",
+    "concurrence directe restaurants proches",
+    "concurrence indirecte livraison/snacking/traiteurs",
+    "stocks et pertes"
+  ],
+  "core_parameters": [
+    {
+      "id": "covers",
+      "label": "Couverts par service",
+      "why": "mesure flux et potentiel réservation/relance"
+    },
+    {
+      "id": "team_size",
+      "label": "Équipe salle/cuisine",
+      "why": "calibre charge opérationnelle"
+    },
+    {
+      "id": "reservation_mix",
+      "label": "Réservation, walk-in, livraison, événementiel",
+      "why": "oriente priorités IA"
+    },
+    {
+      "id": "average_ticket",
+      "label": "Ticket moyen/CA ordre de grandeur",
+      "why": "calibre ROI"
+    }
+  ],
+  "localized_research": {
+    "authorized_sources": [
+      "site officiel",
+      "Google Business Profile",
+      "avis publics",
+      "Tripadvisor/TheFork si public",
+      "Instagram/Facebook publics",
+      "SIRENE/SIRET"
+    ],
+    "facts_to_collect": [
+      "adresse",
+      "horaires",
+      "menu public",
+      "note et thèmes d’avis",
+      "photos/plats",
+      "concurrents par cuisine/prix/quartier",
+      "présence réservation/livraison"
+    ],
+    "consent_required": true
+  },
+  "competitor_mapping": {
+    "direct": [
+      "restaurants même cuisine/quartier/prix",
+      "brasseries proches",
+      "traiteurs proches"
+    ],
+    "indirect": [
+      "livraison plateformes",
+      "snacking/boulangeries midi",
+      "supermarché repas prêts",
+      "cuisine d’entreprise"
+    ],
+    "questions": [
+      "Vos clients vous comparent à qui ?",
+      "Votre avantage est-il cuisine, service, prix, ambiance, rapidité, emplacement ?"
+    ]
+  },
+  "question_blocks": {
+    "activity": [
+      "Quel type d’établissement : restaurant, brasserie, café, traiteur, livraison, événementiel ?",
+      "Où êtes-vous situé et quelle clientèle vient naturellement ?",
+      "Depuis combien de temps l’établissement existe-t-il ?",
+      "Combien de personnes travaillent en salle/cuisine par service ?",
+      "Quel ordre de grandeur de CA ou ticket moyen acceptez-vous de partager ?",
+      "Combien de couverts par service et quelle part réservation/livraison/événementiel ?"
+    ],
+    "research": [
+      "Quel est le nom public exact du restaurant ?",
+      "Avez-vous site, fiche Google, menu public, TheFork/Tripadvisor, Instagram ou SIRET ?",
+      "Autorisez-vous l’analyse des avis publics, menus, horaires et concurrents proches ?"
+    ],
+    "pain": [
+      "Quelles demandes reviennent : horaires, réservation, allergènes, menu, privatisation, livraison ?",
+      "Combien de temps part en téléphone/messages hors service ?",
+      "Quelles erreurs coûtent cher : no-show, allergènes, prix menu, réservation, avis négatifs ?"
+    ],
+    "tools": [
+      "Quels outils : caisse, réservation, livraison, planning équipe, réseaux sociaux, facturation ?",
+      "Où arrivent les messages clients ?"
+    ],
+    "risk": [
+      "Quelles informations allergènes/prix doivent rester validées humainement ?",
+      "Quelles réponses publiques peuvent abîmer l’image de marque ?"
+    ],
+    "opportunities": [
+      "Première boucle utile : réponses réservation, avis, menu, posts, planning, relances no-show ?",
+      "Quel test serait utile sans perturber le service ?"
+    ],
+    "autonomy": [
+      "Qui valide les messages publics et à quel moment hors service ?"
+    ],
+    "validation": [
+      "Quels faits publics ont été utilisés et quelles hypothèses restent à vérifier ?"
+    ]
+  },
+  "risk_flags": [
+    "allergènes",
+    "avis publics",
+    "prix menu",
+    "réservation",
+    "hygiène",
+    "no-show",
+    "image de marque"
+  ],
+  "benchmarks": {
+    "automation_candidates": [
+      "réponses réservations",
+      "menus",
+      "avis Google",
+      "posts réseaux",
+      "planning équipe",
+      "FAQ allergènes"
+    ],
+    "first_week_tests": [
+      "résumer 50 avis",
+      "préparer réponses types réservation",
+      "créer FAQ menu/allergènes",
+      "proposer calendrier posts local"
+    ]
+  }
+}

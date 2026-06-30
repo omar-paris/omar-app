@@ -103,8 +103,8 @@ async function buy(){ const id=await saveDevis(false); if(!id){msg("Choisissez a
   const r=await fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({devis_id:id})});
   const d=await r.json();
   if(r.status===503){
-    // Stripe test non configuré — simuler un paid_test pour la démo
-    msg("💳 Paiement test simulé — Stripe non configuré. Votre devis est enregistré.",true);
+    const tu=Number(d.total_unique_eur||0); const one=tu?` + ${tu} € d'installation`:'';
+    msg("💳 "+(d.message||"Paiement test simulé — Stripe non configuré.")+" Votre devis ("+d.total_mensuel_eur+" €/mois"+one+") est sauvegardé et partageable via son lien.",true);
     showProvisioningTimeline();
   } else if(r.ok&&d.checkout_url){ location.href=d.checkout_url; }
   else { msg("Paiement indisponible ("+(d.error||r.status)+")",false); }

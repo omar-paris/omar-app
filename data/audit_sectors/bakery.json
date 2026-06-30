@@ -1,0 +1,590 @@
+{
+  "sector_id": "bakery",
+  "labels": [
+    "boulanger",
+    "boulangerie",
+    "pâtisserie",
+    "patisserie",
+    "artisan boulanger",
+    "viennoiserie"
+  ],
+  "important_dimensions": [
+    "localisation et zone de chalandise",
+    "âge de l’entreprise",
+    "chiffre d’affaires ordre de grandeur",
+    "nombre d’employés/équipes",
+    "flux boutique matin/midi/soir",
+    "commandes spéciales",
+    "saisonnalité fêtes/week-end",
+    "marge par famille produit",
+    "horaires et fermeture",
+    "réputation locale/avis Google",
+    "concurrence directe boulangeries proches",
+    "concurrence indirecte GMS/terminaux de cuisson/sandwicheries",
+    "hygiène et conformité",
+    "allergènes"
+  ],
+  "core_parameters": [
+    {
+      "id": "company_age",
+      "label": "Âge de l’entreprise",
+      "why": "distingue reprise récente, maison installée et potentiel de fidélité locale"
+    },
+    {
+      "id": "location",
+      "label": "Localisation + zone servie",
+      "why": "conditionne concurrence, passage, livraison et référencement local"
+    },
+    {
+      "id": "revenue_range",
+      "label": "CA ordre de grandeur",
+      "why": "calibre ROI acceptable et priorités marge/volume"
+    },
+    {
+      "id": "employee_count",
+      "label": "Nombre d’employés et organisation horaires",
+      "why": "détermine délégation, planning, charge administrative"
+    },
+    {
+      "id": "sales_mix",
+      "label": "Boutique / commandes / pros / événementiel",
+      "why": "oriente les automatisations utiles"
+    },
+    {
+      "id": "margin_products",
+      "label": "Produits à forte marge et pertes",
+      "why": "évite d’automatiser un flux peu rentable"
+    }
+  ],
+  "activity_facets": [
+    {
+      "id": "boulangerie",
+      "label": "Boulangerie",
+      "why": "pain, baguettes, pains spéciaux, fréquence quotidienne et flux du matin"
+    },
+    {
+      "id": "patisserie",
+      "label": "Pâtisserie",
+      "why": "produits à forte valeur, commandes, fêtes et exigences de présentation"
+    },
+    {
+      "id": "viennoiseries",
+      "label": "Viennoiseries",
+      "why": "pic matin, production fraîche, pertes et arbitrage volume/marge"
+    },
+    {
+      "id": "sandwicherie_snacking",
+      "label": "Sandwicherie / snacking",
+      "why": "flux du midi, ticket moyen, concurrence restauration rapide et organisation rush"
+    },
+    {
+      "id": "commandes_evenementiel",
+      "label": "Commandes spéciales / événementiel",
+      "why": "devis, acomptes, allergènes, dates de retrait et risque d’erreur"
+    }
+  ],
+  "localized_research": {
+    "authorized_sources": [
+      "site officiel",
+      "fiche Google Business Profile",
+      "avis publics",
+      "réseaux sociaux publics",
+      "annuaires locaux",
+      "SIRENE/SIRET"
+    ],
+    "facts_to_collect": [
+      "adresse",
+      "horaires",
+      "note et thèmes d’avis",
+      "offre mise en avant",
+      "photos/produits",
+      "concurrents dans 1-3 km",
+      "présence livraison/commande"
+    ],
+    "consent_required": true
+  },
+  "competitor_mapping": {
+    "direct": [
+      "boulangeries artisanales proches",
+      "pâtisseries proches",
+      "terminaux de cuisson de quartier"
+    ],
+    "indirect": [
+      "supermarchés avec rayon pain",
+      "sandwicheries/cafés du midi",
+      "livraison petit-déjeuner",
+      "traiteurs événementiels"
+    ],
+    "questions": [
+      "Quels concurrents vos clients citent-ils ?",
+      "Sur quoi gagnez-vous : qualité, prix, proximité, horaires, commandes spéciales ?"
+    ]
+  },
+  "question_blocks": {
+    "activity": [
+      "Quel est le métier exact : boulangerie seule, boulangerie-pâtisserie, snacking, traiteur ?",
+      "Où est située la boutique et quelle zone attire vos clients ?",
+      "Depuis combien de temps l’entreprise existe-t-elle ou a-t-elle été reprise ?",
+      "Combien de personnes travaillent réellement par créneau ?",
+      "Quel ordre de grandeur de CA annuel acceptez-vous de partager ?",
+      "Quelle part vient de boutique, commandes spéciales, professionnels, snacking ou événementiel ?"
+    ],
+    "research": [
+      "Quel est le nom public exact de la boulangerie ?",
+      "Avez-vous un site, une fiche Google, Instagram/Facebook, ou un SIRET à utiliser ?",
+      "Autorisez-vous Omar à analyser les avis publics, horaires, photos et concurrents proches ?"
+    ],
+    "pain": [
+      "Quelles demandes reviennent souvent par téléphone ou message : horaires, disponibilité, commandes, allergènes, prix ?",
+      "Combien de temps par semaine est perdu en confirmations ou relances ?",
+      "Où apparaissent les erreurs coûteuses : quantités, date de retrait, acompte, allergènes, production ?"
+    ],
+    "tools": [
+      "Quels outils utilisez-vous pour commandes, planning, caisse, factures, réseaux sociaux et avis ?",
+      "Les commandes arrivent-elles par téléphone, WhatsApp, email, boutique, formulaire ou plateformes ?"
+    ],
+    "risk": [
+      "Quelles réponses ne doivent jamais partir sans validation humaine ?",
+      "Comment gérez-vous allergènes, prix, acomptes, commandes événementielles et avis négatifs ?"
+    ],
+    "opportunities": [
+      "Quelle première boucle serait utile en 7 jours : réponses commandes, avis Google, planning production, posts, relances retrait ?",
+      "Quel gain serait visible sans perturber l’équipe ?"
+    ],
+    "autonomy": [
+      "Qui peut valider les réponses et combien de temps par semaine peut être consacré à l’amélioration ?"
+    ],
+    "validation": [
+      "Quels faits viennent du client, lesquels viennent de sources publiques, et quelles hypothèses doivent rester à vérifier ?"
+    ]
+  },
+  "risk_flags": [
+    "allergènes",
+    "prix",
+    "commande événementielle",
+    "avis publics",
+    "hygiène",
+    "acompte/annulation"
+  ],
+  "benchmarks": {
+    "automation_candidates": [
+      "réponses commandes",
+      "rappels retrait",
+      "planning production",
+      "posts réseaux sociaux",
+      "avis Google",
+      "FAQ horaires/allergènes"
+    ],
+    "first_week_tests": [
+      "répondre à 20 questions fréquentes",
+      "résumer 30 avis publics",
+      "préparer 5 posts locaux",
+      "structurer un formulaire commande spéciale"
+    ]
+  },
+  "deep_facets": [
+    {
+      "id": "savoir_faire",
+      "label": "Savoir-faire, formation et rôle du dirigeant",
+      "purpose": "Comprendre si le dirigeant maîtrise la production, la vente et le pilotage, ou si l’entreprise dépend de quelques personnes clés.",
+      "depth": "strategic",
+      "source_basis": [
+        "docx_caplain_formation",
+        "web_business_plan_profile"
+      ],
+      "questions": [
+        {
+          "id": "bakery_skill_1",
+          "interaction": "choice",
+          "question": "En cas d’absence imprévue, qui peut vraiment tenir les postes critiques : fournil, pâtisserie, vente, commandes ?",
+          "why": "Une boulangerie peut perdre la confiance client très vite si la qualité ou la régularité chute.",
+          "options": [
+            "Moi uniquement",
+            "Moi + un responsable",
+            "Équipe autonome",
+            "Point fragile / à sécuriser"
+          ],
+          "follow_up": "Quel poste serait le plus risqué demain matin ?"
+        },
+        {
+          "id": "bakery_skill_2",
+          "interaction": "open",
+          "question": "Qu’est-ce que vous savez produire très bien, et qu’est-ce qui dépend encore trop d’une personne ou d’un tour de main ?",
+          "why": "L’IA ne remplace pas le geste métier, mais elle peut aider à documenter, planifier et transmettre ce qui est critique.",
+          "follow_up": "Voulez-vous qu’on le note comme force, dépendance ou chantier de formation ?"
+        }
+      ]
+    },
+    {
+      "id": "emplacement",
+      "label": "Emplacement, zone de chalandise et flux",
+      "purpose": "Comprendre le moteur réel de clientèle : passage, quartier, bureaux, école, voiture, tourisme, commandes.",
+      "depth": "strategic",
+      "source_basis": [
+        "docx_caplain_emplacement",
+        "lecoindesentrepreneurs_local_concurrence"
+      ],
+      "questions": [
+        {
+          "id": "bakery_location_1",
+          "interaction": "choice",
+          "question": "Votre emplacement fonctionne surtout par quel flux ?",
+          "why": "Hypercentre, quartier, périurbain ou rural ne créent pas les mêmes priorités : horaires, visibilité, parking, avis, commandes ou fidélité.",
+          "options": [
+            "Passage piéton",
+            "Quartier / habitués",
+            "Bureaux / midi",
+            "École / familles",
+            "Voiture / parking",
+            "Village / proximité"
+          ],
+          "follow_up": "Lequel de ces flux est le plus important aujourd’hui ?"
+        },
+        {
+          "id": "bakery_location_2",
+          "interaction": "open",
+          "question": "Qu’est-ce qui pourrait changer dans votre quartier ou zone dans les 12-24 mois : travaux, concurrence, population, bureaux, stationnement ?",
+          "why": "L’emplacement se pilote aussi par anticipation, pas seulement par l’adresse actuelle.",
+          "follow_up": "Est-ce un risque, une opportunité, ou juste à surveiller ?"
+        }
+      ]
+    },
+    {
+      "id": "production_offre",
+      "label": "Production, offre, fraîcheur et pertes",
+      "purpose": "Identifier ce qui fait vraiment tourner le commerce : pain, viennoiserie, pâtisserie, snacking, commandes, saisonnalité, invendus.",
+      "depth": "operational",
+      "source_basis": [
+        "docx_caplain_produits_services",
+        "web_invendus_marge"
+      ],
+      "questions": [
+        {
+          "id": "bakery_offer_rank",
+          "interaction": "rank",
+          "question": "Classez vos activités par importance réelle pour le business.",
+          "why": "Comprendre l’activité #1 change tout : production, horaires, marge, IA utile, messages client et risques.",
+          "options": [
+            "Boulangerie",
+            "Pâtisserie",
+            "Viennoiseries",
+            "Sandwicherie / snacking",
+            "Commandes spéciales / événementiel",
+            "Chocolaterie / confiserie",
+            "Traiteur",
+            "Autre"
+          ],
+          "follow_up": "Après ce classement, laquelle mérite le plus d’être améliorée en premier ?"
+        },
+        {
+          "id": "bakery_losses_1",
+          "interaction": "choice",
+          "question": "Les pertes/invendus viennent surtout d’où ?",
+          "why": "Les invendus touchent la marge, la production, l’image et les décisions de fin de journée.",
+          "options": [
+            "Pain",
+            "Viennoiseries",
+            "Pâtisserie",
+            "Snacking",
+            "Commandes annulées",
+            "Je ne mesure pas précisément"
+          ],
+          "follow_up": "Est-ce un sujet quotidien, hebdomadaire ou saisonnier ?"
+        },
+        {
+          "id": "bakery_freshness_1",
+          "interaction": "open",
+          "question": "Comment arbitrez-vous aujourd’hui entre fraîcheur, disponibilité en vitrine et risque d’invendus ?",
+          "why": "C’est un arbitrage cœur métier : vendre plus sans trop produire, garder l’image qualité, éviter les ruptures.",
+          "follow_up": "Qu’est-ce qui serait utile : prévision, rappel, tableau de bord ou meilleur historique ?"
+        }
+      ]
+    },
+    {
+      "id": "stocks_achats",
+      "label": "Achats, fournisseurs, stocks et traçabilité",
+      "purpose": "Comprendre les dépendances fournisseurs, ruptures, prix matières, stockage, traçabilité et trésorerie immobilisée.",
+      "depth": "operational",
+      "source_basis": [
+        "docx_caplain_approvisionnement_stock",
+        "sumup_couts_matiere"
+      ],
+      "questions": [
+        {
+          "id": "bakery_suppliers_1",
+          "interaction": "choice",
+          "question": "Votre approvisionnement est-il plutôt sécurisé ou fragile ?",
+          "why": "Une rupture farine/beurre/emballage ou une hausse matière a un impact immédiat sur production et marge.",
+          "options": [
+            "Très sécurisé",
+            "Quelques fournisseurs critiques",
+            "Prix instables",
+            "Ruptures fréquentes",
+            "Traçabilité à améliorer"
+          ],
+          "follow_up": "Quel ingrédient ou fournisseur mérite le plus d’attention ?"
+        },
+        {
+          "id": "bakery_stock_1",
+          "interaction": "open",
+          "question": "Comment suivez-vous les stocks critiques et la rotation : farine, beurre, crème, chocolat, emballages, produits frais ?",
+          "why": "Le stock est à la fois une sécurité, un risque de pertes, et un coût de trésorerie.",
+          "follow_up": "Le suivi actuel est-il fiable ou surtout dans la tête de l’équipe ?"
+        }
+      ]
+    },
+    {
+      "id": "equipe",
+      "label": "Équipe, planning, recrutement et transmission",
+      "purpose": "Comprendre la charge humaine, les postes critiques, les pics, la formation, les conflits et la continuité.",
+      "depth": "human",
+      "source_basis": [
+        "docx_caplain_personnel",
+        "web_business_plan_personnel"
+      ],
+      "questions": [
+        {
+          "id": "bakery_team_1",
+          "interaction": "choice",
+          "question": "Quel est aujourd’hui le point humain le plus tendu ?",
+          "why": "L’IA utile peut aider au planning, transmission, checklists, recrutement ou réponses, mais pas si on ne sait pas où ça bloque.",
+          "options": [
+            "Recrutement",
+            "Planning / remplacements",
+            "Formation",
+            "Communication équipe",
+            "Motivation / conflits",
+            "Pic de vente"
+          ],
+          "follow_up": "Ce point crée-t-il surtout du stress, des erreurs, ou du manque à gagner ?"
+        },
+        {
+          "id": "bakery_team_2",
+          "interaction": "open",
+          "question": "Quels savoirs importants ne sont pas assez documentés : recettes, méthodes, commandes, ouverture/fermeture, nettoyage, vente ?",
+          "why": "Documenter le savoir métier peut réduire les erreurs et rendre l’équipe moins dépendante d’une seule personne.",
+          "follow_up": "Quel document ou checklist serait le plus utile en premier ?"
+        }
+      ]
+    },
+    {
+      "id": "experience_client",
+      "label": "Expérience client, avis, fidélité et réclamations",
+      "purpose": "Comprendre ce que le client vit réellement : accueil, attente, disponibilité, avis, plaintes, personnalisation, fidélité.",
+      "depth": "customer",
+      "source_basis": [
+        "docx_caplain_experience_client",
+        "sumup_etude_marche"
+      ],
+      "questions": [
+        {
+          "id": "bakery_customer_1",
+          "interaction": "choice",
+          "question": "Qu’est-ce que vos clients vous demandent ou reprochent le plus souvent ?",
+          "why": "Les demandes répétées révèlent des opportunités IA : FAQ, disponibilité, commandes, horaires, allergènes, avis.",
+          "options": [
+            "Horaires",
+            "Disponibilité produits",
+            "Commandes",
+            "Prix",
+            "Allergènes",
+            "Attente / file",
+            "Avis négatifs",
+            "Rien de clair"
+          ],
+          "follow_up": "Ces demandes arrivent plutôt en boutique, téléphone, Google, réseaux ou messages ?"
+        },
+        {
+          "id": "bakery_customer_2",
+          "interaction": "open",
+          "question": "Qu’est-ce qui fait revenir vos meilleurs clients : produit, accueil, proximité, prix, horaires, commande spéciale, ambiance ?",
+          "why": "Il faut préserver ce qui marche avant d’automatiser quoi que ce soit.",
+          "follow_up": "Omar doit-il traiter ça comme différenciation centrale ?"
+        }
+      ]
+    },
+    {
+      "id": "finance_pilotage",
+      "label": "Marge, trésorerie, prix et pilotage",
+      "purpose": "Comprendre si l’entreprise pilote par intuition ou avec indicateurs : CA, marge par famille, pertes, coûts matière/énergie, panier moyen.",
+      "depth": "management",
+      "source_basis": [
+        "docx_caplain_gestion_financiere",
+        "web_marge_boulangerie"
+      ],
+      "questions": [
+        {
+          "id": "bakery_margin_1",
+          "interaction": "choice",
+          "question": "Savez-vous quelles familles de produits font vraiment votre marge ?",
+          "why": "Automatiser une activité peu rentable peut faire gagner du temps mais pas améliorer l’entreprise.",
+          "options": [
+            "Oui précisément",
+            "À peu près",
+            "Non pas par famille",
+            "Je veux le travailler"
+          ],
+          "follow_up": "Quelle famille semble la plus rentable aujourd’hui ?"
+        },
+        {
+          "id": "bakery_price_1",
+          "interaction": "open",
+          "question": "Comment décidez-vous d’augmenter ou non les prix quand matières premières, énergie ou salaires changent ?",
+          "why": "Prix et marge sont souvent le sujet sensible derrière beaucoup de décisions métier.",
+          "follow_up": "Est-ce plutôt un blocage commercial, comptable ou émotionnel ?"
+        }
+      ]
+    },
+    {
+      "id": "reglementaire",
+      "label": "Hygiène, HACCP, allergènes, sécurité et conformité",
+      "purpose": "Identifier ce qui ne doit jamais être automatisé sans garde-fou : santé, allergènes, hygiène, prix, acomptes, avis, traçabilité.",
+      "depth": "risk",
+      "source_basis": [
+        "docx_caplain_reglementation",
+        "sumup_haccp_reglementation"
+      ],
+      "questions": [
+        {
+          "id": "bakery_haccp_1",
+          "interaction": "choice",
+          "question": "Quels sujets doivent rester sous validation humaine stricte ?",
+          "why": "Dans l’alimentaire, une réponse automatique imprécise peut créer un vrai risque client et réputation.",
+          "options": [
+            "Allergènes",
+            "Hygiène / HACCP",
+            "Prix",
+            "Acompte / annulation",
+            "Commande événementielle",
+            "Avis négatif",
+            "Tous ces sujets"
+          ],
+          "follow_up": "Sur lequel avez-vous le plus besoin de sécuriser les réponses ?"
+        },
+        {
+          "id": "bakery_allergen_1",
+          "interaction": "open",
+          "question": "Comment gérez-vous les questions allergènes en boutique, téléphone ou messages ?",
+          "why": "C’est un exemple parfait où l’IA peut aider à préparer l’information, mais pas improviser.",
+          "follow_up": "Faut-il répondre, escalader, ou seulement fournir une fiche validée ?"
+        }
+      ]
+    },
+    {
+      "id": "marketing_local",
+      "label": "Marketing local, concurrence et visibilité",
+      "purpose": "Comprendre comment la boulangerie attire, garde et récupère les clients face aux concurrents directs/indirects.",
+      "depth": "growth",
+      "source_basis": [
+        "docx_caplain_marketing",
+        "lecoindesentrepreneurs_concurrence"
+      ],
+      "questions": [
+        {
+          "id": "bakery_competition_1",
+          "interaction": "choice",
+          "question": "Votre concurrence la plus gênante vient plutôt d’où ?",
+          "why": "Une boulangerie proche, une GMS ou une sandwicherie ne se combat pas avec le même message.",
+          "options": [
+            "Boulangeries artisanales",
+            "Pâtisseries",
+            "Supermarchés / GMS",
+            "Terminaux de cuisson",
+            "Sandwicheries / cafés",
+            "Livraison / plateformes"
+          ],
+          "follow_up": "Sur quoi gagnez-vous face à eux ?"
+        },
+        {
+          "id": "bakery_visibility_1",
+          "interaction": "open",
+          "question": "Qu’est-ce qui vous apporte vraiment des nouveaux clients aujourd’hui : passage, bouche-à-oreille, avis Google, réseaux, partenariats, vitrines ?",
+          "why": "Le plan IA doit amplifier ce qui marche déjà, pas inventer une stratégie hors-sol.",
+          "follow_up": "Quel canal mérite un test simple en 7 jours ?"
+        }
+      ]
+    },
+    {
+      "id": "equipement_local",
+      "label": "Équipement, local, maintenance et capacité",
+      "purpose": "Comprendre si l’outil de production limite la qualité, les volumes, la sécurité ou l’évolution de l’offre.",
+      "depth": "operations",
+      "source_basis": [
+        "docx_caplain_equipement",
+        "lecoindesentrepreneurs_investissements"
+      ],
+      "questions": [
+        {
+          "id": "bakery_equipment_1",
+          "interaction": "choice",
+          "question": "Votre équipement limite-t-il déjà une partie de l’activité ?",
+          "why": "Four, froid, pétrin, stockage ou agencement peuvent bloquer la croissance ou créer des pannes critiques.",
+          "options": [
+            "Four / cuisson",
+            "Froid / stockage",
+            "Pétrin / façonnage",
+            "Espace vente",
+            "Espace labo",
+            "Maintenance / pannes",
+            "Pas vraiment"
+          ],
+          "follow_up": "Si ça casse demain, quel impact concret ?"
+        },
+        {
+          "id": "bakery_capacity_1",
+          "interaction": "open",
+          "question": "Quelle capacité aimeriez-vous augmenter sans désorganiser l’équipe : volume, variété, qualité, rapidité, commandes ?",
+          "why": "Permet de distinguer croissance utile et complexité inutile.",
+          "follow_up": "Est-ce une priorité court terme ou un projet plus tard ?"
+        }
+      ]
+    },
+    {
+      "id": "ia_potentiel",
+      "label": "Potentiel IA réaliste et garde-fous",
+      "purpose": "Transformer la compréhension métier en premières boucles IA utiles, sûres, testables et acceptées par l’équipe.",
+      "depth": "ai_translation",
+      "source_basis": [
+        "oa_audit_strategy"
+      ],
+      "questions": [
+        {
+          "id": "bakery_ai_1",
+          "interaction": "rank",
+          "question": "Classez les premières boucles IA qui pourraient aider sans risque excessif.",
+          "why": "Le bon premier test doit être utile, borné, mesurable et compatible avec la réalité du commerce.",
+          "options": [
+            "Réponses téléphone/messages fréquents",
+            "Préparation posts/réseaux",
+            "Synthèse avis Google",
+            "Formulaire commandes spéciales",
+            "Checklist production/fermeture",
+            "Prévision invendus",
+            "Planning / rappels équipe"
+          ],
+          "follow_up": "Laquelle serait visible en moins de 7 jours ?"
+        },
+        {
+          "id": "bakery_ai_2",
+          "interaction": "open",
+          "question": "Qu’est-ce que vous ne voulez surtout pas que l’IA fasse à votre place ?",
+          "why": "Les limites explicites construisent la confiance et évitent une automatisation hors-sol.",
+          "follow_up": "Je le note comme garde-fou dans le rapport."
+        }
+      ]
+    }
+  ],
+  "conversation_controls": {
+    "save_resume": true,
+    "skip_question": true,
+    "validate_partial_step": true,
+    "explain_why_available": true,
+    "feedback_on_question": [
+      "utile",
+      "pas utile",
+      "trop loin",
+      "mal posée",
+      "à reformuler"
+    ]
+  }
+}

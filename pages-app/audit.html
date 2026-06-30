@@ -1,0 +1,350 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Audit IA — Chat Omar</title>
+<meta name="description" content="Audit IA conversationnel avec Omar : chatbot central, étapes validées et documents produits au fil de l’eau.">
+<script src="/pages-app/_portal.js" defer></script>
+<style>
+  :root{--oa-bg:#f4f7fb;--oa-panel:#ffffff;--oa-ink:#0f172a;--oa-muted:#64748b;--oa-line:#dbe3ef;--oa-soft:#eef6ff;--oa-blue:#2563eb;--oa-blue2:#38bdf8;--oa-green:#10b981;--oa-amber:#f59e0b;--oa-shadow:0 24px 80px rgba(15,23,42,.10);--oa-radius:24px;--composer-h:128px}
+  body{background:radial-gradient(circle at 20% 0%,#e0f2fe 0,#f8fafc 36%,#eef2ff 100%);overflow:hidden;color:var(--oa-ink)}
+  body>.oa-hd{display:none!important}
+  body main{max-width:none!important;margin:0!important;padding:0!important;width:100%!important}
+  .audit-app{height:100vh;min-height:660px;padding:14px clamp(12px,1.8vw,26px) 18px;display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px}
+  .audit-top{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 4px}.audit-title{display:flex;align-items:center;gap:12px;min-width:0}.audit-orb{width:38px;height:38px;border-radius:16px;background:linear-gradient(135deg,var(--oa-blue),#7c3aed);box-shadow:0 12px 34px rgba(37,99,235,.30)}.audit-title h1{font-size:clamp(1.05rem,1vw + .9rem,1.55rem);letter-spacing:-.04em;line-height:1;margin:0}.audit-title p{margin:4px 0 0;color:var(--oa-muted);font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.audit-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--oa-line);background:rgba(255,255,255,.78);border-radius:999px;padding:8px 11px;font-size:.78rem;font-weight:800;color:#334155}.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--oa-green);box-shadow:0 0 0 4px rgba(16,185,129,.12)}
+  .audit-workspace{min-height:0;display:grid;grid-template-columns:minmax(230px,270px) minmax(0,1fr);gap:14px;transition:grid-template-columns .22s ease}.audit-workspace.has-docs{grid-template-columns:minmax(230px,270px) minmax(0,1fr) minmax(280px,360px)}
+  .rail,.chat,.docs{background:rgba(255,255,255,.82);border:1px solid rgba(203,213,225,.86);border-radius:var(--oa-radius);box-shadow:var(--oa-shadow);backdrop-filter:blur(18px);min-height:0}.rail{padding:14px;display:flex;flex-direction:column;gap:13px}.rail-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.rail h2,.docs h2{font-size:.84rem;margin:0;text-transform:uppercase;letter-spacing:.12em;color:#475569}.progress-line{height:7px;border-radius:999px;background:#e2e8f0;overflow:hidden}.progress-line span{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--oa-blue),var(--oa-green));transition:width .28s ease}.steps{display:grid;gap:7px;overflow:auto;padding-right:2px}.audit-step{position:relative;display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:44px;padding:8px 9px;border:1px solid transparent;border-radius:15px;background:transparent}.audit-step::before{content:"";width:4px;align-self:stretch;border-radius:99px;background:#cbd5e1}.audit-step.done::before{background:var(--oa-green)}.audit-step.current{background:#eff6ff;border-color:#bfdbfe}.audit-step.current::before{background:linear-gradient(var(--oa-blue),var(--oa-blue2))}.step-title{font-weight:850;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.step-status{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:var(--oa-muted)}.audit-step.done .step-status{color:#047857}.audit-step.current .step-status{color:var(--oa-blue)}.step-check{font-weight:900;color:#047857}.rail-foot{margin-top:auto;padding-top:10px;border-top:1px solid var(--oa-line);color:var(--oa-muted);font-size:.76rem;line-height:1.35}
+  .chat{display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden}.chat-header{padding:14px 18px;border-bottom:1px solid var(--oa-line);display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(255,255,255,.72)}.agent{display:flex;align-items:center;gap:10px;min-width:0}.avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#0f172a;color:#fff;font-weight:950;box-shadow:0 10px 28px rgba(15,23,42,.22)}.agent-name{font-weight:950;letter-spacing:-.03em}.agent-sub{font-size:.8rem;color:var(--oa-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.chat-state{font-size:.78rem;color:#047857;font-weight:850}.chat-log{min-height:0;overflow:auto;padding:26px clamp(16px,3vw,54px) 22px;display:flex;flex-direction:column;gap:14px;background:linear-gradient(180deg,rgba(248,250,252,.80),rgba(239,246,255,.54));scroll-behavior:smooth}.bubble-row{display:flex;gap:9px;align-items:flex-end}.bubble-row.client{justify-content:flex-end}.mini-avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#1e293b;color:white;font-size:.68rem;font-weight:900;flex:0 0 auto}.bubble{max-width:min(720px,78%);border-radius:24px;padding:13px 16px;line-height:1.5;font-size:.98rem;white-space:pre-wrap;box-shadow:0 10px 24px rgba(15,23,42,.07);overflow-wrap:anywhere}.bubble.omar{background:#fff;border-bottom-left-radius:8px;border:1px solid #e2e8f0}.bubble.client{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-bottom-right-radius:8px}.bubble.system{align-self:center;max-width:680px;background:#fffbeb;color:#92400e;border:1px solid #fde68a;font-size:.88rem;text-align:center;border-radius:999px;padding:8px 13px}.typing{display:inline-flex;gap:4px}.typing span{width:6px;height:6px;border-radius:50%;background:#94a3b8;animation:pulse 1.2s infinite}.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}@keyframes pulse{0%,80%,100%{opacity:.35;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+  .composer{border-top:1px solid var(--oa-line);background:rgba(255,255,255,.90);padding:12px 16px 14px}.quick-replies{display:flex;gap:8px;overflow:auto;padding:0 0 8px}.quick-reply{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:8px 12px;font-weight:900;font-size:.82rem;white-space:nowrap;cursor:pointer;min-height:38px}.quick-reply.secondary{background:#f8fafc;border-color:#cbd5e1;color:#334155}.quick-reply.danger{background:#fff7ed;border-color:#fed7aa;color:#9a3412}.quick-label{align-self:center;color:#64748b;font-size:.72rem;font-weight:900;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}.chips{display:flex;gap:8px;overflow:auto;padding-bottom:9px}.chip{border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:999px;padding:8px 12px;font-weight:850;font-size:.82rem;white-space:nowrap;cursor:pointer;min-height:38px}.chip.primary{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}.chip:disabled{opacity:.46;cursor:not-allowed}.composer-box{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;background:#f8fafc;border:1px solid #cbd5e1;border-radius:22px;padding:9px 9px 9px 14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.75)}.composer-box:focus-within{border-color:#60a5fa;box-shadow:0 0 0 4px rgba(96,165,250,.16)}.composer textarea{border:0!important;outline:0!important;background:transparent!important;resize:none;min-height:48px;max-height:140px;padding:10px 2px!important;font:inherit;color:var(--oa-ink)}.send{width:48px;height:48px;border:0;border-radius:17px;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-size:1.18rem;font-weight:950;cursor:pointer;box-shadow:0 12px 30px rgba(37,99,235,.30)}.status{min-height:1.2em;margin:7px 4px 0;color:var(--oa-muted);font-size:.8rem}
+  .docs{display:none;overflow:hidden}.audit-workspace.has-docs .docs{display:grid;grid-template-rows:auto minmax(0,1fr)}.docs-head{padding:15px 15px 10px;border-bottom:1px solid var(--oa-line);display:flex;align-items:center;justify-content:space-between;gap:10px}.docs-close{border:0;background:#f1f5f9;border-radius:12px;width:36px;height:36px;cursor:pointer}.files{overflow:auto;padding:12px;display:grid;gap:10px;align-content:start}.file-card{border:1px solid #dbe3ef;border-radius:18px;background:#fff;padding:12px;box-shadow:0 10px 25px rgba(15,23,42,.06)}.file-name{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:950;font-size:.78rem;color:#1d4ed8}.file-title{font-weight:900;margin-top:4px}.file-preview{font-size:.8rem;color:#475569;margin-top:7px;white-space:pre-wrap;max-height:124px;overflow:hidden}.report{display:none;position:absolute;inset:86px 28px 28px auto;width:min(560px,42vw);z-index:5;overflow:auto;padding:20px;background:#fff;border:1px solid var(--oa-line);border-radius:24px;box-shadow:0 30px 90px rgba(15,23,42,.22)}.report.visible{display:block}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.footer{display:none!important}
+  @media(max-width:1080px){body{overflow:auto}.audit-app{height:auto;min-height:100vh}.audit-workspace,.audit-workspace.has-docs{grid-template-columns:1fr}.rail{order:1}.chat{order:2;min-height:72vh}.docs{order:3;display:none}.audit-workspace.has-docs .docs{display:grid}.report{position:static;width:auto;margin-top:14px}.audit-title p{white-space:normal}.bubble{max-width:88%}}
+  @media(max-width:640px){.audit-app{padding:10px}.audit-top{align-items:flex-start}.audit-meta{display:none}.rail{padding:10px}.steps{grid-template-columns:1fr}.chat-log{padding:18px 12px}.bubble{max-width:92%;font-size:.95rem}.composer{padding:10px}.chip{font-size:.78rem}.chat-header{padding:12px}.agent-sub{display:none}}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+  .consent-box{border:1px solid #dbe3ef;background:#f8fafc;border-radius:16px;padding:10px;display:grid;gap:7px;font-size:.76rem;color:#475569}.consent-box h3{margin:0;font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:#334155}.consent-box label{display:flex;gap:7px;align-items:flex-start;font-weight:750}.consent-box input{margin-top:2px}.consent-box p{margin:2px 0 0;line-height:1.3}
+</style></head><body>
+<main>
+  <section class="audit-app" aria-label="Audit IA conversationnel Omar">
+    <header class="audit-top">
+      <div class="audit-title">
+        <div class="audit-orb" aria-hidden="true"></div>
+        <div><h1>Audit IA avec Omar</h1><p>Conversation guidée · validation étape par étape · rapport et propositions alimentés par le chat</p></div>
+      </div>
+      <div class="audit-meta" aria-label="Statut audit"><span class="pill"><span class="dot"></span>OAuth Google actif</span><span class="pill">Aucun paiement</span><span class="pill">Aucun provisioning</span></div>
+    </header>
+
+    <section id="workspace" class="audit-workspace" aria-label="Espace audit IA">
+      <aside class="rail" aria-label="Progression de l’audit">
+        <div class="rail-head"><h2>Audit</h2><span id="progress-label" class="step-status">0%</span></div>
+        <div class="progress-line" aria-label="Progression"><span id="progress-bar"></span></div>
+        <div id="steps" class="steps"></div>
+        <p class="rail-foot">Chaque ligne représente une validation. L’audit est complet quand Omar et le client considèrent que le tour est fait.</p>
+        <div class="consent-box" aria-label="Consentements audit RGPD">
+          <h3>Autorisations</h3>
+          <label><input type="checkbox" id="consent-public-web"> Recherche web publique</label>
+          <label><input type="checkbox" id="consent-legal"> Données légales publiques</label>
+          <label><input type="checkbox" id="consent-social"> Réseaux sociaux publics</label>
+          <label><input type="checkbox" id="consent-docs"> Documents fournis</label>
+          <label><input type="checkbox" id="consent-market"> Tendances marché</label>
+          <label><input type="checkbox" id="consent-improve"> Amélioration anonymisée</label>
+          <p>Vous pouvez refuser une source. Les recommandations distinguent réponses, sources autorisées et hypothèses.</p>
+        </div>
+      </aside>
+
+      <section class="chat" aria-label="Chatbot Omar — conversation avec Omar">
+        <h2 class="sr-only">Conversation avec Omar</h2>
+        <header class="chat-header">
+          <div class="agent"><div class="avatar" aria-hidden="true">O</div><div><div class="agent-name">Omar</div><div id="agent-sub" class="agent-sub">Prêt à démarrer l’audit IA conversationnel</div></div></div>
+          <div id="chat-state" class="chat-state">En ligne</div>
+        </header>
+        <div id="chat-log" class="chat-log" aria-live="polite"></div>
+        <footer class="composer">
+          <div id="quick-replies" class="quick-replies" aria-label="Réponses rapides"></div>
+          <div class="chips" aria-label="Actions rapides">
+            <button class="chip primary" type="button" id="validate-step">Valider cette étape</button>
+            <button class="chip" type="button" id="add-detail">Ajouter un détail</button>
+            <button class="chip" type="button" id="correct-step">Corriger</button>
+            <button class="chip" type="button" id="prepare-research">Préparer recherches</button>
+            <button class="chip" type="button" id="explain-question">Pourquoi cette question</button>
+            <button class="chip" type="button" id="skip-question">Passer cette question</button>
+            <button class="chip" type="button" id="save-resume">Enregistrer et reprendre plus tard</button>
+            <button class="chip" type="button" id="show-docs" hidden>Voir les documents</button>
+            <button class="chip primary" type="button" id="generate-report" disabled>Générer le rapport</button>
+          </div>
+          <div class="composer-box">
+            <label class="sr-only" for="reply">Message à Omar</label>
+            <textarea id="reply" rows="1" placeholder="Message à Omar…"></textarea>
+            <button class="send" id="send" type="button" aria-label="Envoyer le message">↑</button>
+          </div>
+          <p id="audit-status" class="status" role="status" aria-live="polite"></p>
+        </footer>
+      </section>
+
+      <aside class="docs" aria-label="Documents générés et livrables">
+        <header class="docs-head"><div><h2>Documents</h2><div class="step-status">livrables créés pendant l’audit</div></div><button id="hide-docs" class="docs-close" type="button" aria-label="Fermer les documents">×</button></header>
+        <div id="files" class="files"></div>
+      </aside>
+    </section>
+    <section id="audit-result" class="report" aria-label="Rapport d’audit généré"></section>
+  </section>
+</main>
+<script>
+(function(){
+  const steps = [
+    {id:'intro', label:'Préférences', prompt:'Avant de parler métier, je veux m’adapter à vous. Vous préférez que je vous tutoie ou que je vous vouvoie ? Vous voulez un mode très guidé avec questions courtes, une conversation libre, ou des synthèses régulières à valider ?'},
+    {id:'activity', label:'Activité', prompt:'Objectif : comprendre qui vous êtes avant toute proposition. Pour valider : métier exact, localisation, taille, ancienneté, ordre de grandeur financier ou refus de le partager, types de clients, et vocabulaire métier important. Quel est votre métier exact, votre secteur, votre localisation, la taille de l’entreprise, son ancienneté, vos clients principaux et ce qu’ils vous demandent le plus souvent ?'},
+    {id:'research', label:'Sources', prompt:'Objectif : éviter de vous faire tout répéter en complétant seulement avec des sources autorisées. Pour valider : nom public/site/fiche Google/réseaux si disponibles, puis autorisation ou refus clair par type de source. Le SIREN/SIRET est utile si vous l’avez, mais je ne vous le demanderai pas comme point central : je chercherai surtout adresse exacte, activité publique, éléments financiers publics éventuels et sources à valider. Quel est le nom public de l’entreprise et quelles sources m’autorisez-vous à consulter ?'},
+    {id:'pain', label:'Blocages', prompt:'Objectif : comprendre avec diplomatie ce qui limite votre activité : charge, complexité, confiance, compétences, outils, fournisseurs, ou contraintes client. Pour valider : exemples concrets, fréquence ou volume, et niveau de confiance. Qu’est-ce qui est lourd, complexe, risqué ou insuffisamment fiable aujourd’hui ?'},
+    {id:'tools', label:'Outils', prompt:'Objectif : comprendre votre système actuel. Pour valider : outils, canaux entrants et doubles saisies/ruptures. Quels outils utilisez-vous déjà : email, agenda, WhatsApp, Excel, Drive, facturation, CRM, téléphone ?'},
+    {id:'risk', label:'Risques', prompt:'Objectif : poser les limites avant toute automatisation. Pour valider : données sensibles, actions interdites sans humain, risques métier. Quelles données ou décisions doivent rester sensibles : clients, prix, factures, juridique, publication externe, image de marque ?'},
+    {id:'opportunities', label:'Opportunités', prompt:'Objectif : choisir une première boucle IA utile et sûre. Pour valider : bénéfice attendu, garde-fou, action testable. Si l’IA pouvait aider sans prendre de risque, quelle première boucle voudriez-vous améliorer ?'},
+    {id:'autonomy', label:'Autonomie', prompt:'Objectif : définir le bon niveau d’accompagnement. Pour valider : apprendre/déléguer/mixte, rythme réaliste, validation humaine. Vous voulez apprendre à faire vous-même, déléguer à Omar & Alex, ou combiner les deux ?'},
+    {id:'validation', label:'Validation', prompt:'Objectif : figer faits, hypothèses et manques avant rapport. Pour valider : synthèse relue, manques listés, accord pour produire. Qu’est-ce qui manque encore avant de produire le rapport ?'}
+  ];
+  const files = [
+    {id:'preferences.md', step:'intro', title:'Préférences de conversation'},
+    {id:'profil_client.md', step:'activity', title:'Profil client'},
+    {id:'sources_audit.md', step:'research', title:'Sources publiques autorisées ou refusées'},
+    {id:'points_blocage.md', step:'pain', title:'Points de blocage, limites et charges'},
+    {id:'outils_flux.md', step:'tools', title:'Outils et flux'},
+    {id:'risques_limites.md', step:'risk', title:'Risques et limites'},
+    {id:'opportunites.md', step:'opportunities', title:'Opportunités IA'},
+    {id:'rapport_audit.md', step:'validation', title:'Rapport audit'},
+    {id:'recommandations_source.json', step:'validation', title:'Source propositions'}
+  ];
+  const state = {current:0, sessionId:null, answers:{}, validated:{}, transcript:[], docsOpen:false, reportReady:false, share:null, auditId:null, devisSource:null, devis:null, quickReplies:[], priority:null, lastQuestionWhy:'', deepIndex:0};
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const list = (items) => `<ul>${(items || []).map(i => `<li>${esc(i)}</li>`).join('')}</ul>`;
+  function currentStep(){return steps[state.current];}
+  function compact(text, fallback, max=90){const raw=String(text||'').trim().replace(/\s+/g,' '); if(!raw) return fallback; const sentence=(raw.match(/^[^.!?]+[.!?]?/)||[raw])[0].trim(); return sentence.length>max ? sentence.slice(0,max-1)+'…' : sentence;}
+  function summaryFor(step){const raw = state.answers[step.id] || ''; if(!raw) return ''; return raw.length > 145 ? raw.slice(0,142)+'…' : raw;}
+  function setTyping(on){$('chat-state').innerHTML = on ? '<span class="typing"><span></span><span></span><span></span></span>' : 'En ligne';}
+  function addBubble(role, text, type='normal'){
+    state.transcript.push({role, text, step: currentStep().id, at: new Date().toISOString()});
+    const row=document.createElement('div'); row.className= type==='system' ? 'bubble system' : `bubble-row ${role==='client'?'client':'omar'}`;
+    if(type==='system'){row.textContent=text;} else {
+      if(role==='omar'){const av=document.createElement('div'); av.className='mini-avatar'; av.textContent='O'; row.appendChild(av);}
+      const div=document.createElement('div'); div.className=`bubble ${role==='client'?'client':'omar'}`; div.textContent=text; row.appendChild(div);
+    }
+    $('chat-log').appendChild(row); $('chat-log').scrollTop=$('chat-log').scrollHeight;
+  }
+  function baseQuickReplies(){
+    const step=currentStep().id;
+    const map={
+      intro:[
+        {label:'Vouvoiement · mode guidé', text:'Vous pouvez me vouvoyer. Je préfère un mode guidé avec questions courtes.'},
+        {label:'Tutoiement · synthèses', text:'Tu peux me tutoyer. Je veux des synthèses régulières à valider.'},
+        {label:'Conversation libre', text:'Je préfère une conversation libre, avec reformulation avant validation.'}
+      ],
+      activity:[
+        {label:'Solo / petite équipe', text:'Je suis indépendant ou petite équipe. Je vous donne le métier, la ville, l’ancienneté, les clients et un ordre de grandeur.'},
+        {label:'Je ne sais pas le CA exact', text:'Je ne connais pas le chiffre exact, mais je peux donner une fourchette ou refuser de le partager.'},
+        {label:'À corriger ensuite', text:'Je donne une première version, et je corrigerai si ce n’est pas exact.'},
+        {label:'Prioriser l’activité', action:'priority', prompt:'Pour entrer dans votre monde, classez vos activités principales. Premier clic = rang #1, deuxième clic = rang #2, troisième clic = rang #3.', answerPrefix:'Activités principales priorisées', options:['Boulangerie','Pâtisserie','Viennoiseries','Sandwicherie / snacking','Commandes spéciales / événementiel']}
+      ],
+      research:[
+        {label:'OK sources publiques', text:'J’autorise les recherches publiques utiles : site, données légales publiques et sources métier accessibles sans login.'},
+        {label:'Seulement mon site', text:'Pour l’instant, je préfère limiter la recherche à mon site public.'},
+        {label:'Pas de recherche externe', text:'Je préfère rester uniquement sur mes réponses pour le moment.'}
+      ],
+      pain:[
+        {label:'Charge / volume', text:'Le sujet principal est la quantité de choses à traiter et le volume de demandes.'},
+        {label:'Confiance / fournisseurs', text:'Le sujet principal est la confiance, les fournisseurs ou le risque d’erreur.'},
+        {label:'Complexité / compétence', text:'Le sujet principal est la complexité, les outils ou les compétences disponibles.'}
+      ],
+      tools:[
+        {label:'Email + agenda', text:'J’utilise surtout email, agenda, téléphone et fichiers partagés.'},
+        {label:'WhatsApp / réseaux', text:'Une partie des demandes arrive par WhatsApp, téléphone ou réseaux sociaux.'},
+        {label:'Doubles saisies', text:'Je perds du temps avec des doubles saisies entre plusieurs outils.'}
+      ],
+      risk:[
+        {label:'Validation humaine obligatoire', text:'Tout ce qui touche aux clients, prix, juridique, paiement ou publication doit être validé par un humain.'},
+        {label:'Données sensibles', text:'Je veux identifier les données sensibles avant toute automatisation.'},
+        {label:'Pas d’action auto', text:'Je veux que l’audit reste sans paiement, sans provisioning et sans action irréversible.'}
+      ],
+      opportunities:[
+        {label:'Réponses clients', text:'Je veux explorer une première boucle IA autour des réponses clients ou demandes entrantes.'},
+        {label:'Organisation interne', text:'Je veux explorer une première boucle IA pour organiser les tâches, relances ou documents.'},
+        {label:'Visibilité / contenu', text:'Je veux explorer une première boucle IA pour améliorer visibilité, contenus ou avis.'}
+      ],
+      autonomy:[
+        {label:'Je veux apprendre', text:'Je veux apprendre à utiliser l’IA avec un cadre simple.'},
+        {label:'Je veux déléguer', text:'Je préfère déléguer la configuration et garder les validations importantes.'},
+        {label:'Mixte', text:'Je veux un mode mixte : Omar & Alex configure, puis je garde la main sur les usages.'}
+      ],
+      validation:[
+        {label:'Produire le rapport', text:'Je valide la synthèse. Vous pouvez produire le rapport avec faits validés, hypothèses et limites.'},
+        {label:'Il manque un point', text:'Il manque encore un point avant rapport ; je le précise maintenant.'},
+        {label:'Revoir sources', text:'Je veux revoir les sources et informations récupérées avant le rapport.'}
+      ]
+    };
+    return map[step]||[];
+  }
+  const deepQuestions = [
+    {interaction:'rank', question:'Classez vos activités par importance réelle pour votre business.', why:'L’activité numéro 1 change les priorités : production, marge, horaires, messages clients, risques et premières boucles IA.', options:['Boulangerie','Pâtisserie','Viennoiseries','Sandwicherie / snacking','Commandes spéciales / événementiel'], prefix:'Activités business priorisées'},
+    {interaction:'choice', question:'Votre emplacement fonctionne surtout par quel flux ?', why:'Hypercentre, quartier, périurbain ou rural ne créent pas les mêmes enjeux : passage, parking, horaires, avis, fidélité ou commandes.', options:['Passage piéton','Quartier / habitués','Bureaux / midi','École / familles','Voiture / parking','Village / proximité']},
+    {interaction:'choice', question:'Les pertes ou invendus viennent surtout d’où ?', why:'Les pertes indiquent souvent un arbitrage à améliorer entre fraîcheur, vitrine pleine, production et marge.', options:['Pain','Viennoiseries','Pâtisserie','Snacking','Commandes annulées','Je ne mesure pas précisément']},
+    {interaction:'choice', question:'Quel est aujourd’hui le point humain le plus tendu ?', why:'L’IA peut aider au planning, à la transmission ou aux checklists, mais seulement si on sait où l’équipe souffre vraiment.', options:['Recrutement','Planning / remplacements','Formation','Communication équipe','Motivation / conflits','Pic de vente']},
+    {interaction:'choice', question:'Quels sujets doivent rester sous validation humaine stricte ?', why:'Allergènes, hygiène, prix et commandes événementielles sont des zones de risque : Omar doit préparer, pas improviser.', options:['Allergènes','Hygiène / HACCP','Prix','Acompte / annulation','Commande événementielle','Avis négatif','Tous ces sujets']},
+    {interaction:'open', question:'Qu’est-ce que vos meilleurs clients viennent chercher chez vous, au-delà du produit ?', why:'Il faut préserver ce qui fait revenir les clients avant d’automatiser ou de recommander un changement.'}
+  ];
+  function activeQuickReplies(){
+    if(state.priority){
+      const selected=new Set(state.priority.selected||[]);
+      const rank=(state.priority.selected||[]).length+1;
+      const choices=(state.priority.options||[]).filter(label=>!selected.has(label)).map(label=>({label:`Rang #${rank} · ${label}`, text:label, action:'priority-select'}));
+      choices.push({label:'Autre', action:'priority-other', text:'Autre : ', tone:'secondary'});
+      if((state.priority.selected||[]).length){choices.push({label:'Terminer le classement', action:'priority-finish', tone:'secondary'});}
+      return choices;
+    }
+    return state.quickReplies.length ? state.quickReplies : baseQuickReplies();
+  }
+  function renderQuickReplies(){
+    const box=$('quick-replies'); if(!box) return;
+    const replies=activeQuickReplies();
+    box.innerHTML = replies.length ? `<span class="quick-label">Réponses rapides</span>${replies.map((r,i)=>`<button class="quick-reply ${r.tone||''}" type="button" data-reply="${i}">${esc(r.label)}</button>`).join('')}` : '';
+    box.querySelectorAll('[data-reply]').forEach(btn=>btn.addEventListener('click',()=>quickReply(Number(btn.getAttribute('data-reply')))));
+  }
+  function setQuickReplies(replies){state.quickReplies=Array.isArray(replies)?replies:[]; renderQuickReplies();}
+  function startDeepQuestion(){
+    const q=deepQuestions[state.deepIndex % deepQuestions.length]; state.deepIndex+=1; state.lastQuestionWhy=q.why||'';
+    if(q.interaction==='rank'){
+      startPriorityQuestion({prompt:`${q.question}\n\nPourquoi je vous le demande : ${q.why}`, answerPrefix:q.prefix||'Priorités validées', options:q.options||[]});
+      return;
+    }
+    if(q.interaction==='choice'){
+      setQuickReplies((q.options||[]).map(option=>({label:option, text:`${q.question}\nRéponse : ${option}`})).concat([{label:'Autre', text:`${q.question}\nAutre : `, tone:'secondary'}]));
+      assistant(`${q.question}\n\nPourquoi je vous le demande : ${q.why}\n\nVous pouvez répondre avec un bouton, écrire librement, passer la question, ou enregistrer pour reprendre plus tard.`);
+      return;
+    }
+    assistant(`${q.question}\n\nPourquoi je vous le demande : ${q.why}\n\nRépondez librement si c’est utile, sinon vous pouvez passer.`);
+  }
+  function saveAuditDraft(){
+    const draft={saved_at:new Date().toISOString(), current:state.current, answers:state.answers, validated:state.validated, transcript:state.transcript.slice(-120), deepIndex:state.deepIndex};
+    try{localStorage.setItem('oa_audit_draft_v1', JSON.stringify(draft)); assistant('C’est enregistré localement dans ce navigateur. Vous pourrez reprendre plus tard depuis ce poste.');}
+    catch(e){assistant('Je n’ai pas pu enregistrer localement. Vous pouvez copier le rapport brouillon ou continuer sans sauvegarde.');}
+  }
+  function restoreAuditDraft(){
+    try{const raw=localStorage.getItem('oa_audit_draft_v1'); if(!raw) return false; const draft=JSON.parse(raw); Object.assign(state.answers, draft.answers||{}); Object.assign(state.validated, draft.validated||{}); state.current=Number(draft.current||0); state.deepIndex=Number(draft.deepIndex||0); addBubble('omar', `J’ai retrouvé une sauvegarde locale du ${draft.saved_at}. Vous pouvez continuer, corriger ou valider les étapes déjà remplies.`, 'system'); render(); return true;}catch(e){return false;}
+  }
+  function skipCurrentQuestion(){state.answers[currentStep().id]=(state.answers[currentStep().id]||'')+'\n[Question passée par le client]'; assistant('D’accord, on passe cette question. Je la garde comme non répondue, sans bloquer l’audit.'); render();}
+  function startPriorityQuestion(reply){state.priority={prompt:reply.prompt, answerPrefix:reply.answerPrefix||'Priorités validées', options:reply.options||[], selected:[]}; assistant(`${reply.prompt}\n\nCliquez dans l’ordre : le premier bouton devient #1, le deuxième #2, puis vous pouvez terminer ou ajouter « autre » au clavier.`); renderQuickReplies();}
+  function finishPriorityQuestion(){const p=state.priority; if(!p) return; const ranked=(p.selected||[]).map((label,i)=>`${i+1}. ${label}`).join('\n'); state.priority=null; $('reply').value=`${p.answerPrefix} :\n${ranked}`; autoResize(); userSend();}
+  function quickReply(index){
+    const reply=activeQuickReplies()[index]; if(!reply) return;
+    if(reply.action==='priority'){setQuickReplies([]); startPriorityQuestion(reply); return;}
+    if(reply.action==='priority-select'){state.priority.selected.push(reply.text); renderQuickReplies(); return;}
+    if(reply.action==='priority-other'){ $('reply').value=reply.text; autoResize(); $('reply').focus(); return;}
+    if(reply.action==='priority-finish'){finishPriorityQuestion(); return;}
+    setQuickReplies([]); $('reply').value=reply.text; autoResize(); userSend();
+  }
+  function assistant(text){setTyping(true); window.setTimeout(()=>{setTyping(false); addBubble('omar', text); renderQuickReplies();}, 220);}
+  function renderSteps(){
+    $('steps').innerHTML = steps.map((s,i)=>{const done=!!state.validated[s.id]; const cur=i===state.current; const status=done?'✓':(cur?'actif':''); return `<div class="audit-step ${done?'done':''} ${cur?'current':''}"><div></div><div><div class="step-title">${esc(s.label)}</div></div><div class="step-status">${status}</div></div>`;}).join('');
+    const pct=Math.round((Object.keys(state.validated).length/steps.length)*100); $('progress-bar').style.width=pct+'%'; $('progress-label').textContent=pct+'%'; $('generate-report').disabled = Object.keys(state.validated).length < steps.length;
+    $('agent-sub').textContent = `${currentStep().label} · ${Object.keys(state.validated).length}/${steps.length} étapes validées`;
+  }
+  function buildMarkdownReport(){return `# Rapport audit IA — brouillon conversationnel\n\n## Préférences de conversation\n${state.answers.intro||''}\n\n## Activité\n${state.answers.activity||''}\n\n## Sources publiques / compléments autorisés\n${state.answers.research||''}\n\n## Points de blocage, limites et charges\n${state.answers.pain||''}\n\n## Outils\n${state.answers.tools||''}\n\n## Risques et limites\n${state.answers.risk||''}\n\n## Opportunités\n${state.answers.opportunities||''}\n\n## Autonomie / accompagnement\n${state.answers.autonomy||''}\n\n## Validation finale\n${state.answers.validation||''}`;}
+  function buildDevisSource(){return {source:'audit_conversationnel', readiness:Object.keys(state.validated).length===steps.length?'ready_for_report':'draft', validated_steps:Object.keys(state.validated), suggested_next:['rapport','propositions_de_solutions','onboarding']};}
+  function hasDocs(){return state.reportReady;}
+  function renderFiles(){
+    $('show-docs').hidden = !hasDocs();
+    $('workspace').classList.toggle('has-docs', state.docsOpen && hasDocs());
+    $('files').innerHTML = files.filter(f => state.answers[f.step] || f.id==='recommandations_source.json' && Object.keys(state.validated).length).map(f=>{const txt = f.id==='rapport_audit.md' ? buildMarkdownReport().slice(0,520) : f.id==='recommandations_source.json' ? JSON.stringify(buildDevisSource(),null,2).slice(0,420) : state.answers[f.step]; return `<article class="file-card"><div class="file-name">${esc(f.id)}</div><div class="file-title">${esc(f.title)}</div><div class="file-preview">${esc(txt)}</div></article>`;}).join('') || '<p class="status">Aucun document créé pour l’instant.</p>';
+  }
+  function render(){renderSteps(); renderFiles(); renderQuickReplies();}
+  async function api(path, payload){
+    const response=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload||{})});
+    const data=await response.json().catch(()=>({ok:false,error:`HTTP ${response.status}`}));
+    if(!response.ok || data.ok===false){const err=new Error(data.error || `HTTP ${response.status}`); err.data=data; err.status=response.status; throw err;}
+    return data;
+  }
+  function collectConsents(){return {public_web_search:$('consent-public-web')?.checked||false,legal_registry_lookup:$('consent-legal')?.checked||false,social_media_lookup:$('consent-social')?.checked||false,document_analysis:$('consent-docs')?.checked||false,market_trends_lookup:$('consent-market')?.checked||false,anonymized_improvement:$('consent-improve')?.checked||false,accepted_at:new Date().toISOString(),consent_version:'2026-06-29.rigorous-audit.v1'};}
+  function researchPlanSummary(plan){const sources=(plan.sources||[]); const authorized=sources.filter(s=>s.status==='authorized').map(s=>s.label); const refused=sources.filter(s=>s.status!=='authorized').map(s=>s.label); return `Plan de recherche préparé — aucune recherche externe n’est lancée.\n\nSources autorisées : ${authorized.length?authorized.join(', '):'aucune pour l’instant'}.\nSources refusées/non cochées : ${refused.length?refused.join(', '):'aucune'}.\n\nÀ collecter : ${(plan.facts_to_collect||[]).slice(0,8).join(', ')}.\n\nConcurrence directe : ${((plan.competitors||{}).direct||[]).slice(0,5).join(', ')}.\nConcurrence indirecte : ${((plan.competitors||{}).indirect||[]).slice(0,5).join(', ')}.`;}
+  function publicResearchSummary(result){const facts=(result.facts||[]).map(f=>`- ${f.validation_prompt||f.value}`).slice(0,4).join('\n'); const contexts=(result.facts||[]).map(f=>f.metadata&&f.metadata.location_context).filter(Boolean).map(c=>`- Adresse : contexte probable ${c.density} (${Math.round((c.confidence||0)*100)}%). ${c.validation_prompt} Indices métier : ${(c.business_implications||[]).join(', ')}`).slice(0,2).join('\n'); const skipped=(result.not_executed||[]).map(s=>`- ${s.label} (${s.reason}${s.official_url?`; lien officiel: ${s.official_url}`:''})`).slice(0,5).join('\n'); return `Recherche publique initiale : ${result.status}.\n\nVoici les informations que j’ai récupérées. Je ne les prends pas comme vérité tant que vous ne les validez pas :\n${facts||'- Aucun fait public récupéré pour l’instant.'}\n\nLecture locale à valider :\n${contexts||'- Pas assez d’adresse exploitable pour qualifier hypercentre / urbain / périurbain / rural.'}\n\nNon exécuté / à valider :\n${skipped||'- Rien.'}\n\nVous pouvez me dire : oui c’est bien moi, à modifier, ou ce n’est pas moi.`;}
+  function firstUrl(text){const m=String(text||'').match(/https?:\/\/[^\s,;]+/i); return m?m[0]:'';}
+  async function prepareResearch(){
+    if(!state.sessionId){assistant('Le moteur backend doit être actif pour préparer un plan de recherche.'); return;}
+    const payload={company_public_name:state.answers.research||'', website:firstUrl(state.answers.research), consents:collectConsents()};
+    try{const data=await api(`/api/audit-sessions/${state.sessionId}/public-research`,payload); const plan=data.research_plan; const result=data.research_result; const summary=researchPlanSummary(plan)+'\n\n'+publicResearchSummary(result); state.answers.research = [state.answers.research||'', summary].filter(Boolean).join('\n\n'); setQuickReplies([
+      {label:'Oui c’est moi', text:'Oui, les informations récupérées correspondent à mon entreprise/cabinet. Vous pouvez les utiliser comme base validée.'},
+      {label:'À modifier', text:'Les informations sont partiellement correctes. Je corrige les points importants : '},
+      {label:'Ce n’est pas moi', text:'Ce n’est pas mon entreprise/cabinet. Ne l’utilisez pas pour l’audit.', tone:'danger'},
+      {label:'Ignorer cette source', text:'Je préfère ignorer cette source pour l’instant.', tone:'secondary'}
+    ]); assistant(summary); render(); $('audit-status').textContent='Plan et recherche publique initiale préparés avec consentement.';}
+    catch(error){assistant(`Je n’ai pas pu préparer la recherche publique : ${error.message}`);}
+  }
+  function devisSourceHtml(src){const items=(src&&src.recommended_items)||[]; if(!items.length) return '<p>Aucune proposition de solution générée.</p>'; return `<h3>Propositions de solutions justifiées</h3><ul>${items.map(i=>`<li><strong>${esc(i.catalog_id)}</strong> — ${esc(i.reason)} <span class="status">confiance ${esc(i.confidence)}</span></li>`).join('')}</ul><p class="status">Base : ${(src.decision_basis||[]).map(esc).join(' · ')}</p>`;}
+  function syncSession(session){
+    if(!session) return;
+    state.sessionId=session.id || state.sessionId;
+    const stepId=session.current_step || currentStep().id;
+    const previousStep=currentStep().id;
+    const idx=steps.findIndex(s=>s.id===stepId); if(idx>=0) state.current=idx;
+    if(previousStep!==currentStep().id) state.quickReplies=[];
+    state.validated={}; (session.validated_steps||[]).forEach(id=>{state.validated[id]=true;});
+  }
+  function askStep(){assistant(currentStep().prompt); render();}
+  function askBackend(omar){
+    if(!omar || !omar.question){askStep(); return;}
+    state.priority=null;
+    state.lastQuestionWhy=omar.why || (omar.auditbiz_question&&omar.auditbiz_question.why) || '';
+    const backendOptions=Array.isArray(omar.options)?omar.options:[];
+    const interaction=omar.interaction || (omar.auditbiz_question&&omar.auditbiz_question.interaction) || '';
+    if(backendOptions.length && interaction==='rank'){
+      state.priority={prompt:omar.question, answerPrefix:'Réponse audit structurée', options:backendOptions, selected:[]};
+    } else if(backendOptions.length){
+      setQuickReplies(backendOptions.map(option=>({label:option, text:`${omar.question}\nRéponse : ${option}`})).concat([{label:'Autre', text:`${omar.question}\nAutre : `, tone:'secondary'}]));
+    } else {
+      setQuickReplies([]);
+    }
+    const missing=(omar.missing_fields||[]).length ? `\n\nIl me manque encore : ${omar.missing_fields.join(', ')}.` : '';
+    const hint=omar.sector_hint ? `\n\nRepères métier : ${omar.sector_hint}.` : '';
+    const criteria=(omar.validation_criteria||[]).length ? `\n\nPour valider cette étape, il faut :\n- ${omar.validation_criteria.join('\n- ')}` : '';
+    const understanding=(omar.understanding&&omar.understanding.summary) ? `\n\n${omar.understanding.summary}` : '';
+    const why=state.lastQuestionWhy ? `\n\nPourquoi je vous le demande : ${state.lastQuestionWhy}` : '';
+    const interactionHint=backendOptions.length ? `\n\nVous pouvez répondre avec un bouton rapide, écrire librement, passer la question, ou enregistrer pour reprendre plus tard.` : '';
+    assistant(`${omar.goal?`Objectif : ${omar.goal}\n\n`:''}${omar.question}${why}${missing}${criteria}${understanding}${hint}${interactionHint}`); render();
+  }
+  async function startSession(){
+    try{const data=await api('/api/audit-sessions',{}); syncSession(data.session); askBackend(data.omar); $('audit-status').textContent='Moteur métier sectoriel actif.';}
+    catch(error){$('audit-status').textContent='Mode local dégradé : moteur métier indisponible.'; askStep();}
+  }
+  async function userSend(){
+    const text=$('reply').value.trim(); if(!text) return; $('reply').value=''; autoResize();
+    const step=currentStep(); state.answers[step.id] = state.answers[step.id] ? state.answers[step.id] + '\n' + text : text;
+    addBubble('client', text);
+    if(state.sessionId){
+      try{const data=await api(`/api/audit-sessions/${state.sessionId}/message`,{message:text}); syncSession(data.session); askBackend(data.omar);}
+      catch(error){assistant(`Je note pour « ${step.label} ».\n\nCe que je comprends : ${summaryFor(step)}\n\nSi c’est fidèle, validez l’étape. Sinon ajoutez un détail.`);}
+    } else {
+      assistant(`Je note pour « ${step.label} ».\n\nCe que je comprends : ${summaryFor(step)}\n\nSi c’est fidèle, validez l’étape. Sinon ajoutez un détail.`);
+    }
+    render();
+  }
+  async function validateStep(){
+    const step=currentStep(); if(!(state.answers[step.id]||'').trim()) { assistant('Je ne valide pas encore : il me manque au moins une réponse concrète pour cette étape.'); return; }
+    if(state.sessionId){
+      try{const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:step.id}); syncSession(data.session); state.validated[step.id]=true; addBubble('omar', `✓ ${step.label} validé.`, 'system'); askBackend(data.next); render(); return;}
+      catch(error){const d=error.data||{}; const missing=d.completion&&d.completion.missing_fields?d.completion.missing_fields.join(', '):'des informations métier'; assistant(`Je ne valide pas encore cette étape : il manque ${missing}. ${d.omar&&d.omar.question?d.omar.question:''}`); render(); return;}
+    }
+    state.validated[step.id]=true; addBubble('omar', `✓ ${step.label} validé.`, 'system');
+    if(state.current < steps.length-1){ state.current += 1; askStep(); } else { assistant('Toutes les étapes sont validées. Vous pouvez générer le rapport d’audit.'); }
+    render();
+  }
+  function autoResize(){const el=$('reply'); el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,140)+'px';}
+  function downloadText(filename, text, type='text/plain'){
+    const blob=new Blob([text||''],{type}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(url),500);
+  }
+  async function generateReport(){
+    $('audit-status').textContent='Omar génère le rapport structuré…';
+    const fallbackPayload={communication_preferences:state.answers.intro||'', activity: compact(state.answers.activity, 'activité à préciser'), urgency: compact(state.answers.pain, 'comprendre les vrais enjeux IA'), ai_level:'conversationnel', repetitive_tasks:state.answers.pain||'', current_tools:state.answers.tools||'', constraints:state.answers.risk||'', opportunities:state.answers.opportunities||'', autonomy:state.answers.autonomy||'', validation:state.answers.validation||'', consents:collectConsents(), uploaded_documents:[], transcript:state.transcript.slice(-80), interface:'audit_cockpit_conversationnel.v1_rigoureux'};
+    try{const data=state.sessionId ? await api(`/api/audit-sessions/${state.sessionId}/report`,fallbackPayload) : await api('/api/audits',fallbackPayload); const r=data.report; state.auditId=data.audit&&data.audit.id; state.devisSource=data.devis_source||null; state.share=data.share||null; state.reportReady=true; state.docsOpen=true; render(); const exports=(state.share&&state.share.exports)||{}; $('audit-result').innerHTML=`<h2>${esc(r.title)}</h2><p>${esc(r.summary)}</p><div class="audit-actions"><button class="chip" id="download-md" type="button">Télécharger MD</button><button class="chip" id="copy-linkedin" type="button">Copier texte LinkedIn</button><a class="chip" id="email-report" href="mailto:?subject=${encodeURIComponent((exports.email_subject||r.title||'Rapport audit IA'))}&body=${encodeURIComponent((exports.markdown||r.summary||''))}">Envoyer par email</a><button class="chip" id="copy-share" type="button">Copier lien de partage</button></div><h3>Diagnostic</h3>${list(r.diagnostic)}<h3>Opportunités</h3>${list(r.opportunities)}<h3>Limites et risques</h3>${list(r.limits)}<h3>Tutoriel autonomie</h3>${list(r.tutorial)}<h3>Prompts utiles</h3>${list(r.prompts)}<h3>Commandes utiles</h3>${list(r.commands)}<h3>Décisions à prendre</h3>${list(r.decisions)}<h3>Plan d’action</h3>${list(r.next_steps)}${devisSourceHtml(state.devisSource)}<p class="status">Audit ${esc(data.audit.id)} enregistré. Aucun paiement ni provisioning n’est déclenché.</p>`; $('audit-result').classList.add('visible'); $('download-md')?.addEventListener('click',()=>downloadText('rapport_audit.md',exports.markdown||buildMarkdownReport(),'text/markdown')); $('copy-linkedin')?.addEventListener('click',()=>navigator.clipboard?.writeText(exports.linkedin_text||r.summary||'')); $('copy-share')?.addEventListener('click',()=>navigator.clipboard?.writeText((state.share&&state.share.share_url)||location.href)); $('audit-status').textContent='Rapport généré. Documents et partage disponibles.';}catch(error){$('audit-status').textContent=`Audit indisponible : ${error.message}`;}
+  }
+  $('send').addEventListener('click', userSend); $('reply').addEventListener('input', autoResize); $('reply').addEventListener('keydown', e=>{if(e.key==='Enter' && !e.shiftKey){e.preventDefault(); userSend();}});
+  $('validate-step').addEventListener('click', validateStep); $('prepare-research').addEventListener('click', prepareResearch); $('explain-question').addEventListener('click', ()=>assistant(state.lastQuestionWhy ? `Pourquoi cette question : ${state.lastQuestionWhy}` : 'Je pose ces questions pour comprendre ce qui change vraiment votre métier : flux, marge, risque, équipe, client, et priorité IA. Si une question paraît trop loin ou mal posée, dites-le : je l’enregistre comme feedback.')); $('skip-question').addEventListener('click', skipCurrentQuestion); $('save-resume').addEventListener('click', saveAuditDraft); $('add-detail').addEventListener('click', ()=>assistant('Ajoutez le détail dans le chat. Je l’intègre à cette étape avant validation.')); $('correct-step').addEventListener('click', ()=>{const step=currentStep(); state.answers[step.id]=''; state.validated[step.id]=false; assistant(`Correction ouverte pour « ${step.label} ». Réécrivez cette partie avec la version correcte.`); render();});
+  $('show-docs').addEventListener('click', ()=>{state.docsOpen=true; render();}); $('hide-docs').addEventListener('click', ()=>{state.docsOpen=false; render();}); $('generate-report').addEventListener('click', generateReport);
+  addBubble('omar','Bonjour, je suis Omar. Avant l’audit métier, je commence par m’adapter à vous : tutoiement ou vouvoiement, mode guidé ou libre. Ensuite je reformule humblement ce que j’ai compris et ce que j’ai récupéré, puis je vous demande toujours de valider, corriger, ou me dire que ce n’est pas vous.'); restoreAuditDraft(); startSession(); render();
+})();
+</script>
+<footer class="footer">Omar App · app.omar.paris · V0.5.0 · Audit cockpit conversationnel · AuditBizIA · Aucun paiement ni provisioning pendant l’audit.</footer>
+</body></html>

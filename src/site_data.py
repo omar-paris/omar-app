@@ -59,6 +59,7 @@ APPS_L1 = [
 
 NAV = [
     ("/", "Accueil"),
+    ("/audit/", "Audit IA"),
     ("/onboarding/", "Onboarding"),
     ("/devis/", "Devis"),
     ("/sav/", "SAV"),
@@ -75,6 +76,16 @@ PAGES = {
         "sections": [
             ("Parcours V0", ["1. Comprendre le besoin", "2. Proposer une configuration OA Start", "3. Préparer installation et support", "4. Suivre le client dans QG/Lab"]),
             ("Statut", ["Skeleton V0 local-first", "Pas encore de paiement réel", "Pas encore d’OAuth réel", "Nango reste L2 pour le moment"]),
+        ],
+    },
+    "/audit/": {
+        "title": "Audit IA — explorer mon activité avec Omar",
+        "eyebrow": "Facile · profond · adaptatif · utile",
+        "summary": "Réalisez votre audit en discutant avec Omar : besoins, outils actuels, tâches répétitives, contraintes, urgences et objectifs deviennent un rapport personnalisé.",
+        "sections": [
+            ("Promesse", ["Question centrale : vrais enjeux et limites actuelles de l’IA pour votre activité en 2026", "Conversation simple sur mobile ou ordinateur", "Questions adaptées au niveau IA, à l’activité et aux contraintes"]),
+            ("Rapport attendu", ["Diagnostic de situation et opportunités", "Tutoriel pour lancer une première boucle en autonomie", "Prompts utiles, commandes éventuelles et décisions à prendre", "Plan 24h / 7 jours / 30 jours"]),
+            ("Garde-fous", ["Aucun paiement pendant l’audit", "Aucun provisioning automatique", "Secrets et données sensibles à ne jamais coller dans l’outil", "Validation humaine avant suite commerciale"]),
         ],
     },
     "/onboarding/": {

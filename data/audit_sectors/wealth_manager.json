@@ -1,0 +1,156 @@
+{
+  "sector_id": "wealth_manager",
+  "labels": [
+    "gestionnaire de patrimoine",
+    "cgpi",
+    "conseiller patrimoine",
+    "patrimoine",
+    "finance",
+    "gestion de fortune",
+    "family office"
+  ],
+  "important_dimensions": [
+    "chiffre d’affaires ordre de grandeur",
+    "âge du cabinet",
+    "localisation et zone client",
+    "réglementation AMF/MIF II",
+    "statuts CIF/IAS/IOBSP",
+    "profil investisseur",
+    "encours conseillés",
+    "typologie clients",
+    "données financières sensibles",
+    "devoir de conseil",
+    "KYC/LCB-FT",
+    "documents et traçabilité",
+    "validation humaine",
+    "sources macro/marchés",
+    "concurrence banques privées/CGP/family offices",
+    "concurrence indirecte robo-advisors/plateformes low-cost"
+  ],
+  "core_parameters": [
+    {
+      "id": "aum_or_revenue",
+      "label": "Encours ou CA ordre de grandeur",
+      "why": "calibre valeur d’un système de veille/conformité"
+    },
+    {
+      "id": "client_segments",
+      "label": "Segments clients",
+      "why": "différencie dirigeant, retraité, expatrié, HNWI"
+    },
+    {
+      "id": "regulatory_status",
+      "label": "Statuts et contraintes",
+      "why": "conditionne garde-fous et vocabulaire autorisé"
+    },
+    {
+      "id": "investment_universe",
+      "label": "Univers produits/sujets",
+      "why": "oriente sources et rapports"
+    }
+  ],
+  "localized_research": {
+    "authorized_sources": [
+      "site cabinet",
+      "registre ORIAS/mentions publiques",
+      "LinkedIn public",
+      "newsletters publiques",
+      "pages partenaires publiques",
+      "données macro publiques DBnomics/INSEE/OCDE si besoin"
+    ],
+    "facts_to_collect": [
+      "positionnement public",
+      "clientèle cible déclarée",
+      "statuts affichés",
+      "contenus pédagogiques",
+      "concurrents CGP/banques privées locaux",
+      "promesse commerciale",
+      "preuves de conformité visibles"
+    ],
+    "consent_required": true
+  },
+  "competitor_mapping": {
+    "direct": [
+      "CGP indépendants locaux",
+      "banques privées",
+      "family offices",
+      "cabinets patrimoniaux spécialisés"
+    ],
+    "indirect": [
+      "robo-advisors",
+      "courtiers en ligne",
+      "banques de détail premium",
+      "plateformes allocation ETF",
+      "contenus finance gratuits"
+    ],
+    "questions": [
+      "Sur quels clients êtes-vous réellement meilleur qu’une banque privée ou un robo-advisor ?",
+      "Quelle part de votre valeur vient du conseil, de la pédagogie, du suivi ou de la structuration ?"
+    ]
+  },
+  "question_blocks": {
+    "activity": [
+      "Quel est le métier exact : CGP, gestion de fortune, family office, conseil financier, courtage ?",
+      "Où est situé le cabinet et quelle zone/clientèle servez-vous ?",
+      "Depuis combien de temps le cabinet existe-t-il ?",
+      "Combien de conseillers, assistants ou partenaires interviennent ?",
+      "Quel ordre de grandeur de CA, encours suivis ou nombre de clients acceptez-vous de partager ?",
+      "Quels profils clients accompagnez-vous : dirigeants, familles, expatriés, retraités, HNWI ?",
+      "Quels sujets reviennent : fiscalité, succession, assurance-vie, immobilier, marchés, retraite ?"
+    ],
+    "research": [
+      "Quel est le nom public du cabinet ?",
+      "Avez-vous site, ORIAS/mentions publiques, LinkedIn, newsletter ou supports publics à analyser ?",
+      "Autorisez-vous Omar à consulter uniquement les sources publiques et à distinguer strictement faits/hypothèses ?"
+    ],
+    "pain": [
+      "Quelles informations collectez-vous à chaque rendez-vous ?",
+      "Quels documents, synthèses, comptes rendus ou relances sont répétitifs ?",
+      "Combien de temps par semaine part en veille, préparation RDV, conformité ou pédagogie client ?"
+    ],
+    "tools": [
+      "Quels outils : CRM, agrégateur, Excel, coffre documentaire, signature, email, agenda, outil allocation ?",
+      "Où sont les historiques de décision et justificatifs de conseil ?"
+    ],
+    "risk": [
+      "Quelles données financières ne doivent jamais sortir ?",
+      "Quelles formulations sont interdites pour éviter une recommandation d’investissement non validée ?",
+      "Comment garantissez-vous validation humaine, traçabilité et archivage ?"
+    ],
+    "opportunities": [
+      "Première boucle utile : préparation RDV, compte rendu, relance documents, veille macro, synthèse pédagogique, conformité ?",
+      "Quel livrable ferait gagner du temps sans créer de conseil automatique ?"
+    ],
+    "autonomy": [
+      "Souhaitez-vous piloter l’agent vous-même, recevoir des brouillons, ou déléguer la maintenance avec validation ?"
+    ],
+    "validation": [
+      "Quelles recommandations sont seulement informatives et lesquelles nécessitent une revue réglementaire externe ?"
+    ]
+  },
+  "risk_flags": [
+    "données financières",
+    "devoir de conseil",
+    "réglementation AMF/MIF II",
+    "profil investisseur",
+    "KYC",
+    "LCB-FT",
+    "recommandation d’investissement"
+  ],
+  "benchmarks": {
+    "automation_candidates": [
+      "préparation rendez-vous",
+      "compte rendu",
+      "checklist conformité",
+      "relances documents",
+      "synthèses pédagogiques",
+      "veille macro/marchés non prescriptive"
+    ],
+    "first_week_tests": [
+      "préparer une trame RDV découverte",
+      "résumer sources publiques du cabinet",
+      "créer checklist KYC/documentaire",
+      "générer brouillon de note pédagogique avec disclaimer"
+    ]
+  }
+}

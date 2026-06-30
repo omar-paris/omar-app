@@ -1,0 +1,152 @@
+{
+  "sector_id": "lawyer",
+  "labels": [
+    "avocat",
+    "cabinet avocat",
+    "juriste",
+    "droit",
+    "avocate",
+    "cabinet juridique"
+  ],
+  "important_dimensions": [
+    "spécialité / dominante du cabinet",
+    "domaine du droit",
+    "secret professionnel",
+    "confidentialité pièces",
+    "localisation/barreau",
+    "âge du cabinet",
+    "chiffre d’affaires ordre de grandeur si accepté",
+    "nombre avocats/collaborateurs/assistants",
+    "typologie clients",
+    "volume dossiers",
+    "production documentaire",
+    "délais/procédures",
+    "recherche juridique",
+    "validation juridique",
+    "concurrence cabinets locaux/spécialisés",
+    "concurrence indirecte legaltech/modèles en ligne"
+  ],
+  "core_parameters": [
+    {
+      "id": "practice_area",
+      "label": "Domaines du droit",
+      "why": "conditionne risques, documents, recherche"
+    },
+    {
+      "id": "case_volume",
+      "label": "Volume et type de dossiers",
+      "why": "détermine gain relances/synthèses"
+    },
+    {
+      "id": "team_size",
+      "label": "Avocats/collaborateurs/assistants",
+      "why": "calibre délégation"
+    },
+    {
+      "id": "client_segments",
+      "label": "Particuliers/entreprises/institutionnels",
+      "why": "oriente langage et parcours"
+    }
+  ],
+  "localized_research": {
+    "authorized_sources": [
+      "site cabinet",
+      "barreau/annuaire public",
+      "LinkedIn public",
+      "articles/publications publiques",
+      "Google Business Profile si public"
+    ],
+    "facts_to_collect": [
+      "domaines affichés",
+      "barreau/localisation",
+      "promesse publique",
+      "contenus publiés",
+      "avis publics si présents",
+      "concurrents par domaine et zone",
+      "legaltechs substituables"
+    ],
+    "consent_required": true
+  },
+  "competitor_mapping": {
+    "direct": [
+      "cabinets du même domaine et barreau",
+      "boutiques spécialisées",
+      "cabinets d’affaires locaux"
+    ],
+    "indirect": [
+      "legaltech modèles de documents",
+      "plateformes consultation juridique",
+      "experts-comptables/notaires selon sujet",
+      "contenus gratuits en ligne"
+    ],
+    "questions": [
+      "Quels dossiers ne doivent jamais être préqualifiés automatiquement ?",
+      "Face à qui perdez-vous des prospects : confrères, plateformes, absence de temps de réponse ?"
+    ]
+  },
+  "question_blocks": {
+    "activity": [
+      "Quel est le métier exact : avocat individuel, cabinet, et surtout quelle spécialité ou dominante de pratique ?",
+      "Où est situé le cabinet et quel barreau/zone servez-vous ?",
+      "Depuis combien de temps le cabinet existe-t-il ?",
+      "Combien d’avocats, collaborateurs ou assistants travaillent sur les dossiers ?",
+      "Quel ordre de grandeur de CA ou volume de dossiers acceptez-vous de partager ?",
+      "Vos clients sont-ils particuliers, entreprises, dirigeants, institutionnels ?",
+      "Quels domaines du droit pratiquez-vous et quels dossiers reviennent le plus ?"
+    ],
+    "research": [
+      "Quel est le nom public du cabinet ?",
+      "Avez-vous site, page barreau, LinkedIn, articles ou fiche publique à analyser ?",
+      "Autorisez-vous Omar à consulter uniquement ces sources publiques, sans jamais utiliser de pièces confidentielles ?"
+    ],
+    "pain": [
+      "Quelles tâches répétitives ne relèvent pas du conseil juridique final : préqualification, synthèse pièces, relances, courriers brouillons ?",
+      "Combien de temps prennent premières analyses, relances ou comptes rendus ?",
+      "Quels blocages coûtent cher : dossier incomplet, délais, suivi client, recherche ?"
+    ],
+    "tools": [
+      "Quels outils : RPVA/e-barreau, email, agenda, GED, dictée, facturation, modèles, CRM ?",
+      "Où sont les pièces, historiques et modèles ?"
+    ],
+    "risk": [
+      "Quelles données relèvent du secret professionnel ?",
+      "Quelles limites posez-vous à l’IA pour éviter tout conseil juridique non validé ?",
+      "Quelles sorties doivent rester brouillons internes ?"
+    ],
+    "opportunities": [
+      "Première boucle utile : préqualification, checklist pièces, synthèse dossier, brouillon courrier, relance, recherche non confidentielle ?",
+      "Quel test peut prouver l’utilité sans toucher à un dossier sensible ?"
+    ],
+    "autonomy": [
+      "Qui valide juridiquement les brouillons et quel niveau d’autonomie est acceptable ?"
+    ],
+    "validation": [
+      "Quels éléments publics, déclaratifs et confidentiels ont été séparés dans le rapport ?"
+    ]
+  },
+  "risk_flags": [
+    "secret professionnel",
+    "données sensibles",
+    "conseil juridique",
+    "pièces dossier",
+    "RGPD",
+    "responsabilité professionnelle",
+    "délais procédure"
+  ],
+  "benchmarks": {
+    "automation_candidates": [
+      "préqualification dossiers",
+      "synthèse pièces",
+      "courriers brouillons",
+      "relances",
+      "checklists rendez-vous",
+      "recherche publique non confidentielle"
+    ],
+    "first_week_tests": [
+      "créer questionnaire préqualification",
+      "synthétiser pièces anonymisées",
+      "préparer checklist RDV",
+      "rédiger brouillon relance non juridique"
+    ]
+  }
+}
