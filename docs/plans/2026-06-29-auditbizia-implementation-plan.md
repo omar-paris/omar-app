@@ -16,7 +16,7 @@
 
 **Decision needed:** Is AuditBizIA primarily:
 
-A. a lead-generation audit before OA sales, or  
+A. a lead-generation audit before OA sales, or
 B. a standalone valuable business-understanding product, with OA sales downstream?
 
 **Recommended:** B. The audit must be valuable even if the client does not buy OA afterward. It produces a business-understanding report usable with any agent.
