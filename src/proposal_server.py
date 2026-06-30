@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -19,6 +20,17 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from site_data import OA_START_PACKS  # noqa: E402
+from audit_intelligence import (  # noqa: E402
+    add_message as audit_add_message,
+    build_devis_source as audit_build_devis_source,
+    build_exports as audit_build_exports,
+    build_public_research_result as audit_build_public_research_result,
+    build_research_plan as audit_build_research_plan,
+    build_sources_used as audit_build_sources_used,
+    create_session as audit_create_session,
+    normalize_consents as audit_normalize_consents,
+    validate_step as audit_validate_step,
+)
 
 DEFAULT_DATA_DIR = ROOT / "var"
 DEFAULT_VAULT_ADDR = os.environ.get("OA_APP_VAULT_ADDR", os.environ.get("VAULT_ADDR", "http://127.0.0.1:8202"))
@@ -28,6 +40,8 @@ DEFAULT_VAULT_TOKEN_FILE = Path(
 # UUID hex (V0.3.1, app#14 non-enumerable) + ancien format timestamp (lecture des
 # propositions déjà stockées uniquement)
 PROPOSAL_ID_RE = re.compile(r"^proposal-(?:[0-9a-f]{32}|[0-9]{8}T[0-9]{6}Z)-[a-z0-9-]+$")
+AUDIT_ID_RE = re.compile(r"^audit-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$")
+AUDIT_SESSION_ID_RE = re.compile(r"^audit-session-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$")
 SECRET_PATTERNS = ["HCLOUD_TOKEN", "Authorization", "Bearer ", "sk-"]
 ALLOWED_VAULT_FIELDS = {
     "secret/stripe/test": {"STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"},
@@ -116,13 +130,19 @@ def devis_pdf_bytes(devis: dict[str, Any]) -> bytes:
     ]
     for item in devis.get("lignes", []):
         label = item.get("label", item.get("id", "ligne"))
+        try:
+            qty = max(1, int(item.get("qty", 1)))
+        except (TypeError, ValueError):
+            qty = 1
         mensuel = item.get("prix_mensuel")
         unique = item.get("prix_unique")
         price = []
         if mensuel is not None:
-            price.append(f"{mensuel} EUR/mois")
+            subtotal = (mensuel or 0) * qty
+            price.append(f"{mensuel} EUR/mois x{qty} = {subtotal} EUR/mois" if qty > 1 else f"{mensuel} EUR/mois")
         if unique is not None:
-            price.append(f"{unique} EUR setup")
+            subtotal = (unique or 0) * qty
+            price.append(f"{unique} EUR setup x{qty} = {subtotal} EUR setup" if qty > 1 else f"{unique} EUR setup")
         lines.append(f"- {label}: {', '.join(price) if price else 'sur devis'}")
     lines.extend([
         "",
@@ -158,6 +178,7 @@ def devis_pdf_bytes(devis: dict[str, Any]) -> bytes:
         out.extend(f"{off:010d} 00000 n \n".encode("ascii"))
     out.extend(f"trailer << /Size {len(objects)+1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode("ascii"))
     return bytes(out)
+
 
 
 def slugify(value: str) -> str:
@@ -358,11 +379,13 @@ def read_devis(data_dir: Path, did: str) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
+
 def read_provisioning(data_dir: Path, did: str) -> dict[str, Any] | None:
     if not re.match(r"^devis-[0-9A-Za-z-]+$", did):
         return None
     path = data_dir / "provisioning" / f"{did}.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
 
 
 def build_provisioning_contract(devis: dict[str, Any], target: str) -> dict[str, Any]:
@@ -393,6 +416,203 @@ def build_provisioning_contract(devis: dict[str, Any], target: str) -> dict[str,
         "generated_by": "appomar-proposal-server",
         "commit_ref": None,
         "dry_run": True,
+    }
+
+
+
+def build_devis_justification(lignes: list[dict[str, Any]], devis_source: dict[str, Any] | None) -> list[dict[str, Any]]:
+    source_items = {}
+    if isinstance(devis_source, dict):
+        source_items = {str(item.get("catalog_id")): item for item in devis_source.get("recommended_items", []) if isinstance(item, dict)}
+    out: list[dict[str, Any]] = []
+    for line in lignes:
+        item = source_items.get(str(line.get("id"))) or {}
+        out.append({
+            "catalog_id": line.get("id"),
+            "label": line.get("label"),
+            "reason": item.get("reason") or "Sélection demandée par le client ou opérateur.",
+            "evidence": item.get("evidence") or "manual_selection",
+            "confidence": item.get("confidence"),
+            "required": item.get("required", True),
+        })
+    return out
+
+
+def normalize_devis_items(raw_items: Any) -> list[dict[str, int | str]]:
+    """Normalise les lignes devis entrantes en préservant qty quand fournie.
+
+    Accepte l'ancien format `["catalog-id"]` et le format quantifié
+    `[{"id": "catalog-id", "qty": 2}]`.
+    """
+    if not isinstance(raw_items, list):
+        raise ValueError("items must be a list")
+    items: list[dict[str, int | str]] = []
+    for item in raw_items:
+        if isinstance(item, str):
+            iid = item.strip()
+            qty = 1
+        elif isinstance(item, dict):
+            iid = str(item.get("id") or "").strip()
+            try:
+                qty = max(1, int(item.get("qty", 1)))
+            except (TypeError, ValueError):
+                qty = 1
+        else:
+            iid = ""
+            qty = 1
+        if not iid:
+            raise ValueError("items invalides")
+        items.append({"id": iid, "qty": qty})
+    if not items:
+        raise ValueError("items vide")
+    return items
+
+
+def normalize_devis_item_ids(raw_items: Any) -> list[str]:
+    return [str(item["id"]) for item in normalize_devis_items(raw_items)]
+
+
+def _audit_list(value: str, *, fallback: str) -> list[str]:
+    chunks = [x.strip(" -•\t") for x in re.split(r"[\n;,]+", value or "") if x.strip(" -•\t")]
+    return chunks[:6] or [fallback]
+
+
+def build_audit_report(payload: dict[str, Any]) -> dict[str, Any]:
+    activity = str(payload.get("activity") or "votre activité").strip()[:140]
+    urgency = str(payload.get("urgency") or "gagner du temps").strip()[:120]
+    ai_level = str(payload.get("ai_level") or "débutant").strip()[:80]
+    tasks = _audit_list(str(payload.get("repetitive_tasks") or ""), fallback="Identifier une tâche répétitive non sensible à tester en premier.")
+    tools = _audit_list(str(payload.get("current_tools") or ""), fallback="Lister les outils actuels avant de brancher de nouvelles automatisations.")
+    constraints = _audit_list(str(payload.get("constraints") or ""), fallback="Garder validation humaine pour les données sensibles, paiements et publications externes.")
+    first_task = tasks[0]
+    return {
+        "title": f"Première synthèse IA — {activity}",
+        "summary": f"Votre enjeu prioritaire est de {urgency}. Niveau IA déclaré : {ai_level}. La première étape n’est pas de tout automatiser, mais d’isoler une boucle utile, vérifiable et peu risquée.",
+        "diagnostic": [
+            f"Activité analysée : {activity}.",
+            f"Urgence principale : {urgency}.",
+            f"Tâche répétitive candidate : {first_task}.",
+            "Le bon angle est de transformer une répétition réelle en méthode, puis seulement en automatisation.",
+        ],
+        "opportunities": [
+            f"Créer un modèle réutilisable pour : {first_task}.",
+            f"Documenter les outils actuels avant intégration : {', '.join(tools[:3])}.",
+            "Mettre en place une validation humaine avant toute action externe sensible.",
+            "Mesurer le gain sur une semaine : temps gagné, erreurs évitées, relances mieux suivies.",
+        ],
+        "limits": [
+            "L’IA peut préparer, structurer, relancer et résumer ; elle ne doit pas engager l’activité sans cadre explicite.",
+            f"Contraintes à respecter : {', '.join(constraints[:3])}.",
+            "Les outils cloud génériques ne doivent pas recevoir de secrets, mots de passe, moyens de paiement ou données sensibles non anonymisées.",
+        ],
+        "tutorial": [
+            "Choisir une tâche répétitive non sensible.",
+            "Rassembler trois exemples réels anonymisés.",
+            "Demander à l’IA de produire un modèle de réponse ou de procédure.",
+            "Corriger le modèle, puis l’utiliser pendant sept jours.",
+            "Décider ensuite si cette boucle mérite une automatisation ou un agent dédié.",
+        ],
+        "prompts": [
+            f"Tu es mon assistant. Mon activité : {activity}. Aide-moi à traiter cette tâche : {first_task}. Pose-moi les questions manquantes avant de proposer une réponse.",
+            "Transforme ces notes brutes en procédure simple : objectif, étapes, validation humaine, risques, modèle réutilisable.",
+        ],
+        "commands": [
+            "mkdir -p ~/audit-ia-test/{documents,prompts,resultats}",
+        ],
+        "decisions": [
+            "Quelle tâche déléguer en premier ?",
+            "Quelles données ne doivent jamais sortir de l’environnement contrôlé ?",
+            "Souhaitez-vous tester seul avec le tutoriel ou demander une proposition Omar & Alex ?",
+        ],
+        "next_steps": ["24h : choisir le premier cas", "7 jours : tester le modèle", "30 jours : décider autonomie ou accompagnement"],
+    }
+
+
+def validate_audit_payload(payload: dict[str, Any]) -> str | None:
+    if not str(payload.get("activity") or "").strip():
+        return "activity required"
+    if not str(payload.get("repetitive_tasks") or "").strip():
+        return "repetitive_tasks required"
+    raw = json.dumps(payload, ensure_ascii=False)
+    for pattern in SECRET_PATTERNS:
+        if pattern in raw:
+            return f"secret-like literal forbidden: {pattern}"
+    return None
+
+
+def safe_write_audit(data_dir: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    error = validate_audit_payload(payload)
+    if error:
+        raise ValueError(error)
+    aid = f"audit-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
+    payload = {**payload, "audit_id": aid}
+    report = build_audit_report(payload)
+    consent_snapshot = audit_normalize_consents(payload)
+    sources_used = audit_build_sources_used(payload)
+    devis_source = audit_build_devis_source(payload, report, consent_snapshot)
+    out = {
+        "id": aid,
+        "schema": "oa_audit_ia.v1_rigorous",
+        "status": "draft_report_ready",
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "input": payload,
+        "consent_snapshot": consent_snapshot,
+        "sources_used": sources_used,
+        "report": report,
+        "devis_source": devis_source,
+        "data_rights": {
+            "can_delete": True,
+            "delete_endpoint": f"/api/audits/{aid}/delete",
+            "superuser_view": "metadata_by_default_content_on_need_to_know",
+            "retention_default": devis_source["governance"]["retention_default"],
+        },
+        "safety": {"paid_actions": "none", "provisioning": "none", "human_review_before_commercial_followup": True},
+    }
+    audits_dir = data_dir / "audits"
+    audits_dir.mkdir(parents=True, exist_ok=True)
+    (audits_dir / f"{aid}.json").write_bytes(json_bytes(out))
+    return out
+
+
+def read_audit(data_dir: Path, aid: str) -> dict[str, Any] | None:
+    if not AUDIT_ID_RE.match(aid):
+        return None
+    path = data_dir / "audits" / f"{aid}.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def _audit_session_path(data_dir: Path, sid: str) -> Path:
+    return data_dir / "audit_sessions" / f"{sid}.json"
+
+
+def write_audit_session(data_dir: Path, session: dict[str, Any]) -> dict[str, Any]:
+    sid = str(session.get("id") or "")
+    if not AUDIT_SESSION_ID_RE.match(sid):
+        raise ValueError("invalid audit session id")
+    raw = json.dumps(session, ensure_ascii=False)
+    for pattern in SECRET_PATTERNS:
+        if pattern in raw:
+            raise ValueError(f"secret-like literal forbidden: {pattern}")
+    sessions_dir = data_dir / "audit_sessions"
+    sessions_dir.mkdir(parents=True, exist_ok=True)
+    _audit_session_path(data_dir, sid).write_bytes(json_bytes(session))
+    return session
+
+
+def read_audit_session(data_dir: Path, sid: str) -> dict[str, Any] | None:
+    if not AUDIT_SESSION_ID_RE.match(sid):
+        return None
+    path = _audit_session_path(data_dir, sid)
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def audit_share_payload(audit: dict[str, Any]) -> dict[str, Any]:
+    exports = audit_build_exports(audit)
+    return {
+        "audit_id": audit.get("id"),
+        "title": audit.get("report", {}).get("title", "Rapport audit IA"),
+        "share_url": f"https://app.omar.paris/audit/?id={audit.get('id')}",
+        "exports": exports,
     }
 
 
@@ -434,6 +654,81 @@ def pricing_payload() -> dict[str, Any]:
         "hcloud_error": hcloud_error,
         "packs": OA_START_PACKS,
     }
+
+
+def fetch_public_web_page(url: str, timeout: int = 5) -> dict[str, Any]:
+    """Fetch public homepage metadata only. No login, no POST, no paid action."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("invalid_public_url")
+    if parsed.hostname in {"localhost", "127.0.0.1", "0.0.0.0"}:
+        raise ValueError("local_url_forbidden")
+    req = urllib.request.Request(
+        url,
+        headers={"user-agent": "OmarAuditBot/0.1 (+https://omar.paris; public audit with consent)"},
+        method="GET",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        content_type = response.headers.get("content-type", "")
+        raw = response.read(120_000)
+    text = raw.decode("utf-8", errors="ignore")
+    title_match = re.search(r"<title[^>]*>(.*?)</title>", text, re.I | re.S)
+    desc_match = re.search(r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)', text, re.I | re.S)
+    plain = re.sub(r"<script\b[^<]*(?:(?!</script>)<[^<]*)*</script>", " ", text, flags=re.I)
+    plain = re.sub(r"<style\b[^<]*(?:(?!</style>)<[^<]*)*</style>", " ", plain, flags=re.I)
+    plain = re.sub(r"<[^>]+>", " ", plain)
+    plain = re.sub(r"\s+", " ", plain).strip()
+    return {
+        "url": url,
+        "title": re.sub(r"\s+", " ", title_match.group(1)).strip() if title_match else "",
+        "description": desc_match.group(1).strip() if desc_match else "",
+        "text": plain[:2000],
+        "content_type": content_type,
+    }
+
+
+def fetch_recherche_entreprises(query: str, timeout: int = 6) -> list[dict[str, Any]]:
+    """Recherche légale publique française via API gouvernementale sans clé.
+
+    Bornes : lecture seule, 3 résultats max, aucune donnée privée, aucune action.
+    """
+    q = re.sub(r"\s+", " ", str(query or "")).strip()
+    if len(q) < 3:
+        return []
+    url = "https://recherche-entreprises.api.gouv.fr/search?" + urllib.parse.urlencode({"q": q, "per_page": "3"})
+    req = urllib.request.Request(url, headers={"accept": "application/json", "user-agent": "OmarAuditBot/0.1 (+https://omar.paris; public audit with consent)"}, method="GET")
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        data = json.loads(response.read(200_000).decode("utf-8"))
+    results = data.get("results") if isinstance(data, dict) else []
+    records: list[dict[str, Any]] = []
+    for item in results[:3]:
+        if not isinstance(item, dict):
+            continue
+        siege = item.get("siege") if isinstance(item.get("siege"), dict) else {}
+        activite = item.get("activite_principale") or item.get("libelle_activite_principale") or item.get("section_activite_principale")
+        finances = item.get("finances") if isinstance(item.get("finances"), dict) else {}
+        financial_summary = ""
+        if finances:
+            latest_year = sorted([str(y) for y in finances.keys()])[-1] if finances else ""
+            latest_raw = finances.get(latest_year)
+            latest = latest_raw if isinstance(latest_raw, dict) else {}
+            ca = latest.get("ca") or latest.get("chiffre_affaires") or latest.get("chiffre_affaires_net")
+            if ca:
+                financial_summary = f"CA public {latest_year} : {ca}"
+        records.append({
+            "source": "recherche-entreprises.api.gouv.fr",
+            "url": url,
+            "name": item.get("nom_complet") or item.get("nom_raison_sociale") or item.get("raison_sociale") or "",
+            "siren": item.get("siren") or "",
+            "siret": siege.get("siret") or item.get("siret") or "",
+            "address": siege.get("adresse") or "",
+            "activity": activite or "",
+            "city": siege.get("libelle_commune") or siege.get("commune") or "",
+            "creation_date": siege.get("date_creation") or item.get("date_creation") or "",
+            "employee_range": item.get("tranche_effectif_salarie") or siege.get("tranche_effectif_salarie") or "",
+            "financial_summary": financial_summary,
+        })
+    return records
 
 
 DEFAULT_ONBOARDING_FILE = ROOT / "onboarding-status.json"
@@ -604,6 +899,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
         # Portail unifié — pages servies par le serveur (hors build.py → survivent au rebuild)
         APP_PAGES = {
             "/": "home.html",
+            "/audit/": "audit.html", "/audit": "audit.html",
             "/devis/": "devis.html", "/devis": "devis.html",
             "/onboarding/": "onboarding.html", "/onboarding": "onboarding.html",
             "/sav/": "sav.html", "/sav": "sav.html",
@@ -695,6 +991,31 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 return
             self.send_json(200, {"ok": True, "provisioning": contract})
             return
+        if self.path.startswith("/api/audits/"):
+            rest = self.path[len("/api/audits/"):].split("?", 1)[0]
+            if rest.endswith("/share"):
+                aid = rest[:-len("/share")]
+                audit = read_audit(self.data_dir, aid)
+                if not audit:
+                    self.send_json(404, {"ok": False, "error": "audit_not_found"})
+                    return
+                self.send_json(200, {"ok": True, "share": audit_share_payload(audit)})
+                return
+            aid = rest
+            audit = read_audit(self.data_dir, aid)
+            if not audit:
+                self.send_json(404, {"ok": False, "error": "audit_not_found"})
+                return
+            self.send_json(200, {"ok": True, "audit": audit, "report": audit.get("report", {})})
+            return
+        if self.path.startswith("/api/audit-sessions/"):
+            sid = self.path[len("/api/audit-sessions/"):].split("?", 1)[0]
+            session = read_audit_session(self.data_dir, sid)
+            if not session:
+                self.send_json(404, {"ok": False, "error": "audit_session_not_found"})
+                return
+            self.send_json(200, {"ok": True, "session": session})
+            return
         if self.path == "/api/hetzner/pricing":
             self.send_json(200, pricing_payload())
             return
@@ -726,11 +1047,26 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/devis":
             self.handle_devis()
             return
-        if self.path == "/api/checkout":
-            self.handle_checkout()
+        if self.path.startswith("/api/devis/"):
+            self.handle_devis_action()
             return
         if self.path == "/api/provisioning/dry-run":
             self.handle_provisioning_dry_run()
+            return
+        if self.path == "/api/audits":
+            self.handle_audit()
+            return
+        if self.path.startswith("/api/audits/"):
+            self.handle_audit_action()
+            return
+        if self.path == "/api/audit-sessions":
+            self.handle_audit_session_create()
+            return
+        if self.path.startswith("/api/audit-sessions/"):
+            self.handle_audit_session_action()
+            return
+        if self.path == "/api/checkout":
+            self.handle_checkout()
             return
         if self.path == "/api/stripe-webhook":
             self.handle_stripe_webhook()
@@ -793,6 +1129,146 @@ class ProposalHandler(BaseHTTPRequestHandler):
         _CATALOG_CACHE.clear()
         self.send_json(200, {"ok": True, "count": len(products), "par": email})
 
+    def _read_json_payload(self, max_bytes: int = 100_000) -> dict[str, Any]:
+        length = int(self.headers.get("content-length", "0"))
+        if length <= 0 or length > max_bytes:
+            raise ValueError("invalid content-length")
+        payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("payload must be object")
+        return payload
+
+    def handle_audit_session_create(self) -> None:
+        """Démarre une session d'audit sectorielle backend-driven."""
+        try:
+            payload = self._read_json_payload(80_000)
+            raw = json.dumps(payload, ensure_ascii=False)
+            for pattern in SECRET_PATTERNS:
+                if pattern in raw:
+                    raise ValueError(f"secret-like literal forbidden: {pattern}")
+            created = audit_create_session(payload)
+            session = write_audit_session(self.data_dir, created["session"])
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+            return
+        self.send_json(201, {"ok": True, "session": session, "omar": created["omar"]})
+
+    def handle_audit_session_action(self) -> None:
+        """Ajoute un message ou valide une étape sur une session audit."""
+        rest = self.path[len("/api/audit-sessions/"):].split("?", 1)[0]
+        parts = rest.split("/", 1)
+        sid = parts[0]
+        action = parts[1] if len(parts) > 1 else "message"
+        session = read_audit_session(self.data_dir, sid)
+        if not session:
+            self.send_json(404, {"ok": False, "error": "audit_session_not_found"})
+            return
+        try:
+            payload = self._read_json_payload(80_000)
+            raw = json.dumps(payload, ensure_ascii=False)
+            for pattern in SECRET_PATTERNS:
+                if pattern in raw:
+                    raise ValueError(f"secret-like literal forbidden: {pattern}")
+            if action == "message":
+                text = str(payload.get("message") or "").strip()
+                if not text:
+                    raise ValueError("message required")
+                result = audit_add_message(session, text)
+                session = write_audit_session(self.data_dir, result["session"])
+                self.send_json(200, {"ok": True, "session": session, "omar": result["omar"]})
+                return
+            if action == "validate-step":
+                result = audit_validate_step(session, str(payload.get("step") or session.get("current_step") or "activity"))
+                if result.get("ok"):
+                    session = write_audit_session(self.data_dir, result["session"])
+                    result["session"] = session
+                    self.send_json(200, result)
+                else:
+                    write_audit_session(self.data_dir, session)
+                    self.send_json(409, result)
+                return
+            if action == "research-plan":
+                plan = audit_build_research_plan(session, payload)
+                session.setdefault("research_plans", []).append({
+                    "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "plan": plan,
+                })
+                session = write_audit_session(self.data_dir, session)
+                self.send_json(200, {"ok": True, "session": session, "research_plan": plan})
+                return
+            if action == "public-research":
+                plan = audit_build_research_plan(session, payload)
+                fetched_pages: list[dict[str, Any]] = []
+                registry_records: list[dict[str, Any]] = []
+                fetch_errors: list[dict[str, Any]] = []
+                external_calls_attempted = False
+                dry_run = bool(payload.get("dry_run", False))
+                website = str(payload.get("website") or payload.get("site") or "").strip()
+                registry_query = str(payload.get("siret") or payload.get("sirene") or payload.get("company_public_name") or payload.get("public_name") or "").strip()
+                permissions = plan.get("consent_snapshot", {}).get("permissions", {})
+                if website and permissions.get("public_web_search") and not dry_run:
+                    external_calls_attempted = True
+                    try:
+                        fetched_pages.append(fetch_public_web_page(website))
+                    except (ValueError, urllib.error.URLError, TimeoutError) as exc:
+                        fetch_errors.append({"url": website, "error": str(exc), "connector": "public_web"})
+                if registry_query and permissions.get("legal_registry_lookup") and not dry_run:
+                    external_calls_attempted = True
+                    try:
+                        registry_records.extend(fetch_recherche_entreprises(registry_query))
+                    except (ValueError, urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+                        fetch_errors.append({"query": registry_query, "error": str(exc), "connector": "recherche_entreprises"})
+                result = audit_build_public_research_result(plan, fetched_pages, registry_records, external_calls_attempted=external_calls_attempted)
+                if fetch_errors:
+                    result["fetch_errors"] = fetch_errors
+                session.setdefault("public_research", []).append({
+                    "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "result": result,
+                })
+                session = write_audit_session(self.data_dir, session)
+                self.send_json(200, {"ok": True, "session": session, "research_plan": plan, "research_result": result})
+                return
+            if action == "report":
+                # Compatibilité V0 : transforme la session en payload /api/audits.
+                text = "\n".join(str(m.get("text", "")) for m in session.get("messages", []))
+                payload = {
+                    "activity": str(payload.get("activity") or session.get("sector_id") or "activité à préciser"),
+                    "urgency": str(payload.get("urgency") or "comprendre les vrais enjeux IA"),
+                    "ai_level": "conversationnel sectoriel",
+                    "repetitive_tasks": str(payload.get("repetitive_tasks") or text or "à préciser"),
+                    "current_tools": str(payload.get("current_tools") or text),
+                    "constraints": str(payload.get("constraints") or text),
+                    "opportunities": str(payload.get("opportunities") or ""),
+                    "autonomy": str(payload.get("autonomy") or ""),
+                    "validation": str(payload.get("validation") or ""),
+                    "transcript": session.get("messages", []),
+                    "sector_id": session.get("sector_id"),
+                    "interface": "audit_cockpit_conversationnel_sectoriel.v0",
+                }
+                audit = safe_write_audit(self.data_dir, payload)
+                share = audit_share_payload(audit)
+                self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share})
+                return
+            self.send_json(404, {"ok": False, "error": "unknown_audit_session_action"})
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+
+    def handle_audit(self) -> None:
+        """Audit IA public V0 : crée une première synthèse personnalisée.
+        Aucun paiement, aucun provisioning, aucun secret accepté."""
+        try:
+            length = int(self.headers.get("content-length", "0"))
+            if length <= 0 or length > 80_000:
+                raise ValueError("invalid content-length")
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("payload must be object")
+            audit = safe_write_audit(self.data_dir, payload)
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+            return
+        self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", [])})
+
     def handle_devis(self) -> None:
         """Crée un devis depuis une sélection de produits du catalogue (app#24/qg#28).
         Public (un prospect n'a pas de compte) — pas de Bearer."""
@@ -801,26 +1277,25 @@ class ProposalHandler(BaseHTTPRequestHandler):
             if length <= 0 or length > 50_000:
                 raise ValueError("invalid content-length")
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
-            item_ids = payload.get("items") or []
-            if not isinstance(item_ids, list) or not item_ids:
-                raise ValueError("items vide")
+            if not isinstance(payload, dict):
+                raise ValueError("payload must be object")
+            audit = read_audit(self.data_dir, str(payload.get("audit_id") or "")) if payload.get("audit_id") else None
+            devis_source = payload.get("devis_source") if isinstance(payload.get("devis_source"), dict) else (audit or {}).get("devis_source")
+            if payload.get("items") is not None:
+                requested_items = normalize_devis_items(payload.get("items"))
+            elif isinstance(devis_source, dict):
+                source_ids = [str(item.get("catalog_id") or "") for item in devis_source.get("recommended_items", []) if item.get("required", True)]
+                requested_items = normalize_devis_items(source_ids)
+            else:
+                raise ValueError("items or audit_id required")
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
             self.send_json(422, {"ok": False, "error": str(exc)})
             return
         catalog = {p["id"]: p for p in load_catalog().get("products", [])}
         lignes, mensuel, unique = [], 0, 0
-        for raw_item in item_ids:
-            if isinstance(raw_item, str):
-                iid = raw_item
-                qty = 1
-            elif isinstance(raw_item, dict):
-                iid = str(raw_item.get("id", ""))
-                try:
-                    qty = max(1, int(raw_item.get("qty", 1)))
-                except (TypeError, ValueError):
-                    qty = 1
-            else:
-                continue
+        for requested in requested_items:
+            iid = str(requested["id"])
+            qty = int(requested.get("qty", 1))
             p = catalog.get(iid)
             if not p:
                 continue
@@ -839,6 +1314,10 @@ class ProposalHandler(BaseHTTPRequestHandler):
             did = existing["id"]
             devis = {**existing, "lignes": lignes, "total_mensuel_eur": mensuel,
                      "total_unique_eur": unique,
+                     "audit_id": payload.get("audit_id") or existing.get("audit_id"),
+                     "devis_source": devis_source or existing.get("devis_source"),
+                     "justification": build_devis_justification(lignes, devis_source),
+                     "statut": "a_valider" if existing.get("statut") in {"brouillon", "a_valider"} else existing.get("statut"),
                      "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         else:
             did = f"devis-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
@@ -846,12 +1325,83 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 "id": did, "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "client": payload.get("client", {}), "lignes": lignes,
                 "total_mensuel_eur": mensuel, "total_unique_eur": unique,
-                "devise": "EUR", "statut": "brouillon",
+                "devise": "EUR", "statut": "a_valider",
+                "audit_id": payload.get("audit_id"),
+                "devis_source": devis_source,
+                "justification": build_devis_justification(lignes, devis_source),
+                "validation_required": True,
             }
         d = self.data_dir / "devis"
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{did}.json").write_bytes(json_bytes(devis))
         self.send_json(201, {"ok": True, "devis": devis})
+
+
+
+    def handle_devis_action(self) -> None:
+        rest = self.path[len("/api/devis/"):].split("?", 1)[0]
+        parts = rest.split("/", 1)
+        did = parts[0]
+        action = parts[1] if len(parts) > 1 else ""
+        devis = read_devis(self.data_dir, did)
+        if not devis:
+            self.send_json(404, {"ok": False, "error": "devis_not_found"})
+            return
+        if action != "validate":
+            self.send_json(404, {"ok": False, "error": "unknown_devis_action"})
+            return
+        try:
+            payload = self._read_json_payload(20_000)
+            if payload.get("accepted") is not True:
+                raise ValueError("accepted=true required")
+            raw = json.dumps(payload, ensure_ascii=False)
+            for pattern in SECRET_PATTERNS:
+                if pattern in raw:
+                    raise ValueError(f"secret-like literal forbidden: {pattern}")
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+            return
+        devis["statut"] = "user_validated"
+        devis["validated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        devis["validation_snapshot"] = {
+            "accepted": True,
+            "validator_email": str(payload.get("email") or ""),
+            "understood": str(payload.get("understood") or "devis, limites, absence de provisioning avant paiement et revue humaine"),
+            "version": "oa_devis_validation.v0",
+        }
+        (self.data_dir / "devis" / f"{did}.json").write_bytes(json_bytes(devis))
+        self.send_json(200, {"ok": True, "devis": devis})
+
+    def handle_audit_action(self) -> None:
+        rest = self.path[len("/api/audits/"):].split("?", 1)[0]
+        parts = rest.split("/", 1)
+        aid = parts[0]
+        action = parts[1] if len(parts) > 1 else ""
+        audit = read_audit(self.data_dir, aid)
+        if not audit:
+            self.send_json(404, {"ok": False, "error": "audit_not_found"})
+            return
+        if action != "delete":
+            self.send_json(404, {"ok": False, "error": "unknown_audit_action"})
+            return
+        try:
+            payload = self._read_json_payload(20_000)
+            if payload.get("confirm_delete") is not True:
+                raise ValueError("confirm_delete=true required")
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+            return
+        tombstone = {
+            "id": aid,
+            "schema": "oa_audit_deleted.v0",
+            "status": "deleted",
+            "deleted_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "personal_data_removed": True,
+            "content_removed": ["input", "transcript", "documents", "report", "devis_source", "sources_used"],
+        }
+        audits_dir = self.data_dir / "audits"
+        (audits_dir / f"{aid}.json").write_bytes(json_bytes(tombstone))
+        self.send_json(200, {"ok": True, "audit": tombstone})
 
     def handle_provisioning_dry_run(self) -> None:
         """Pont AppOmar → OmarTop : produit un contrat provisioning dry-run.
@@ -881,6 +1431,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
         (out_dir / f"{did}.json").write_bytes(json_bytes(contract))
         self.send_json(201, {"ok": True, "provisioning": contract})
 
+
     def handle_checkout(self) -> None:
         """Lance le paiement Stripe d'un devis. Stub tant que la clef Stripe n'est
         pas fournie (app#32) — renvoie 503 explicite, jamais de faux paiement."""
@@ -895,12 +1446,17 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if not devis:
             self.send_json(404, {"ok": False, "error": "devis_not_found"})
             return
+        if devis.get("statut") != "user_validated":
+            self.send_json(409, {"ok": False, "error": "devis_not_validated", "message": "Le devis doit être lu et validé explicitement par le client avant checkout.", "devis_id": did, "statut": devis.get("statut")})
+            return
         mode = "live" if os.environ.get("OA_STRIPE_MODE") == "live" else "test"
         key = _stripe_key(mode)
         if not key:
             self.send_json(503, {"ok": False, "error": "stripe_non_configure",
                                  "message": f"Paiement bientôt disponible — clef Stripe {mode} en attente.",
-                                 "devis_id": did, "total_mensuel_eur": devis["total_mensuel_eur"]})
+                                 "devis_id": did,
+                                 "total_mensuel_eur": devis["total_mensuel_eur"],
+                                 "total_unique_eur": devis.get("total_unique_eur", 0)})
             return
         base = "https://app.omar.paris"
         params: dict = {
@@ -918,7 +1474,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 line_items.append({"price_data": {"currency": "eur",
                     "product_data": {"name": l["label"]},
                     "unit_amount": int(l["prix_mensuel"]) * 100,
-                    "recurring": {"interval": "month"}}, "quantity": 1})
+                    "recurring": {"interval": "month"}}, "quantity": int(l.get("qty", 1))})
             # prestations one-shot ajoutées sur la 1re facture de l'abonnement
             if unique:
                 params["subscription_data"] = {"metadata": {"devis_id": did}}
@@ -927,7 +1483,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
         for l in unique:
             li = {"price_data": {"currency": "eur",
                   "product_data": {"name": l["label"]},
-                  "unit_amount": int(l["prix_unique"]) * 100}, "quantity": 1}
+                  "unit_amount": int(l["prix_unique"]) * 100}, "quantity": int(l.get("qty", 1))}
             if mensuel:
                 # en mode subscription, les one-shot passent en add_invoice_items
                 params.setdefault("subscription_data", {})

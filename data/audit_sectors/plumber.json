@@ -1,0 +1,55 @@
+{
+  "sector_id": "plumber",
+  "labels": [
+    "plombier",
+    "chauffagiste",
+    "sanitaire",
+    "dépannage plomberie"
+  ],
+  "important_dimensions": [
+    "urgence",
+    "zone intervention",
+    "photos diagnostic",
+    "planning",
+    "devis",
+    "fournisseurs",
+    "SAV"
+  ],
+  "question_blocks": {
+    "activity": [
+      "Quel est le métier exact et le secteur principal de l'entreprise ?",
+      "Où est située l'entreprise et quelle zone sert-elle ?",
+      "Quelle est sa taille : solo, associés, salariés, prestataires ?",
+      "Depuis combien de temps existe-t-elle ?",
+      "Quel est l'ordre de grandeur du chiffre d'affaires annuel ?",
+      "Quels sont les clients principaux et les demandes les plus fréquentes ?",
+      "Faites-vous surtout de l’urgence, de la rénovation ou des contrats récurrents ?",
+      "Quelle zone d’intervention acceptez-vous ?"
+    ],
+    "pain": [
+      "Quelles demandes nécessitent toujours les mêmes questions avant devis ?",
+      "Combien d’appels ou messages entrants par jour ?",
+      "Quels éléments manquent souvent : photos, adresse, urgence, modèle appareil ?"
+    ],
+    "risk": [
+      "Quels diagnostics ne doivent jamais être automatisés ?",
+      "Quelles conditions de prix/déplacement doivent être validées ?"
+    ]
+  },
+  "risk_flags": [
+    "urgence",
+    "sécurité",
+    "prix déplacement",
+    "diagnostic technique",
+    "adresse client"
+  ],
+  "benchmarks": {
+    "automation_candidates": [
+      "préqualification demandes",
+      "checklist photos",
+      "devis types",
+      "planning interventions",
+      "relances SAV"
+    ]
+  }
+}

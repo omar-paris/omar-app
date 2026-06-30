@@ -1,0 +1,155 @@
+[
+  {
+    "id":"bakery_conversation_mode",
+    "step":"conversation_preferences",
+    "facet":"ia_potentiel",
+    "question":"Vous préférez que je vous vouvoie ou tutoie, et plutôt des questions très guidées, une discussion libre, ou des synthèses régulières à valider ?",
+    "why":"Le mode de conversation conditionne la précision de l'audit et évite de fatiguer le client.",
+    "interaction":"choice",
+    "options":["Vouvoiement · mode guidé","Tutoiement · synthèses","Conversation libre","Je ne sais pas, guidez-moi"],
+    "expected_signal":["communication_preferences"],
+    "report_impact":"medium"
+  },
+  {
+    "id":"bakery_identity_context_1",
+    "step":"identity_context",
+    "facet":"emplacement",
+    "question":"Pour situer correctement l'audit : où est la boutique, depuis quand existe-t-elle, et combien de personnes travaillent réellement sur les principaux créneaux ?",
+    "why":"Adresse, ancienneté et équipe changent fortement les questions utiles : flux, concurrence, planning, marge et priorités IA.",
+    "interaction":"open",
+    "expected_signal":["location","company_age","company_size"],
+    "report_impact":"high"
+  },
+  {
+    "id":"bakery_sources_1",
+    "step":"sources",
+    "facet":"marketing_local",
+    "question":"Quelles sources publiques puis-je utiliser pour vous éviter de tout répéter : site, fiche Google, SIRET/SIRENE, avis, réseaux publics ? Vous pouvez aussi refuser.",
+    "why":"Les sources publiques aident à préparer l'audit, mais elles doivent rester séparées de vos déclarations et validées par vous.",
+    "interaction":"choice",
+    "options":["Site + fiche Google","SIRET/SIRENE","Avis publics","Réseaux publics","Je refuse les recherches publiques"],
+    "expected_signal":["public_sources","consent"],
+    "report_impact":"high"
+  },
+  {
+    "id":"bakery_offer_rank",
+    "step":"business_model",
+    "facet":"production_offre",
+    "question":"Classez vos activités par importance réelle pour le business.",
+    "why":"Comprendre l'activité numéro 1 change tout : production, horaires, marge, messages client, risques et première boucle IA utile.",
+    "interaction":"rank",
+    "options":["Boulangerie","Pâtisserie","Viennoiseries","Sandwicherie / snacking","Commandes spéciales / événementiel","Chocolaterie / confiserie","Traiteur","Autre"],
+    "expected_signal":["main_activity","business_priority"],
+    "report_impact":"high"
+  },
+  {
+    "id":"bakery_location_flow_1",
+    "step":"business_model",
+    "facet":"emplacement",
+    "question":"Votre emplacement fonctionne surtout par quel flux ?",
+    "why":"Hypercentre, quartier, périurbain ou rural ne créent pas les mêmes priorités : passage, parking, horaires, avis, fidélité ou commandes.",
+    "interaction":"choice",
+    "options":["Passage piéton","Quartier / habitués","Bureaux / midi","École / familles","Voiture / parking","Village / proximité"],
+    "expected_signal":["location_flow","catchment_area"],
+    "report_impact":"high"
+  },
+  {
+    "id":"bakery_losses_1",
+    "step":"operations",
+    "facet":"production_offre",
+    "question":"Les pertes ou invendus viennent surtout d'où ?",
+    "why":"Les invendus touchent la marge, la fraîcheur, l'image et les décisions de production.",
+    "interaction":"choice",
+    "options":["Pain","Viennoiseries","Pâtisserie","Snacking","Commandes annulées","Je ne mesure pas précisément"],
+    "expected_signal":["losses","margin","production"],
+    "report_impact":"high"
+  },
+  {
+    "id":"bakery_suppliers_1",
+    "step":"operations",
+    "facet":"stocks_achats",
+    "question":"Votre approvisionnement est-il plutôt sécurisé ou fragile ?",
+    "why":"Une rupture farine, beurre, crème, emballage ou une hausse matière a un impact immédiat sur production et marge.",
+    "interaction":"choice",
+    "options":["Très sécurisé","Quelques fournisseurs critiques","Prix instables","Ruptures fréquentes","Traçabilité à améliorer"],
+    "expected_signal":["suppliers","stocks","traceability"],
+    "report_impact":"medium"
+  },
+  {
+    "id":"bakery_team_1",
+    "step":"operations",
+    "facet":"equipe",
+    "question":"Quel est aujourd'hui le point humain le plus tendu ?",
+    "why":"L'IA peut aider au planning, à la transmission ou aux checklists, mais seulement si on sait où l'équipe souffre vraiment.",
+    "interaction":"choice",
+    "options":["Recrutement","Planning / remplacements","Formation","Communication équipe","Motivation / conflits","Pic de vente"],
+    "expected_signal":["team_pressure","planning"],
+    "report_impact":"high"
+  },
+  {
+    "id":"bakery_customer_1",
+    "step":"clients_market",
+    "facet":"experience_client",
+    "question":"Qu'est-ce que vos clients demandent ou reprochent le plus souvent ?",
+    "why":"Les demandes répétées révèlent les meilleures boucles IA : disponibilité produit, commandes, horaires, allergènes, avis, FAQ.",
+    "interaction":"choice",
+    "options":["Horaires","Disponibilité produits","Commandes","Prix","Allergènes","Attente / file","Avis négatifs","Rien de clair"],
+    "expected_signal":["customer_requests","reviews","loyalty"],
+    "report_impact":"high"
+  },
+  {
+    "id":"bakery_competition_1",
+    "step":"clients_market",
+    "facet":"marketing_local",
+    "question":"Quels concurrents vos clients citent-ils ou comparent-ils vraiment ?",
+    "why":"La concurrence réelle n'est pas toujours celle qu'on imagine : artisan proche, GMS, terminal de cuisson, snacking, café ou livraison.",
+    "interaction":"open",
+    "expected_signal":["competitors","differentiation"],
+    "report_impact":"medium"
+  },
+  {
+    "id":"bakery_finance_1",
+    "step":"finance_priorities",
+    "facet":"finance_pilotage",
+    "question":"Quelle famille produit pilote le mieux votre marge aujourd'hui, et laquelle vous paraît sous-pilotée ?",
+    "why":"On ne recommande pas les mêmes automatisations si le sujet critique est marge, volume, pertes, panier moyen ou trésorerie.",
+    "interaction":"open",
+    "sensitivity":"sensitive",
+    "expected_signal":["margin_family","pricing","cash"],
+    "report_impact":"high"
+  },
+  {
+    "id":"bakery_risk_allergens_1",
+    "step":"risks_guardrails",
+    "facet":"reglementaire",
+    "question":"Quelles réponses ne doivent jamais partir sans validation humaine : allergènes, prix, commandes spéciales, avis négatifs, hygiène ?",
+    "why":"AuditBizIA doit définir les garde-fous avant de proposer une automatisation, surtout sur allergènes et commandes sensibles.",
+    "interaction":"choice",
+    "options":["Allergènes","Prix / devis","Commandes événementielles","Avis négatifs","Hygiène / HACCP","Tout cela doit être validé"],
+    "sensitivity":"sensitive",
+    "expected_signal":["human_validation","safety"],
+    "report_impact":"high"
+  },
+  {
+    "id":"bakery_ai_loop_1",
+    "step":"ai_opportunities",
+    "facet":"ia_potentiel",
+    "question":"Quelle première boucle IA serait utile sans perturber l'équipe en 7 jours ?",
+    "why":"On cherche un test court, utile, vérifiable et sûr avant de parler d'automatisation large.",
+    "interaction":"choice",
+    "options":["Réponses commandes","FAQ horaires/allergènes validée","Synthèse avis Google","Planning production","Posts locaux","Checklists équipe"],
+    "expected_signal":["first_ai_loop","roi"],
+    "report_impact":"high"
+  },
+  {
+    "id":"bakery_final_validation_1",
+    "step":"final_validation",
+    "facet":"ia_potentiel",
+    "question":"Avant rapport, voulez-vous valider ce que j'ai compris, corriger une hypothèse, ou noter une zone inconnue à ne pas inventer ?",
+    "why":"Le rapport doit distinguer faits validés, hypothèses, sources publiques et manques plutôt que produire une synthèse trop sûre d'elle.",
+    "interaction":"choice",
+    "options":["Valider","Corriger une hypothèse","Ajouter une zone inconnue","Passer au rapport"],
+    "expected_signal":["final_validation"],
+    "report_impact":"high"
+  }
+]

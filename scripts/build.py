@@ -225,6 +225,9 @@ def render_config_wizard() -> str:
 
 
 def render_page(route: str, page: dict) -> str:
+    if route == "/audit/":
+        text = (ROOT / "pages-app" / "audit.html").read_text(encoding="utf-8")
+        return text.replace('<script src="/pages-app/_portal.js" defer></script>', '<link rel="stylesheet" href="/assets/styles.css">')
     nav_html = "".join(
         f'<a class="{"active" if href == route else ""}" href="{href}">{escape(label)}</a>' for href, label in NAV
     )

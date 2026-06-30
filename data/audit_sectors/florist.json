@@ -1,0 +1,53 @@
+{
+  "sector_id": "florist",
+  "labels": [
+    "fleuriste",
+    "fleurs",
+    "bouquets",
+    "floral"
+  ],
+  "important_dimensions": [
+    "événements",
+    "saisonnalité",
+    "stock périssable",
+    "livraison",
+    "mariage",
+    "deuil",
+    "réseaux sociaux"
+  ],
+  "question_blocks": {
+    "activity": [
+      "Quel est le métier exact et le secteur principal de l'entreprise ?",
+      "Où est située l'entreprise et quelle zone sert-elle ?",
+      "Quelle est sa taille : solo, associés, salariés, prestataires ?",
+      "Depuis combien de temps existe-t-elle ?",
+      "Quel est l'ordre de grandeur du chiffre d'affaires annuel ?",
+      "Quels sont les clients principaux et les demandes les plus fréquentes ?",
+      "Travaillez-vous surtout boutique, livraison, mariages, deuils ou entreprises ?",
+      "Quelle part vient d’événements planifiés ?"
+    ],
+    "pain": [
+      "Quelles commandes demandent beaucoup d’allers-retours ?",
+      "Quels messages clients reviennent souvent ?"
+    ],
+    "risk": [
+      "Quels messages liés au deuil/mariage nécessitent une attention humaine ?"
+    ]
+  },
+  "risk_flags": [
+    "deuil",
+    "mariage",
+    "prix",
+    "délais livraison",
+    "image de marque"
+  ],
+  "benchmarks": {
+    "automation_candidates": [
+      "réponses commandes",
+      "brief événements",
+      "posts réseaux",
+      "rappels livraison",
+      "catalogue bouquets"
+    ]
+  }
+}

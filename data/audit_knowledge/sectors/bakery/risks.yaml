@@ -1,0 +1,9 @@
+[
+  {"id":"allergens","label":"Allergènes","guardrail":"Ne jamais confirmer une information allergène sans source métier validée et validation humaine."},
+  {"id":"prices","label":"Prix et devis","guardrail":"Ne pas promettre un prix, une remise ou un acompte sans validation du responsable."},
+  {"id":"special_orders","label":"Commandes événementielles","guardrail":"Valider date, quantité, allergènes, acompte, retrait et conditions d'annulation."},
+  {"id":"haccp","label":"Hygiène / HACCP","guardrail":"Utiliser l'IA comme checklist/aide mémoire, jamais comme autorité réglementaire finale."},
+  {"id":"public_reviews","label":"Avis publics","guardrail":"Réponses aux avis négatifs préparées par IA mais relues par humain."},
+  {"id":"automation_scope","label":"Sur-automatisation","guardrail":"Commencer par assistance/rédaction/synthèse avant action automatique."
+  }
+]

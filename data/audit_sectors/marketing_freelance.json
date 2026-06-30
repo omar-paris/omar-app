@@ -1,0 +1,52 @@
+{
+  "sector_id": "marketing_freelance",
+  "labels": [
+    "freelance marketing",
+    "consultant marketing",
+    "marketing",
+    "growth",
+    "communication digitale"
+  ],
+  "important_dimensions": [
+    "acquisition",
+    "contenu",
+    "reporting",
+    "clients",
+    "outils analytics",
+    "livrables",
+    "positionnement"
+  ],
+  "question_blocks": {
+    "activity": [
+      "Quel est le métier exact et le secteur principal de l'entreprise ?",
+      "Où est située l'entreprise et quelle zone sert-elle ?",
+      "Quelle est sa taille : solo, associés, salariés, prestataires ?",
+      "Depuis combien de temps existe-t-elle ?",
+      "Quel est l'ordre de grandeur du chiffre d'affaires annuel ?",
+      "Quels sont les clients principaux et les demandes les plus fréquentes ?",
+      "Quels types de missions vendez-vous : stratégie, contenu, ads, SEO, reporting ?"
+    ],
+    "pain": [
+      "Quelles productions reviennent : briefs, posts, reporting, audits, relances ?",
+      "Quels outils utilisez-vous : Notion, GA4, Ads, CRM, LinkedIn ?"
+    ],
+    "risk": [
+      "Quels contenus doivent être validés par le client avant publication ?"
+    ]
+  },
+  "risk_flags": [
+    "publication externe",
+    "marque client",
+    "données analytics",
+    "budget ads"
+  ],
+  "benchmarks": {
+    "automation_candidates": [
+      "briefs",
+      "calendriers éditoriaux",
+      "reporting",
+      "posts LinkedIn",
+      "analyse campagnes"
+    ]
+  }
+}
