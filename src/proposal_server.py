@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import subprocess
 import sys
 import time
@@ -33,13 +34,16 @@ from audit_intelligence import (  # noqa: E402
 )
 
 DEFAULT_DATA_DIR = ROOT / "var"
+# IDs de proposition opaques (app#14) : token URL-safe aléatoire, sans nom client
+# ni timestamp. Legacy timestamp accepté seulement pour lecture de propositions déjà
+# stockées, avec contrôle propriétaire ci-dessous.
 DEFAULT_VAULT_ADDR = os.environ.get("OA_APP_VAULT_ADDR", os.environ.get("VAULT_ADDR", "http://127.0.0.1:8202"))
 DEFAULT_VAULT_TOKEN_FILE = Path(
     os.environ.get("OA_APP_VAULT_TOKEN_FILE", "/home/omar/.config/omar-app/vault-token")
 )
-# UUID hex (V0.3.1, app#14 non-enumerable) + ancien format timestamp (lecture des
-# propositions déjà stockées uniquement)
-PROPOSAL_ID_RE = re.compile(r"^proposal-(?:[0-9a-f]{32}|[0-9]{8}T[0-9]{6}Z)-[a-z0-9-]+$")
+PROPOSAL_ID_RE = re.compile(
+    r"^proposal-(?:[A-Za-z0-9_-]{43}|[0-9a-f]{32}-[a-z0-9-]+|[0-9]{8}T[0-9]{6}Z-[a-z0-9-]+)$"
+)
 AUDIT_ID_RE = re.compile(r"^audit-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$")
 AUDIT_SESSION_ID_RE = re.compile(r"^audit-session-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$")
 ONBOARDING_ID_RE = re.compile(r"^onboarding-[0-9]{8}T[0-9]{6}Z-[a-z0-9-]{1,64}$")
@@ -188,8 +192,22 @@ def slugify(value: str) -> str:
 
 
 def proposal_id(payload: dict[str, Any]) -> str:
-    company = payload.get("client_profile", {}).get("company_name", "client-demo")
-    return f"proposal-{uuid.uuid4().hex}-{slugify(str(company))}"
+    # 32 bytes = 256 bits de hasard, encodés URL-safe (~43 caractères).
+    return f"proposal-{secrets.token_urlsafe(32)}"
+
+
+def proposal_owner_email(proposal: dict[str, Any]) -> str:
+    profile = proposal.get("client_profile") or {}
+    return str(profile.get("contact_email") or "").strip().lower()
+
+
+def can_read_proposal(proposal: dict[str, Any], email: str, *, is_admin: bool) -> bool:
+    email = (email or "").strip().lower()
+    if not email:
+        return False
+    if is_admin:
+        return True
+    return bool(proposal_owner_email(proposal)) and email == proposal_owner_email(proposal)
 
 
 def validate_proposal(payload: dict[str, Any]) -> str | None:
@@ -1132,16 +1150,24 @@ class ProposalHandler(BaseHTTPRequestHandler):
             return
         prefix = "/api/proposals/"
         if self.path.startswith(prefix):
-            ctx = self.proposal_auth_context()
-            if ctx is None:
-                self.reject_unauthorized()
-                return
             pid = self.path[len(prefix):].split("?", 1)[0]
             proposal = read_proposal(self.data_dir, pid)
             if not proposal:
                 self.send_json(404, {"ok": False, "error": "proposal_not_found"})
                 return
-            if not self.can_read_proposal(proposal, ctx):
+            ctx = self.proposal_auth_context()
+            email = self.auth_email()
+            legacy_owner_allowed = can_read_proposal(
+                proposal, email, is_admin=bool(email) and email in admin_emails()
+            )
+            if ctx is None:
+                # Do not disclose whether an opaque proposal id exists to anonymous or
+                # unmapped OAuth users; legacy proposals may still be read by their
+                # stored contact email for backward compatibility.
+                if not legacy_owner_allowed:
+                    self.send_json(404, {"ok": False, "error": "proposal_not_found"})
+                    return
+            elif not (self.can_read_proposal(proposal, ctx) or legacy_owner_allowed):
                 self.reject_forbidden()
                 return
             self.send_json(200, {"ok": True, "proposal": proposal})
