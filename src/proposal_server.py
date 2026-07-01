@@ -42,6 +42,7 @@ DEFAULT_VAULT_TOKEN_FILE = Path(
 PROPOSAL_ID_RE = re.compile(r"^proposal-(?:[0-9a-f]{32}|[0-9]{8}T[0-9]{6}Z)-[a-z0-9-]+$")
 AUDIT_ID_RE = re.compile(r"^audit-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$")
 AUDIT_SESSION_ID_RE = re.compile(r"^audit-session-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$")
+ONBOARDING_ID_RE = re.compile(r"^onboarding-[0-9]{8}T[0-9]{6}Z-[a-z0-9-]{1,64}$")
 SECRET_PATTERNS = ["HCLOUD_TOKEN", "Authorization", "Bearer ", "sk-"]
 ALLOWED_VAULT_FIELDS = {
     "secret/stripe/test": {"STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"},
@@ -625,6 +626,107 @@ def read_proposal(data_dir: Path, pid: str) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def read_onboarding(data_dir: Path, oid: str) -> dict[str, Any] | None:
+    if not ONBOARDING_ID_RE.match(oid):
+        return None
+    path = data_dir / "clients" / f"{oid}.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def normalize_onboarding_sections(value: Any) -> list[str]:
+    allowed = {"identite", "objectifs", "outils", "infra", "agent", "recap"}
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    for item in value:
+        section = str(item or "").strip().lower()
+        if section in allowed and section not in out:
+            out.append(section)
+    return out
+
+
+def onboarding_id_from_record(record: dict[str, Any]) -> str:
+    label = str(record.get("entreprise") or record.get("identite") or "client")[:40]
+    return f"onboarding-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{slugify(label)}"
+
+
+def safe_write_onboarding(data_dir: Path, payload: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    record = payload.get("record")
+    if not isinstance(record, dict) or not record:
+        raise ValueError("record vide")
+    raw = json.dumps(payload, ensure_ascii=False)
+    for pattern in SECRET_PATTERNS:
+        if pattern in raw:
+            raise ValueError(f"secret-like literal forbidden: {pattern}")
+    requested_id = str(payload.get("record_id") or payload.get("id") or "")
+    existing = read_onboarding(data_dir, requested_id) if requested_id else None
+    oid = existing["id"] if existing else onboarding_id_from_record(record)
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    created = not bool(existing)
+    current_step_raw = payload.get("current_step", (existing or {}).get("current_step", 0))
+    try:
+        current_step = max(0, min(6, int(current_step_raw)))
+    except (TypeError, ValueError):
+        current_step = 0
+    onboarding = {
+        **(existing or {}),
+        "id": oid,
+        "schema": "appomar.onboarding_record.v1",
+        "status": "draft" if bool(payload.get("autosave")) else "submitted",
+        "created_at": (existing or {}).get("created_at", now),
+        "updated_at": now,
+        "received_at": now,
+        "record": record,
+        "agent_profile": payload.get("agent_profile") if isinstance(payload.get("agent_profile"), dict) else {},
+        "completed_sections": normalize_onboarding_sections(payload.get("completed_sections", [])),
+        "current_step": current_step,
+        "resume_url": f"/onboarding/?record_id={oid}",
+        "storage": {"mode": "local_json", "path": f"var/clients/{oid}.json"},
+        "safety": {"paid_actions": "none", "provisioning": "none", "human_go_required_before_paid_actions": True},
+    }
+    out_dir = data_dir / "clients"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / f"{oid}.json").write_bytes(json_bytes(onboarding))
+    return onboarding, created
+
+
+def build_onboarding_simulation(onboarding: dict[str, Any], target: str) -> dict[str, Any]:
+    if target not in {"vps", "pc", "hybride"}:
+        raise ValueError("target invalide")
+    record = onboarding.get("record") or {}
+    agent_spec = dict(onboarding.get("agent_profile") or {})
+    agent_spec.setdefault("agent_name", "Omar")
+    agent_spec.setdefault("modules", record.get("objectifs", []))
+    agent_spec.setdefault("infra", target)
+    return {
+        "schema": "appomar.onboarding_simulation.v1",
+        "source_onboarding_id": onboarding["id"],
+        "mode": "simulation_console",
+        "status": "preview_only",
+        "agent_spec": agent_spec,
+        "provisioning_preview": {
+            "schema": "omartop.provisioning-contract.v1.preview",
+            "target": target,
+            "mode": "dry-run",
+            "paid_actions": "none",
+            "status": "pending_devis_then_human_go",
+            "checks": [
+                {"key": "onboarding_present", "result": "pass", "detail": onboarding["id"]},
+                {"key": "agent_spec_preview", "result": "pass", "detail": agent_spec.get("agent_name", "Omar")},
+                {"key": "paid_actions_none", "result": "pass", "detail": "simulation only"},
+            ],
+        },
+        "next_steps": [
+            {"route": "/devis/", "label": "Composer/valider le devis", "required": True},
+            {"route": "/api/provisioning/dry-run", "label": "Créer un contrat dry-run après devis", "required": False},
+            {"route": "human_go", "label": "GO humain obligatoire avant toute action payante", "required": True},
+        ],
+        "resume_url": onboarding.get("resume_url", f"/onboarding/?record_id={onboarding['id']}"),
+        "safety": {"paid_actions": "none", "provisioning": "dry_run_preview_only", "secrets": "not_required"},
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
 def pricing_payload() -> dict[str, Any]:
     # V0.3 is intentionally read-only. HCLOUD_TOKEN may be injected directly; otherwise
     # read it with the omar-app Vault service token only (never /home/omar/.vault-token).
@@ -1019,6 +1121,15 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/hetzner/pricing":
             self.send_json(200, pricing_payload())
             return
+        onboarding_prefix = "/api/onboarding/"
+        if self.path.startswith(onboarding_prefix):
+            oid = self.path[len(onboarding_prefix):].split("?", 1)[0]
+            onboarding = read_onboarding(self.data_dir, oid)
+            if not onboarding:
+                self.send_json(404, {"ok": False, "error": "onboarding_not_found"})
+                return
+            self.send_json(200, {"ok": True, "onboarding": onboarding})
+            return
         prefix = "/api/proposals/"
         if self.path.startswith(prefix):
             ctx = self.proposal_auth_context()
@@ -1038,8 +1149,12 @@ class ProposalHandler(BaseHTTPRequestHandler):
         self.send_json(404, {"ok": False, "error": "not_found"})
 
     def do_POST(self) -> None:
-        if self.path == "/api/onboarding":
+        path = self.path.split("?", 1)[0]
+        if path == "/api/onboarding":
             self.handle_onboarding()
+            return
+        if path.startswith("/api/onboarding/"):
+            self.handle_onboarding_action(path)
             return
         if self.path == "/api/admin/catalog":
             self.handle_admin_catalog()
@@ -1532,32 +1647,41 @@ class ProposalHandler(BaseHTTPRequestHandler):
         self.send_json(200, {"received": True})
 
     def handle_onboarding(self) -> None:
-        """Dossier d'onboarding v1 (app#22). Pas de Bearer : la couche d'accès est
-        le vhost tailnet_only (puis OAuth au rollout qg#23) — un humain remplit ce
-        formulaire, il n'a pas de token."""
+        """Dossier d'onboarding v1 (app#22/#35).
+
+        Persiste un brouillon reprenable par record_id. Pas de Bearer : un prospect
+        peut sauvegarder son tunnel ; la réponse expose seulement son propre lien de
+        reprise. Aucune action payante ni provisioning réel.
+        """
         try:
-            length = int(self.headers.get("content-length", "0"))
-            if length <= 0 or length > 100_000:
-                raise ValueError("invalid content-length")
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
-            record = payload.get("record")
-            if not isinstance(record, dict) or not record:
-                raise ValueError("record vide")
-            raw = json.dumps(payload, ensure_ascii=False)
-            for pattern in SECRET_PATTERNS:
-                if pattern in raw:
-                    raise ValueError(f"secret-like literal forbidden: {pattern}")
+            payload = self._read_json_payload(100_000)
+            onboarding, created = safe_write_onboarding(self.data_dir, payload)
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
             self.send_json(422, {"ok": False, "error": str(exc)})
             return
-        slug = slugify(str(record.get("identite", "client"))[:40])
-        oid = f"onboarding-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{slug}"
-        out_dir = self.data_dir / "clients"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        payload["id"] = oid
-        payload["received_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        (out_dir / f"{oid}.json").write_bytes(json_bytes(payload))
-        self.send_json(201, {"ok": True, "id": oid})
+        status = 201 if created else 200
+        self.send_json(status, {"ok": True, "id": onboarding["id"], "resume_url": onboarding["resume_url"], "onboarding": onboarding})
+
+    def handle_onboarding_action(self, path: str) -> None:
+        rest = path[len("/api/onboarding/"):]
+        parts = rest.split("/", 1)
+        oid = parts[0]
+        action = parts[1] if len(parts) > 1 else ""
+        onboarding = read_onboarding(self.data_dir, oid)
+        if not onboarding:
+            self.send_json(404, {"ok": False, "error": "onboarding_not_found"})
+            return
+        if action != "simulate":
+            self.send_json(404, {"ok": False, "error": "unknown_onboarding_action"})
+            return
+        try:
+            payload = self._read_json_payload(20_000)
+            target = str(payload.get("target") or onboarding.get("record", {}).get("infra") or "pc")
+            simulation = build_onboarding_simulation(onboarding, target)
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+            self.send_json(422, {"ok": False, "error": str(exc)})
+            return
+        self.send_json(200, {"ok": True, "simulation": simulation})
 
 
 class ReusableServer(ThreadingHTTPServer):

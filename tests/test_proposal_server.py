@@ -626,3 +626,89 @@ def test_appomar_creates_provisioning_dry_run_contract_from_devis(tmp_path):
     finally:
         proc.terminate()
         proc.wait(timeout=3)
+
+
+def onboarding_payload(**overrides):
+    payload = {
+        "record": {
+            "identite": "Marie",
+            "entreprise": "Atelier Démo",
+            "activite": "Artisan / BTP",
+            "email": "marie@example.test",
+            "domaine": "non",
+            "objectifs": ["tri_messages", "produire_documents"],
+            "outils": ["google_workspace"],
+            "infra": "hybride",
+            "appareils": ["pc_windows", "smartphone"],
+        },
+        "agent_profile": {
+            "agent_name": "Omar",
+            "modules": ["tri_messages", "produire_documents"],
+            "infra": "hybride",
+            "devices": [{"id": "pc_windows", "type": "pc", "state": "inconnu"}],
+            "pc_smoke": "pending",
+        },
+        "completed_sections": ["identite", "objectifs"],
+        "current_step": 2,
+        "autosave": True,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_onboarding_api_persists_resume_record_and_updates_same_id(tmp_path):
+    proc, port = start_server(tmp_path)
+    try:
+        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/onboarding", onboarding_payload())
+        assert status == 201
+        assert created["ok"] is True
+        oid = created["onboarding"]["id"]
+        assert oid.startswith("onboarding-")
+        assert created["onboarding"]["resume_url"] == f"/onboarding/?record_id={oid}"
+        assert created["onboarding"]["completed_sections"] == ["identite", "objectifs"]
+        assert created["onboarding"]["safety"]["paid_actions"] == "none"
+
+        status, fetched = request_json("GET", f"http://127.0.0.1:{port}/api/onboarding/{oid}")
+        assert status == 200
+        assert fetched["onboarding"]["record"]["entreprise"] == "Atelier Démo"
+        assert fetched["onboarding"]["current_step"] == 2
+
+        updated_payload = onboarding_payload(
+            record_id=oid,
+            completed_sections=["identite", "objectifs", "outils"],
+            current_step=3,
+        )
+        updated_payload["record"]["outils"] = ["microsoft_365", "crm"]
+        status, updated = request_json("POST", f"http://127.0.0.1:{port}/api/onboarding", updated_payload)
+        assert status == 200
+        assert updated["onboarding"]["id"] == oid
+        assert updated["onboarding"]["completed_sections"] == ["identite", "objectifs", "outils"]
+        assert updated["onboarding"]["record"]["outils"] == ["microsoft_365", "crm"]
+        assert (tmp_path / "clients" / f"{oid}.json").exists()
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
+def test_onboarding_simulation_preview_is_dry_run_and_secret_safe(tmp_path):
+    proc, port = start_server(tmp_path)
+    try:
+        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/onboarding", onboarding_payload())
+        assert status == 201
+        oid = created["onboarding"]["id"]
+        status, simulated = request_json("POST", f"http://127.0.0.1:{port}/api/onboarding/{oid}/simulate", {"target": "hybride"})
+        assert status == 200
+        simulation = simulated["simulation"]
+        assert simulation["schema"] == "appomar.onboarding_simulation.v1"
+        assert simulation["source_onboarding_id"] == oid
+        assert simulation["agent_spec"]["agent_name"] == "Omar"
+        assert simulation["provisioning_preview"]["mode"] == "dry-run"
+        assert simulation["provisioning_preview"]["paid_actions"] == "none"
+        assert simulation["safety"]["paid_actions"] == "none"
+        assert simulation["next_steps"][0]["route"] == "/devis/"
+        raw = json.dumps(simulation, ensure_ascii=False)
+        for forbidden in ["HCLOUD_TOKEN", "Authorization", "Bearer ", "sk-"]:
+            assert forbidden not in raw
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
