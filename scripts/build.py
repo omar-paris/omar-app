@@ -231,19 +231,18 @@ def render_connector_readiness() -> str:
         f"<td><span class='readiness-badge {escape(item['classification'])}'>{escape(item['classification'])}</span></td>"
         f"<td>{escape(item['proof'])}</td>"
         f"<td>{escape(item['gap'])}</td>"
-        f"<td>{escape(item['owner'])}</td>"
         "</tr>"
         for item in CONNECTOR_READINESS
     )
     return f"""
   <section class="card" id="connector_readiness" style="margin-top:22px">
     <h2>Readiness connecteurs — Catalogue → AppOmar</h2>
-    <p class="meta">Source: Catalogue infra/client readiness. Surface publique anonymisée: aucun détail client, détail technique interne, ticket, token ou propriétaire nominatif. Vocabulaire v1: potential/configured/proven/unknown.</p>
+    <p class="meta">Source: Catalogue OA public anonymisé. Vocabulaire contractuel: potential/configured/proven/unknown. Les détails client, propriétaires internes et états infra restent hors de cette surface publique.</p>
     <table class="readiness-table" aria-label="Readiness connecteurs Catalogue">
-      <thead><tr><th>Capacité</th><th>Statut</th><th>Preuve publique</th><th>Next action / gap</th><th>Responsable</th></tr></thead>
+      <thead><tr><th>Capacité</th><th>Statut</th><th>Preuve publique</th><th>Next action / gap</th></tr></thead>
       <tbody>{rows}</tbody>
     </table>
-    <p class="meta">JSON lisible agents/Hub: <code>/api/connector-readiness.json</code>. Les statuts <strong>proven</strong> ne sont affichés que quand une preuve mesurée/lue existe.</p>
+    <p class="meta">JSON public: <code>/api/connector-readiness.json</code>. Les preuves détaillées et décisions internes doivent vivre dans Hub/Tailnet ou artefact review, pas ici.</p>
   </section>
 """
 
@@ -427,13 +426,17 @@ def write_api_assets() -> None:
     }
     connector_payload = {
         "schema": "appomar.connector_readiness.v1",
-        "source": "catalogue infra_client_readiness public projection",
+        "source": "oa-catalogue public anonymized connector readiness",
         "status_vocabulary": ["potential", "configured", "proven", "unknown"],
         "items": CONNECTOR_READINESS,
         "safety": {
             "secrets_exposed": False,
+            "client_details_exposed": False,
+            "internal_responsibles_exposed": False,
+            "infra_state_exposed": False,
+            "public_payload_anonymized": True,
             "proven_requires_measured_or_read_proof": True,
-            "public_exposure_gate": "review-required before live deploy if route/API is publicly reachable",
+            "internal_details_location": "Hub/Tailnet or review artifact only",
         },
     }
     (api / "oa-start-packs.json").write_text(json.dumps(packs_payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -455,12 +458,13 @@ def main() -> None:
         out = route_to_file(route)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(render_page(route, page), encoding="utf-8")
-    jab_html = render_jab_plan()
-    if jab_html:
-        jab_out = PUBLIC / "jab" / "index.html"
-        jab_out.parent.mkdir(parents=True, exist_ok=True)
-        jab_out.write_text(jab_html, encoding="utf-8")
-        print("built /jab/ from data/plan-jab.yaml")
+    if os.environ.get("APPOMAR_BUILD_INTERNAL_JAB") == "1":
+        jab_html = render_jab_plan()
+        if jab_html:
+            jab_out = ROOT / "internal" / "jab" / "index.html"
+            jab_out.parent.mkdir(parents=True, exist_ok=True)
+            jab_out.write_text(jab_html, encoding="utf-8")
+            print("built internal/jab/index.html from data/plan-jab.yaml")
     print(f"built {len(PAGES)} routes into {PUBLIC}")
 
 

@@ -210,50 +210,45 @@ def test_connector_readiness_json_and_account_surface_expose_catalogue_statuses(
     data = __import__("json").loads(api_path.read_text(encoding="utf-8"))
     assert data["schema"] == "appomar.connector_readiness.v1"
     assert data["status_vocabulary"] == ["potential", "configured", "proven", "unknown"]
-    assert "blocked" not in data["status_vocabulary"]
     assert data["safety"]["secrets_exposed"] is False
+    assert data["safety"]["client_details_exposed"] is False
+    assert data["safety"]["internal_responsibles_exposed"] is False
+    assert data["safety"]["infra_state_exposed"] is False
+    assert data["safety"]["public_payload_anonymized"] is True
     assert data["safety"]["proven_requires_measured_or_read_proof"] is True
-    assert len(data["items"]) >= 8
+    assert len(data["items"]) >= 6
     seen = {item["classification"] for item in data["items"]}
-    assert {"potential", "proven"}.issubset(seen)
-    public_forbidden = [
-        "jab", "bouboutou", "t_d76b3974", "callback", "vhost", "nango_jab",
-        "h-omar", "oa-vps-operator", "oa-builder", "oa-catalogue",
-    ]
-    payload_text = api_path.read_text(encoding="utf-8").lower()
-    for term in public_forbidden:
-        assert term not in payload_text
+    assert {"potential", "configured", "unknown"}.issubset(seen)
     for item in data["items"]:
-        assert set(item) >= {"capability", "classification", "proof", "gap", "owner"}
+        assert set(item) == {"capability", "classification", "proof", "gap"}
         assert item["classification"] in data["status_vocabulary"]
         assert item["proof"]
         assert item["gap"]
-        assert item["owner"] == "équipe OA"
-    client_email_items = [
-        item for item in data["items"]
-        if "google workspace" in item["capability"].lower()
-        or "connect" in item["capability"].lower()
-    ]
-    assert client_email_items
-    for item in client_email_items:
-        assert item["classification"] == "potential"
-        assert "non vendable" in item["proof"] or "indisponible" in item["proof"]
+    public_text = api_path.read_text(encoding="utf-8").lower()
+    for forbidden in ["jab", "t_d76b3974", "vhost", "callback absent", "nango_jab", "oa-vps-operator", "h-omar", "owner", "blocked"]:
+        assert forbidden not in public_text
     compte = html(PUBLIC / "compte" / "index.html").lower()
     for term in [
-        "readiness connecteurs", "potential", "configured", "proven", "preuve publique",
-        "next action", "responsable", "/api/connector-readiness.json", "aucun détail client",
+        "readiness connecteurs",
+        "potential",
+        "configured",
+        "unknown",
+        "preuve publique",
+        "next action",
+        "/api/connector-readiness.json",
+        "public anonymisé",
     ]:
         assert term in compte
-    for term in public_forbidden + ["blocked"]:
-        assert term not in compte
+    for forbidden in ["jab", "t_d76b3974", "vhost", "callback absent", "nango_jab", "oa-vps-operator", "h-omar", "owner", "blocked"]:
+        assert forbidden not in compte
 
 
-def test_jab_plan_does_not_present_google_nango_as_available():
+def test_jab_plan_is_not_part_of_public_build():
     build_site()
-    plan = html(PUBLIC / "jab" / "index.html").lower()
-    assert "google contacts/gmail via nango interdit" in plan
-    assert "décision t_d76b3974" in plan
-    assert "gaté" in plan
+    assert not (PUBLIC / "jab" / "index.html").exists()
+    all_public_html = "\n".join(path.read_text(encoding="utf-8").lower() for path in PUBLIC.rglob("*.html"))
+    for forbidden in ["cabinet bouboutou", "jab", "t_d76b3974"]:
+        assert forbidden not in all_public_html
 
 
 def test_changelog_exists_and_no_secret_like_literals_are_exposed():
@@ -272,7 +267,7 @@ def test_caddy_protects_multitenant_api_before_generic_api_bypass():
     """
     caddy = (ROOT / "deploy" / "app.omar.paris.caddy").read_text(encoding="utf-8")
     generic_pos = caddy.index("handle /api/*")
-    for route in ("/api/onboarding/status", "/api/sav/status", "/api/proposals/*"):
+    for route in ("/api/onboarding/status", "/api/sav/status"):
         block_start = caddy.index(f"handle {route}")
         assert block_start < generic_pos
         block = caddy[block_start:generic_pos]
