@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import socket
 import subprocess
 import sys
@@ -15,6 +16,8 @@ import proposal_server  # noqa: E402
 # Token d'API requis depuis app#13 (refus de démarrer sans auth >=32 chars).
 API_TOKEN = "x" * 40
 AUTH_HEADERS = {"content-type": "application/json", "authorization": f"Bearer {API_TOKEN}"}
+OWNER_HEADERS = {"accept": "application/json", "X-Auth-Request-Email": "client@example.com"}
+INTRUDER_HEADERS = {"accept": "application/json", "X-Auth-Request-Email": "intrus@example.com"}
 
 
 def free_port() -> int:
@@ -126,6 +129,8 @@ def test_proposal_api_stores_pending_human_go_json_without_secrets(tmp_path):
         assert created["ok"] is True
         assert created["proposal"]["status"] == "pending_human_go"
         assert created["proposal"]["id"].startswith("proposal-")
+        assert re.fullmatch(r"proposal-[A-Za-z0-9_-]{43}", created["proposal"]["id"])
+        assert "client-demo" not in created["proposal"]["id"].lower()
         stored_path = tmp_path / "proposals" / f"{created['proposal']['id']}.json"
         assert stored_path.exists()
         stored_text = stored_path.read_text(encoding="utf-8")
@@ -133,9 +138,92 @@ def test_proposal_api_stores_pending_human_go_json_without_secrets(tmp_path):
         for forbidden in ["HCLOUD_TOKEN", "Authorization", "Bearer ", "sk-"]:
             assert forbidden not in stored_text
 
-        get_status, fetched = request_json("GET", f"http://127.0.0.1:{port}/api/proposals/{created['proposal']['id']}", None, AUTH_HEADERS)
+        get_status, fetched = request_json("GET", f"http://127.0.0.1:{port}/api/proposals/{created['proposal']['id']}", None, OWNER_HEADERS)
         assert get_status == 200
         assert fetched["proposal"]["hetzner_payload"]["create_server_payload"]["server_type"] == "cax21"
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
+def test_proposal_api_rejects_enumeration_by_non_owner(tmp_path):
+    proc, port = start_server(tmp_path)
+    try:
+        payload = {
+            "type": "configuration_proposal",
+            "status": "pending_human_go",
+            "client_profile": {"company_name": "Client Live", "contact_email": "client@example.com"},
+            "hetzner_payload": {"mode": "dry_run_no_paid_resource"},
+            "safety": {"paid_actions": "none"},
+        }
+        _, created = request_json("POST", f"http://127.0.0.1:{port}/api/proposals", payload, AUTH_HEADERS)
+        pid = created["proposal"]["id"]
+
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/proposals/{pid}",
+            method="GET",
+            headers=INTRUDER_HEADERS,
+        )
+        try:
+            urllib.request.urlopen(req, timeout=3)
+            raise AssertionError("non-owner fetched proposal PII")
+        except urllib.error.HTTPError as exc:
+            body = json.loads(exc.read().decode("utf-8"))
+            assert exc.code in {403, 404}
+            assert body["ok"] is False
+            assert "client@example.com" not in json.dumps(body)
+
+        anon_req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/proposals/{pid}",
+            method="GET",
+            headers={"accept": "application/json"},
+        )
+        try:
+            urllib.request.urlopen(anon_req, timeout=3)
+            raise AssertionError("anonymous fetched proposal PII")
+        except urllib.error.HTTPError as exc:
+            body = json.loads(exc.read().decode("utf-8"))
+            assert exc.code == 404
+            assert body == {"ok": False, "error": "proposal_not_found"}
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
+def test_proposal_api_keeps_legacy_uuid_slug_readable_only_for_owner(tmp_path):
+    legacy_id = "proposal-0123456789abcdef0123456789abcdef-client-live"
+    stored = {
+        "id": legacy_id,
+        "type": "configuration_proposal",
+        "status": "pending_human_go",
+        "client_profile": {"company_name": "Client Live", "contact_email": "client@example.com"},
+        "hetzner_payload": {"mode": "dry_run_no_paid_resource"},
+        "safety": {"paid_actions": "none"},
+    }
+    proposals = tmp_path / "proposals"
+    proposals.mkdir(parents=True)
+    (proposals / f"{legacy_id}.json").write_text(json.dumps(stored), encoding="utf-8")
+
+    proc, port = start_server(tmp_path)
+    try:
+        status, fetched = request_json(
+            "GET", f"http://127.0.0.1:{port}/api/proposals/{legacy_id}", None, OWNER_HEADERS
+        )
+        assert status == 200
+        assert fetched["proposal"]["id"] == legacy_id
+
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/proposals/{legacy_id}",
+            method="GET",
+            headers=INTRUDER_HEADERS,
+        )
+        try:
+            urllib.request.urlopen(req, timeout=3)
+            raise AssertionError("non-owner fetched legacy proposal PII")
+        except urllib.error.HTTPError as exc:
+            body = json.loads(exc.read().decode("utf-8"))
+            assert exc.code == 404
+            assert body == {"ok": False, "error": "proposal_not_found"}
     finally:
         proc.terminate()
         proc.wait(timeout=3)
