@@ -209,41 +209,43 @@ def test_connector_readiness_json_and_account_surface_expose_catalogue_statuses(
     assert api_path.exists()
     data = __import__("json").loads(api_path.read_text(encoding="utf-8"))
     assert data["schema"] == "appomar.connector_readiness.v1"
-    assert data["status_vocabulary"] == ["potential", "blocked", "configured", "proven", "unknown"]
+    assert data["status_vocabulary"] == ["potential", "configured", "proven", "unknown"]
+    assert "blocked" not in data["status_vocabulary"]
     assert data["safety"]["secrets_exposed"] is False
     assert data["safety"]["proven_requires_measured_or_read_proof"] is True
     assert len(data["items"]) >= 8
     seen = {item["classification"] for item in data["items"]}
-    assert {"potential", "blocked", "proven"}.issubset(seen)
+    assert {"potential", "proven"}.issubset(seen)
+    public_forbidden = [
+        "jab", "bouboutou", "t_d76b3974", "callback", "vhost", "nango_jab",
+        "h-omar", "oa-vps-operator", "oa-builder", "oa-catalogue",
+    ]
+    payload_text = api_path.read_text(encoding="utf-8").lower()
+    for term in public_forbidden:
+        assert term not in payload_text
     for item in data["items"]:
         assert set(item) >= {"capability", "classification", "proof", "gap", "owner"}
         assert item["classification"] in data["status_vocabulary"]
         assert item["proof"]
         assert item["gap"]
-        assert item["owner"]
-    jab_blocked = [
+        assert item["owner"] == "équipe OA"
+    client_email_items = [
         item for item in data["items"]
-        if "jab" in item["capability"].lower()
-        and ("google" in item["capability"].lower() or "nango connect" in item["capability"].lower())
+        if "google workspace" in item["capability"].lower()
+        or "connect" in item["capability"].lower()
     ]
-    assert jab_blocked
-    for item in jab_blocked:
-        assert item["classification"] == "blocked"
-        assert "t_d76b3974" in item["proof"] or "tenant-local Nango JAB" in item["proof"]
+    assert client_email_items
+    for item in client_email_items:
+        assert item["classification"] == "potential"
+        assert "non vendable" in item["proof"] or "indisponible" in item["proof"]
     compte = html(PUBLIC / "compte" / "index.html").lower()
     for term in [
-        "readiness connecteurs",
-        "potential",
-        "blocked",
-        "configured",
-        "proven",
-        "preuve courte",
-        "next action",
-        "owner",
-        "/api/connector-readiness.json",
-        "aucun secret",
+        "readiness connecteurs", "potential", "configured", "proven", "preuve publique",
+        "next action", "responsable", "/api/connector-readiness.json", "aucun détail client",
     ]:
         assert term in compte
+    for term in public_forbidden + ["blocked"]:
+        assert term not in compte
 
 
 def test_jab_plan_does_not_present_google_nango_as_available():
@@ -270,7 +272,7 @@ def test_caddy_protects_multitenant_api_before_generic_api_bypass():
     """
     caddy = (ROOT / "deploy" / "app.omar.paris.caddy").read_text(encoding="utf-8")
     generic_pos = caddy.index("handle /api/*")
-    for route in ("/api/onboarding/status", "/api/sav/status"):
+    for route in ("/api/onboarding/status", "/api/sav/status", "/api/proposals/*"):
         block_start = caddy.index(f"handle {route}")
         assert block_start < generic_pos
         block = caddy[block_start:generic_pos]

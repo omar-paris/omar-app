@@ -238,9 +238,9 @@ def render_connector_readiness() -> str:
     return f"""
   <section class="card" id="connector_readiness" style="margin-top:22px">
     <h2>Readiness connecteurs — Catalogue → AppOmar</h2>
-    <p class="meta">Source: daily Catalogue infra_client_readiness 2026-06-30 + décision Nango JAB t_d76b3974. Vocabulaire: potential/blocked/configured/proven; unknown réservé aux mesures absentes. Aucun secret ni token exposé.</p>
+    <p class="meta">Source: Catalogue infra/client readiness. Surface publique anonymisée: aucun détail client, détail technique interne, ticket, token ou propriétaire nominatif. Vocabulaire v1: potential/configured/proven/unknown.</p>
     <table class="readiness-table" aria-label="Readiness connecteurs Catalogue">
-      <thead><tr><th>Capacité</th><th>Statut</th><th>Preuve courte</th><th>Next action / gap</th><th>Owner</th></tr></thead>
+      <thead><tr><th>Capacité</th><th>Statut</th><th>Preuve publique</th><th>Next action / gap</th><th>Responsable</th></tr></thead>
       <tbody>{rows}</tbody>
     </table>
     <p class="meta">JSON lisible agents/Hub: <code>/api/connector-readiness.json</code>. Les statuts <strong>proven</strong> ne sont affichés que quand une preuve mesurée/lue existe.</p>
@@ -427,8 +427,8 @@ def write_api_assets() -> None:
     }
     connector_payload = {
         "schema": "appomar.connector_readiness.v1",
-        "source": "oa-catalogue daily infra_client_readiness 2026-06-30",
-        "status_vocabulary": ["potential", "blocked", "configured", "proven", "unknown"],
+        "source": "catalogue infra_client_readiness public projection",
+        "status_vocabulary": ["potential", "configured", "proven", "unknown"],
         "items": CONNECTOR_READINESS,
         "safety": {
             "secrets_exposed": False,

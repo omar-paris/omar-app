@@ -1,9 +1,8 @@
 {
   "schema": "appomar.connector_readiness.v1",
-  "source": "oa-catalogue daily infra_client_readiness 2026-06-30",
+  "source": "catalogue infra_client_readiness public projection",
   "status_vocabulary": [
     "potential",
-    "blocked",
     "configured",
     "proven",
     "unknown"
@@ -12,58 +11,58 @@
     {
       "capability": "Nango par VPS/tenant client",
       "classification": "potential",
-      "proof": "Handover Catalogue: cible tenant définie; export Catalogue Nango hits=0.",
-      "gap": "Recette publique et smoke VPS tenant manquants.",
-      "owner": "oa-vps-operator"
+      "proof": "Modèle cible identifié; aucune preuve tenant client publiée sur cette surface.",
+      "gap": "Recette publique et smoke tenant client requis avant activation.",
+      "owner": "équipe OA"
     },
     {
-      "capability": "Nango master Tailnet dogfood",
+      "capability": "Nango master dogfood interne",
       "classification": "proven",
-      "proof": "Handover Catalogue: TCP443/HTTPS/session validation/logs lus pour le master.",
-      "gap": "Ne pas vendre comme production client; master = dogfood interne.",
-      "owner": "h-Omar"
+      "proof": "Preuve interne disponible pour le dogfood OA; non réutilisable comme preuve client.",
+      "gap": "Ne pas présenter comme production client.",
+      "owner": "équipe OA"
     },
     {
-      "capability": "OA-CRM JAB Nango Connect session creation",
-      "classification": "blocked",
-      "proof": "Décision t_d76b3974: tenant-local Nango JAB absent/non prouvé; ancienne preuve master OA non recevable comme preuve client.",
-      "gap": "Installer/prouver Nango JAB dédié avant toute session Connect client ou promesse vendable.",
-      "owner": "oa-vps-operator"
-    },
-    {
-      "capability": "Google Workspace / Gmail JAB",
-      "classification": "blocked",
-      "proof": "NO-GO t_d76b3974: nango_jab.exists=false; callback/vhosts JAB absents; aucun consent_ref/check/runbook_ref complet.",
-      "gap": "Garder non disponible jusqu'à preuve DNS/TLS/backend/callback/provider/Connect sur tenant Nango JAB.",
-      "owner": "h-Omar"
-    },
-    {
-      "capability": "Secrets client: Infisical/Vault refs",
+      "capability": "Session Connect client pilote",
       "classification": "potential",
-      "proof": "RECIPE-SPEC mentionne les refs Infisical; export public Infisical hits=0.",
-      "gap": "Recette secrets-client et frontière support manquantes.",
-      "owner": "oa-builder"
+      "proof": "Aucune preuve tenant client mesurée n'est publiée; capacité non vendable à ce stade.",
+      "gap": "Installer puis prouver un tenant client dédié avant toute activation.",
+      "owner": "équipe OA"
+    },
+    {
+      "capability": "Google Workspace / Gmail client pilote",
+      "classification": "potential",
+      "proof": "Aucune preuve client complète n'est publiée; l'intégration reste indisponible côté client.",
+      "gap": "Publier uniquement après preuve tenant, consentement, backend et smoke sans secret.",
+      "owner": "équipe OA"
+    },
+    {
+      "capability": "Secrets client: références opérateur",
+      "classification": "potential",
+      "proof": "Le principe de séparation secrets/support est documenté; aucune valeur sensible exposée.",
+      "gap": "Recette secrets-client et frontière support à finaliser.",
+      "owner": "équipe OA"
     },
     {
       "capability": "Supervision client",
       "classification": "potential",
-      "proof": "Catalogue public supervision hits=0; skill s6 interne seulement.",
-      "gap": "Définir checks N1, health endpoints, owner et smoke.",
-      "owner": "oa-vps-operator"
+      "proof": "Contrat de supervision cible identifié; smoke client non publié.",
+      "gap": "Définir checks N1, health endpoints et smoke.",
+      "owner": "équipe OA"
     },
     {
       "capability": "Catalogue export contract",
       "classification": "proven",
-      "proof": "Tests Catalogue: 9 passed in 4.76s.",
-      "gap": "Consommation AppOmar/Hub à maintenir avec le vocabulaire readiness.",
-      "owner": "oa-catalogue"
+      "proof": "Contrat d'export validé par tests locaux.",
+      "gap": "Maintenir la compatibilité AppOmar/Hub avec le vocabulaire readiness.",
+      "owner": "équipe OA"
     },
     {
-      "capability": "VPS installed inventory aggregation",
+      "capability": "Inventaire VPS agrégé",
       "classification": "potential",
-      "proof": "HUB-INTEGRATION documente inventory.yaml par VPS; non smoké dans ce run.",
-      "gap": "Smoke oa-vps-operator requis sur VPS client.",
-      "owner": "oa-vps-operator"
+      "proof": "Contrat d'inventaire défini; smoke VPS client non publié.",
+      "gap": "Smoke opérateur requis sur VPS client avant statut proven.",
+      "owner": "équipe OA"
     }
   ],
   "safety": {
