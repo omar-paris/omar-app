@@ -57,6 +57,51 @@ APPS_L1 = [
     {"slug": "qg-reporting", "name": "QG reporting / health", "required": True, "source": "OmarTop L1"},
 ]
 
+CONNECTOR_READINESS = [
+    {
+        "capability": "Nango par VPS/tenant client",
+        "classification": "potential",
+        "proof": "Cible d'architecture identifiée; aucune recette client publique validée dans cette surface.",
+        "gap": "Validation tenant, callback et smoke client requis avant promesse vendable.",
+    },
+    {
+        "capability": "Connecteur CRM client",
+        "classification": "unknown",
+        "proof": "Aucune preuve client dédiée publiée sur AppOmar.",
+        "gap": "Recette OAuth/Connect et runbook client requis avant activation.",
+    },
+    {
+        "capability": "Connecteur Google Workspace client",
+        "classification": "unknown",
+        "proof": "Aucune preuve client dédiée publiée sur AppOmar.",
+        "gap": "DNS/TLS, callback, consentement et smoke client requis avant activation.",
+    },
+    {
+        "capability": "Gestion de secrets client",
+        "classification": "potential",
+        "proof": "Modèle cible identifié; aucune référence secret ou credential publiée.",
+        "gap": "Recette secrets-client et frontière support manquantes.",
+    },
+    {
+        "capability": "Supervision client",
+        "classification": "potential",
+        "proof": "Besoin catalogue identifié; aucun état infra client publié.",
+        "gap": "Définir checks N1, health endpoints et smoke.",
+    },
+    {
+        "capability": "Catalogue de capacités OA",
+        "classification": "configured",
+        "proof": "Surface publique configurée pour afficher uniquement des statuts génériques.",
+        "gap": "Synchroniser les preuves détaillées dans Hub/Tailnet, pas dans l'API publique.",
+    },
+    {
+        "capability": "Inventaire VPS client",
+        "classification": "potential",
+        "proof": "Contrat d'inventaire cible identifié; aucune valeur client/runtime publiée.",
+        "gap": "Smoke opérateur requis sur VPS client.",
+    },
+]
+
 NAV = [
     ("/", "Accueil"),
     ("/audit/", "Audit IA"),

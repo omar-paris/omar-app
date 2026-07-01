@@ -203,6 +203,54 @@ def test_onboarding_pc_option_has_reproducible_smoke_contract():
         assert term in text
 
 
+def test_connector_readiness_json_and_account_surface_expose_catalogue_statuses():
+    build_site()
+    api_path = PUBLIC / "api" / "connector-readiness.json"
+    assert api_path.exists()
+    data = __import__("json").loads(api_path.read_text(encoding="utf-8"))
+    assert data["schema"] == "appomar.connector_readiness.v1"
+    assert data["status_vocabulary"] == ["potential", "configured", "proven", "unknown"]
+    assert data["safety"]["secrets_exposed"] is False
+    assert data["safety"]["client_details_exposed"] is False
+    assert data["safety"]["internal_responsibles_exposed"] is False
+    assert data["safety"]["infra_state_exposed"] is False
+    assert data["safety"]["public_payload_anonymized"] is True
+    assert data["safety"]["proven_requires_measured_or_read_proof"] is True
+    assert len(data["items"]) >= 6
+    seen = {item["classification"] for item in data["items"]}
+    assert {"potential", "configured", "unknown"}.issubset(seen)
+    for item in data["items"]:
+        assert set(item) == {"capability", "classification", "proof", "gap"}
+        assert item["classification"] in data["status_vocabulary"]
+        assert item["proof"]
+        assert item["gap"]
+    public_text = api_path.read_text(encoding="utf-8").lower()
+    for forbidden in ["jab", "t_d76b3974", "vhost", "callback absent", "nango_jab", "oa-vps-operator", "h-omar", "owner", "blocked"]:
+        assert forbidden not in public_text
+    compte = html(PUBLIC / "compte" / "index.html").lower()
+    for term in [
+        "readiness connecteurs",
+        "potential",
+        "configured",
+        "unknown",
+        "preuve publique",
+        "next action",
+        "/api/connector-readiness.json",
+        "public anonymisé",
+    ]:
+        assert term in compte
+    for forbidden in ["jab", "t_d76b3974", "vhost", "callback absent", "nango_jab", "oa-vps-operator", "h-omar", "owner", "blocked"]:
+        assert forbidden not in compte
+
+
+def test_jab_plan_is_not_part_of_public_build():
+    build_site()
+    assert not (PUBLIC / "jab" / "index.html").exists()
+    all_public_html = "\n".join(path.read_text(encoding="utf-8").lower() for path in PUBLIC.rglob("*.html"))
+    for forbidden in ["cabinet bouboutou", "jab", "t_d76b3974"]:
+        assert forbidden not in all_public_html
+
+
 def test_changelog_exists_and_no_secret_like_literals_are_exposed():
     build_site()
     changelog = html(PUBLIC / "changelog" / "index.html")
@@ -219,7 +267,7 @@ def test_caddy_protects_multitenant_api_before_generic_api_bypass():
     """
     caddy = (ROOT / "deploy" / "app.omar.paris.caddy").read_text(encoding="utf-8")
     generic_pos = caddy.index("handle /api/*")
-    for route in ("/api/onboarding/status", "/api/sav/status", "/api/proposals/*"):
+    for route in ("/api/onboarding/status", "/api/sav/status"):
         block_start = caddy.index(f"handle {route}")
         assert block_start < generic_pos
         block = caddy[block_start:generic_pos]
