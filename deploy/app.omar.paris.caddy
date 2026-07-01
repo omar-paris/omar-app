@@ -54,6 +54,21 @@ app.omar.paris {
 		reverse_proxy 127.0.0.1:8096
 	}
 
+	# API proposals client → OAuth obligatoire côté public + isolation applicative.
+	# Le serveur accepte aussi un Bearer opérateur en accès interne direct, mais le vhost
+	# public ne laisse jamais /api/proposals* traverser sans forward_auth.
+	handle /api/proposals* {
+		forward_auth 127.0.0.1:4180 {
+			uri /oauth2/auth
+			copy_headers X-Auth-Request-User X-Auth-Request-Email
+			@error status 401
+			handle_response @error {
+				respond "auth requise" 401
+			}
+		}
+		reverse_proxy 127.0.0.1:8096
+	}
+
 	# Autres API + assets du portail → serveur (machine, humain, ou Stripe externe)
 	handle /api/* {
 		reverse_proxy 127.0.0.1:8096

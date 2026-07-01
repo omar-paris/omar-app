@@ -1,15 +1,75 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Changelog — Omar App</title>
-<script src="/pages-app/_portal.js" defer></script></head><body>
+<script src="/pages-app/_portal.js" defer></script>
+<style>
+.ver{margin-bottom:28px}.ver h2{font-size:18px;margin:0 0 4px;color:var(--ink)}.ver .date{font-size:13px;color:var(--muted);margin-bottom:8px}
+.ver ul{margin:0;padding:0 0 0 20px;font-size:14px;color:#334155}.ver li{padding:3px 0}
+</style></head><body>
 <main>
-  <h1 class="h1">Changelog</h1>
-  <p class="sub">Les évolutions d'Omar App.</p>
-  <div class="card" style="max-width:680px">
-    <div style="font-size:14px;line-height:1.9">
-      <p><b>11 juin 2026</b> — Devis e-commerce + paiement Stripe, admin catalogue, OAuth Google, suivi d'onboarding, portail unifié.</p>
-      <p><b>10 juin 2026</b> — Sécurisation du portail, boîte de décisions, agents de build automatiques.</p>
-      <p><b>9 juin 2026</b> — Première version du portail client.</p>
-    </div>
-  </div>
+<h1 class="h1">Changelog</h1>
+<p class="sub">Historique des versions d'Omar App.</p>
+
+<div class="ver">
+  <h2>V0.5.0</h2>
+  <div class="date">26 juin 2026</div>
+  <ul>
+    <li>Tunnel onboarding conversationnel A→Z : identité, objectifs, outils, infra, agent, récap</li>
+    <li>Chat assistant simulé avec agent_spec exploitable par Hermes</li>
+    <li>Agent profile structuré : nom, ton, autonomie, canaux, périmètre</li>
+    <li>Provisioning timeline visualisée après devis (simulé)</li>
+    <li>Routes canoniques : /onboarding/, /devis/, /sav/, /compte/</li>
+    <li>Redirects 301 : /config/ → /onboarding/, /buy/ → /devis/, /factures/ → /compte/, /jab/ → /</li>
+    <li>/api/onboarding/status protection renforcée : pas de données sans email authentifié</li>
+    <li>Devis : mode test explicite, Stripe test simulé</li>
+    <li>Accueil refondu : tunnel A→Z visible, fonctions du secrétaire, CTA principal /onboarding/</li>
+    <li>Navigation _portal.js mise à jour : Onboarding, Devis, SAV, Compte</li>
+    <li>Version header V0.5.0 dans le portail</li>
+  </ul>
+</div>
+
+<div class="ver">
+  <h2>V0.4.0</h2>
+  <div class="date">15 juin 2026</div>
+  <ul>
+    <li>Multi-tenant isolation (app#13/#14)</li>
+    <li>OAuth forward_auth via Caddy</li>
+    <li>SAV read-only (app#31)</li>
+    <li>Vault policies scoping omar-app (app#38)</li>
+  </ul>
+</div>
+
+<div class="ver">
+  <h2>V0.3.0</h2>
+  <div class="date">9 juin 2026</div>
+  <ul>
+    <li>POST /api/proposals pour stocker les propositions</li>
+    <li>GET /api/proposals/&lt;id&gt; pour relecture opérateur</li>
+    <li>GET /api/hetzner/pricing read-only</li>
+    <li>Fallback statique si token Hetzner non disponible</li>
+  </ul>
+</div>
+
+<div class="ver">
+  <h2>V0.2.0</h2>
+  <div class="date">non publié</div>
+  <ul>
+    <li>Wizard /config réel</li>
+    <li>Proposal JSON configuration_proposal</li>
+    <li>Dry-run Hetzner pending_human_go</li>
+    <li>Apps L1 alignées OmarTop → Hub</li>
+  </ul>
+</div>
+
+<div class="ver">
+  <h2>V0.1.0</h2>
+  <div class="date">initial</div>
+  <ul>
+    <li>Routes directes créées</li>
+    <li>Contrat App aligné</li>
+    <li>Onboarding/config/SAV/factures/compte documentés</li>
+    <li>No secrets</li>
+  </ul>
+</div>
+
 </main></body></html>

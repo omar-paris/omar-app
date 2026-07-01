@@ -1,0 +1,13 @@
+[
+  {"id":"savoir_faire","label":"Savoir-faire et dépendance dirigeant","purpose":"Comprendre les postes critiques, la transmission et la dépendance aux personnes clés.","depth":"strategic"},
+  {"id":"emplacement","label":"Emplacement, zone de chalandise et flux","purpose":"Relier adresse, flux, quartier, parking, bureaux, école, village et concurrence locale.","depth":"strategic"},
+  {"id":"production_offre","label":"Production, offre, fraîcheur et pertes","purpose":"Identifier l'activité numéro un, les arbitrages fraîcheur/vitrine/invendus et la saisonnalité.","depth":"operational"},
+  {"id":"stocks_achats","label":"Achats, fournisseurs, stocks et traçabilité","purpose":"Comprendre les matières critiques, ruptures, hausses prix, traçabilité et trésorerie immobilisée.","depth":"operational"},
+  {"id":"equipe","label":"Équipe, planning, recrutement et transmission","purpose":"Repérer les tensions humaines, pics horaires, formation, remplacements et checklists utiles.","depth":"human"},
+  {"id":"experience_client","label":"Expérience client, avis, fidélité et réclamations","purpose":"Comprendre demandes fréquentes, avis, disponibilité produit, fidélisation et canaux entrants.","depth":"customer"},
+  {"id":"finance_pilotage","label":"Marge, prix, trésorerie et pilotage","purpose":"Comprendre marge par famille produit, hausse matières/énergie, panier moyen et indicateurs de gestion.","depth":"financial"},
+  {"id":"reglementaire","label":"Hygiène, HACCP, allergènes et conformité","purpose":"Identifier les risques qui imposent validation humaine et traçabilité.","depth":"risk"},
+  {"id":"marketing_local","label":"Concurrence et visibilité locale","purpose":"Analyser concurrents directs/indirects, Google, réseaux, différenciation et notoriété.","depth":"market"},
+  {"id":"equipement_capacite","label":"Équipement, local, maintenance et capacité","purpose":"Comprendre les limites four/froid/stockage/espace vente et les risques de panne.","depth":"operational"},
+  {"id":"ia_potentiel","label":"Potentiel IA et garde-fous","purpose":"Transformer la compréhension métier en premières boucles IA réalistes et sûres.","depth":"ai"}
+]

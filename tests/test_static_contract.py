@@ -7,11 +7,11 @@ PUBLIC = ROOT / "public"
 
 ROUTES = {
     "/": PUBLIC / "index.html",
+    "/audit": PUBLIC / "audit" / "index.html",
     "/onboarding": PUBLIC / "onboarding" / "index.html",
-    "/config": PUBLIC / "config" / "index.html",
-    "/buy": PUBLIC / "buy" / "index.html",
+    "/devis": PUBLIC / "devis" / "index.html",
+    "/aide": PUBLIC / "aide" / "index.html",
     "/sav": PUBLIC / "sav" / "index.html",
-    "/factures": PUBLIC / "factures" / "index.html",
     "/compte": PUBLIC / "compte" / "index.html",
     "/changelog": PUBLIC / "changelog" / "index.html",
 }
@@ -31,14 +31,14 @@ def test_build_generates_all_direct_routes():
         assert path.exists(), f"Missing route {route}: {path}"
         text = html(path)
         assert "Omar App" in text
-        assert "V0.3.0" in text
+        assert "V0.5.0" in text
         assert "app.omar.paris" in text
 
 
 def test_navigation_links_are_real_direct_urls():
     build_site()
     text = html(PUBLIC / "index.html")
-    for route in ["/onboarding/", "/config/", "/buy/", "/sav/", "/factures/", "/compte/", "/changelog/"]:
+    for route in ["/audit/", "/onboarding/", "/devis/", "/sav/", "/compte/", "/changelog/"]:
         assert f'href="{route}"' in text
     assert 'href="#"' not in text
 
@@ -58,6 +58,48 @@ def test_onboarding_page_collects_required_client_context():
     ]
     for term in required_terms:
         assert term in text
+
+
+def test_audit_page_is_conversation_cockpit_not_static_form():
+    build_site()
+    text = html(PUBLIC / "audit" / "index.html").lower()
+    for term in [
+        "cockpit conversationnel",
+        "conversation avec omar",
+        "étapes",
+        "livrables",
+        "valider cette étape",
+        "préparer recherches",
+        "générer le rapport",
+        "audit_cockpit_conversationnel.v1_rigoureux",
+        "consentements audit rgpd",
+        "recherche web publique",
+        "données légales publiques",
+        "amélioration anonymisée",
+        "propositions de solutions justifiées",
+        "/api/audit-sessions",
+        "télécharger md",
+        "copier texte linkedin",
+        "envoyer par email",
+        "rapport_audit.md",
+        "recommandations_source.json",
+        "sources publiques",
+        "réponses rapides",
+        "oui c’est moi",
+        "ce n’est pas moi",
+        "mode guidé",
+        "prioriser l’activité",
+        "rang #1",
+        "hypercentre",
+        "périurbain",
+        "enregistrer et reprendre plus tard",
+        "passer cette question",
+        "pourquoi cette question",
+        "auditbizia",
+    ]:
+        assert term in text
+    assert "question métier" not in text
+    assert "<form id=\"audit-form\"" not in text
 
 
 def test_config_page_defines_actionable_oa_start_wizard():
@@ -136,6 +178,28 @@ def test_account_and_security_boundaries_are_visible():
     build_site()
     text = html(PUBLIC / "compte" / "index.html").lower()
     for term in ["multi-tenant", "ne voit que ses données", "rôles", "aucun secret", "infisical", "hermes agent vault"]:
+        assert term in text
+
+
+def test_onboarding_pc_option_has_reproducible_smoke_contract():
+    text = (ROOT / "pages-app" / "onboarding.html").read_text(encoding="utf-8")
+    for term in [
+        'value="pc"',
+        'value="hybride"',
+        "Option PC promise",
+        "pcSmokeStatus",
+        "pc_smoke",
+        "pc_smoke_checklist",
+        "droits_admin",
+        "tailscale_ou_reseau",
+        "docker_ou_runner_local",
+        "infra: d.infra",
+        "infra_preference",
+        "deviceObjects",
+        "device_labels",
+        "state: \"inconnu\"",
+        "devices",
+    ]:
         assert term in text
 
 

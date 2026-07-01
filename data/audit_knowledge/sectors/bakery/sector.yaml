@@ -1,0 +1,34 @@
+{
+  "sector_id": "bakery",
+  "label": "Boulangerie / pâtisserie / snacking",
+  "version": "0.1.0",
+  "description": "Pack métier pilote AuditBizIA pour comprendre une boulangerie en profondeur sans transformer l'audit en formulaire.",
+  "steps": [
+    "conversation_preferences",
+    "identity_context",
+    "sources",
+    "business_model",
+    "operations",
+    "clients_market",
+    "finance_priorities",
+    "risks_guardrails",
+    "ai_opportunities",
+    "final_validation"
+  ],
+  "activity_options": [
+    "Boulangerie",
+    "Pâtisserie",
+    "Viennoiseries",
+    "Sandwicherie / snacking",
+    "Commandes spéciales / événementiel",
+    "Chocolaterie / confiserie",
+    "Traiteur",
+    "Autre"
+  ],
+  "principles": [
+    "Poser peu de questions à la fois.",
+    "Expliquer pourquoi une question métier est utile quand le client le demande.",
+    "Séparer faits déclarés, sources publiques, hypothèses et incertitudes.",
+    "Ne jamais automatiser allergènes, prix, commandes sensibles ou avis sans validation humaine."
+  ]
+}
