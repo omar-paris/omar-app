@@ -10,6 +10,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 import proposal_server  # noqa: E402
@@ -751,10 +753,19 @@ def test_onboarding_api_persists_resume_record_and_updates_same_id(tmp_path):
         assert status == 201
         assert created["ok"] is True
         oid = created["onboarding"]["id"]
-        assert oid.startswith("onboarding-")
+        assert re.fullmatch(r"onboarding-[A-Za-z0-9_-]{43}", oid)
+        assert "Atelier" not in oid
+        assert "Demo" not in oid
+        assert "Démo" not in oid
+        assert not re.search(r"20\d{6}T\d{6}Z", oid)
         assert created["onboarding"]["resume_url"] == f"/onboarding/?record_id={oid}"
         assert created["onboarding"]["completed_sections"] == ["identite", "objectifs"]
         assert created["onboarding"]["safety"]["paid_actions"] == "none"
+
+        guessed_oid = "onboarding-20260701T220331Z-atelier-demo-confidentiel"
+        with pytest.raises(urllib.error.HTTPError) as guessed_exc:
+            request_json("GET", f"http://127.0.0.1:{port}/api/onboarding/{guessed_oid}")
+        assert guessed_exc.value.code == 404
 
         status, fetched = request_json("GET", f"http://127.0.0.1:{port}/api/onboarding/{oid}")
         assert status == 200
@@ -784,11 +795,19 @@ def test_onboarding_simulation_preview_is_dry_run_and_secret_safe(tmp_path):
         status, created = request_json("POST", f"http://127.0.0.1:{port}/api/onboarding", onboarding_payload())
         assert status == 201
         oid = created["onboarding"]["id"]
-        status, simulated = request_json("POST", f"http://127.0.0.1:{port}/api/onboarding/{oid}/simulate", {"target": "hybride"})
-        assert status == 200
-        simulation = simulated["simulation"]
-        assert simulation["schema"] == "appomar.onboarding_simulation.v1"
-        assert simulation["source_onboarding_id"] == oid
+        simulation = {}
+        for target, expected in {
+            "hybride": "hybride",
+            "vps_managé": "vps",
+            "inconnu": "vps",
+            "pc": "pc",
+        }.items():
+            status, simulated = request_json("POST", f"http://127.0.0.1:{port}/api/onboarding/{oid}/simulate", {"target": target})
+            assert status == 200
+            simulation = simulated["simulation"]
+            assert simulation["schema"] == "appomar.onboarding_simulation.v1"
+            assert simulation["source_onboarding_id"] == oid
+            assert simulation["provisioning_preview"]["target"] == expected
         assert simulation["agent_spec"]["agent_name"] == "Omar"
         assert simulation["provisioning_preview"]["mode"] == "dry-run"
         assert simulation["provisioning_preview"]["paid_actions"] == "none"

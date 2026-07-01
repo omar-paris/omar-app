@@ -46,7 +46,7 @@ PROPOSAL_ID_RE = re.compile(
 )
 AUDIT_ID_RE = re.compile(r"^audit-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$")
 AUDIT_SESSION_ID_RE = re.compile(r"^audit-session-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$")
-ONBOARDING_ID_RE = re.compile(r"^onboarding-[0-9]{8}T[0-9]{6}Z-[a-z0-9-]{1,64}$")
+ONBOARDING_ID_RE = re.compile(r"^onboarding-[A-Za-z0-9_-]{43}$")
 SECRET_PATTERNS = ["HCLOUD_TOKEN", "Authorization", "Bearer ", "sk-"]
 ALLOWED_VAULT_FIELDS = {
     "secret/stripe/test": {"STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"},
@@ -664,8 +664,29 @@ def normalize_onboarding_sections(value: Any) -> list[str]:
 
 
 def onboarding_id_from_record(record: dict[str, Any]) -> str:
-    label = str(record.get("entreprise") or record.get("identite") or "client")[:40]
-    return f"onboarding-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{slugify(label)}"
+    # 32 bytes = 256 bits de hasard, encodés URL-safe (~43 caractères).
+    # L'id sert de capacité de reprise : il ne doit contenir ni timestamp, ni PII,
+    # ni slug dérivable du nom/de l'entreprise.
+    return f"onboarding-{secrets.token_urlsafe(32)}"
+
+
+def normalize_onboarding_target(value: Any) -> str:
+    """Mappe toutes les valeurs UI d'infra vers les cibles de simulation canoniques."""
+    target = str(value or "").strip().lower()
+    mapping = {
+        "vps": "vps",
+        "vps_managé": "vps",
+        "vps_manage": "vps",
+        "serveur_managé": "vps",
+        "serveur_manage": "vps",
+        "pc": "pc",
+        "hybride": "hybride",
+        "inconnu": "vps",
+        "": "vps",
+    }
+    if target not in mapping:
+        raise ValueError("target invalide")
+    return mapping[target]
 
 
 def safe_write_onboarding(data_dir: Path, payload: dict[str, Any]) -> tuple[dict[str, Any], bool]:
@@ -709,8 +730,7 @@ def safe_write_onboarding(data_dir: Path, payload: dict[str, Any]) -> tuple[dict
 
 
 def build_onboarding_simulation(onboarding: dict[str, Any], target: str) -> dict[str, Any]:
-    if target not in {"vps", "pc", "hybride"}:
-        raise ValueError("target invalide")
+    target = normalize_onboarding_target(target)
     record = onboarding.get("record") or {}
     agent_spec = dict(onboarding.get("agent_profile") or {})
     agent_spec.setdefault("agent_name", "Omar")

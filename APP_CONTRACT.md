@@ -100,9 +100,10 @@ sera utilisé sans changement UI.
 
 Persistance/reprise (issue #35) :
 - `POST /api/onboarding` crée ou met à jour un record local JSON sous `var/clients/`.
-- La réponse contient `id`, `resume_url=/onboarding/?record_id=<id>`,
+- La réponse contient `id` opaque/non énumérable, `resume_url=/onboarding/?record_id=<id>`,
   `completed_sections`, `current_step` et `safety.paid_actions=none`.
-- Le frontend autosauvegarde et peut recharger un onboarding via `record_id`.
+- Le frontend autosauvegarde et peut recharger un onboarding via `record_id` opaque ;
+  aucun nom/email/entreprise/timestamp ne doit apparaître dans l'identifiant de reprise.
 - `POST /api/onboarding/<id>/simulate` produit une console de simulation :
   `appomar.onboarding_simulation.v1`, `agent_spec`, `provisioning_preview.mode=dry-run`,
   `provisioning_preview.paid_actions=none`, et prochains pas vers devis / dry-run / GO humain.

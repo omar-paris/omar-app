@@ -445,6 +445,10 @@ function autosaveOnboarding(){
   clearTimeout(autosaveTimer);
   autosaveTimer=setTimeout(()=>saveOnboarding(true), 500);
 }
+function normalizeInfraTarget(value){
+  const mapping={"vps_managé":"vps",vps:"vps",pc:"pc",hybride:"hybride",inconnu:"vps"};
+  return mapping[value]||"vps";
+}
 async function simulateConfiguration(){
   const box=document.getElementById("simulation-console");
   box.style.display="block"; box.textContent="Simulation en cours…";
@@ -452,7 +456,7 @@ async function simulateConfiguration(){
     const saved=await saveOnboarding(true);
     const id=(saved&&saved.onboarding.id)||recordId;
     if(!id) throw new Error("record_id absent");
-    const r=await fetch(`/api/onboarding/${encodeURIComponent(id)}/simulate`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({target:collectData().infra||"pc"})});
+    const r=await fetch(`/api/onboarding/${encodeURIComponent(id)}/simulate`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({target:normalizeInfraTarget(collectData().infra)})});
     const j=await r.json();
     if(!r.ok||!j.ok) throw new Error(j.error||r.status);
     box.textContent=`simulation_console paid_actions=${j.simulation.safety.paid_actions}\n`+JSON.stringify(j.simulation,null,2);
