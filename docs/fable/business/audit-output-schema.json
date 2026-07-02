@@ -1,0 +1,216 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "oa.audit_output.v1",
+  "title": "Sortie structurée de l'audit OA",
+  "description": "Donnée pivot du tunnel : produite par l'audit, consommée par la restitution (rapport), le devis (build_devis_source) et l'onboarding (pré-remplissage). Aucune information demandée deux fois. Ne contient JAMAIS de secret, mot de passe ou moyen de paiement.",
+  "type": "object",
+  "required": ["meta", "client", "consents", "topics", "cailloux", "closure"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["audit_id", "schema_version", "created_at"],
+      "properties": {
+        "audit_id": { "type": "string", "description": "ex. audit-20260703T091200Z-a1b2c3d4" },
+        "schema_version": { "type": "string", "const": "oa.audit_output.v1" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "completed_at": { "type": ["string", "null"], "format": "date-time" },
+        "duration_minutes": { "type": ["number", "null"] },
+        "channel": { "type": "string", "enum": ["app_web", "assisted", "phone", "in_person"], "description": "assisted = client devant l'écran avec facilitateur humain à côté" },
+        "facilitator": { "type": ["string", "null"], "description": "ex. alex — si channel=assisted" },
+        "session_ids": { "type": "array", "items": { "type": "string" }, "description": "sessions var/audit_sessions liées (reprises comprises)" }
+      }
+    },
+    "client": {
+      "type": "object",
+      "required": ["activity"],
+      "properties": {
+        "display_name": { "type": ["string", "null"] },
+        "email": { "type": ["string", "null"], "format": "email" },
+        "activity": { "type": "string", "description": "métier exact en clair, ex. consultante auprès de boulangeries" },
+        "sector_id": { "type": ["string", "null"], "description": "id data/audit_sectors, ex. bakery, lawyer, generic_tpe" },
+        "location": { "type": ["string", "null"] },
+        "service_area": { "type": ["string", "null"] },
+        "team_size": { "type": ["string", "null"], "description": "solo | associés | n salariés | prestataires" },
+        "company_age": { "type": ["string", "null"] },
+        "revenue_range": { "type": ["string", "null"], "description": "tranche déclarée ou 'refus' — le refus est respecté" },
+        "client_types": { "type": "array", "items": { "type": "string" } },
+        "digital_level": { "type": ["string", "null"], "enum": ["novice", "a_l_aise", "avance", null] },
+        "ai_level": { "type": ["string", "null"], "enum": ["jamais_teste", "essaye", "regulier", "mefiant", null] },
+        "address_mode": { "type": ["string", "null"], "enum": ["tu", "vous", null] },
+        "conversation_mode": { "type": ["string", "null"], "enum": ["guide", "libre", "syntheses", null] }
+      }
+    },
+    "consents": {
+      "type": "object",
+      "description": "Consentement par type de source publique, refus explicite possible",
+      "properties": {
+        "website": { "$ref": "#/definitions/consent" },
+        "google_business": { "$ref": "#/definitions/consent" },
+        "legal_registry": { "$ref": "#/definitions/consent" },
+        "social_media": { "$ref": "#/definitions/consent" },
+        "anonymized_improvement": { "$ref": "#/definitions/consent" }
+      }
+    },
+    "topics": {
+      "type": "array",
+      "description": "État de chaque sujet de la carte (S1..S10 + modules sectoriels)",
+      "items": {
+        "type": "object",
+        "required": ["topic_id", "status"],
+        "properties": {
+          "topic_id": { "type": "string", "description": "S1..S10 ou id sectoriel" },
+          "label": { "type": "string" },
+          "status": { "type": "string", "enum": ["explored", "partial", "skipped", "not_offered"] },
+          "duration_minutes": { "type": ["number", "null"] },
+          "client_synthesis_validated": { "type": "boolean", "default": false },
+          "synthesis": { "type": ["string", "null"], "description": "mini-synthèse validée par le client" },
+          "skip_note": { "type": ["string", "null"], "description": "hypothèse interne si sujet évité — jamais montrée au client" }
+        }
+      }
+    },
+    "cailloux": {
+      "type": "array",
+      "description": "Irritants confirmés par le client, avec scoring",
+      "items": {
+        "type": "object",
+        "required": ["id", "topic_id", "description", "category"],
+        "properties": {
+          "id": { "type": "string" },
+          "topic_id": { "type": "string" },
+          "description": { "type": "string", "description": "formulation validée avec le client" },
+          "verbatim": { "type": ["string", "null"], "description": "les mots exacts du client — matière du rapport personnalisé" },
+          "douleur": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "frequence": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "temps_perdu_h_semaine": { "type": ["number", "null"] },
+          "faisabilite": { "type": "integer", "minimum": 1, "maximum": 5, "description": "réalisme IA 2026, jugé par l'agent" },
+          "risque": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "category": { "type": "string", "enum": ["gros", "moyen", "petit", "faux"] },
+          "category_client_confirmed": { "type": "boolean", "default": false },
+          "current_workaround": { "type": ["string", "null"] },
+          "quick_win": { "type": "boolean", "default": false, "description": "candidat première victoire < 2 semaines" },
+          "guardrails": { "type": "array", "items": { "type": "string" }, "description": "garde-fous requis (validation humaine, anonymisation...)" }
+        }
+      }
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "usage": { "type": ["string", "null"] },
+          "satisfaction": { "type": ["string", "null"], "enum": ["satisfait", "mitige", "decu", null] },
+          "double_entry_with": { "type": ["string", "null"], "description": "outil avec lequel il y a double saisie" }
+        }
+      }
+    },
+    "red_lines": {
+      "type": "array",
+      "description": "Ce qui ne doit jamais être automatisé sans humain",
+      "items": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {
+          "description": { "type": "string" },
+          "kind": { "type": ["string", "null"], "enum": ["donnee_sensible", "action_interdite", "validation_requise", null] }
+        }
+      }
+    },
+    "hidden_signals": {
+      "type": "object",
+      "description": "Le caché — capté, pas extorqué. Sert au ton du rapport et au cadrage de l'onboarding, jamais renvoyé brutalement au client.",
+      "properties": {
+        "fears": { "type": "array", "items": { "type": "string" } },
+        "frustrations": { "type": "array", "items": { "type": "string" } },
+        "desires": { "type": "array", "items": { "type": "string" } },
+        "trust_blockers": { "type": "array", "items": { "type": "string" }, "description": "ex. 'déjà déçu par un outil miracle'" }
+      }
+    },
+    "closure": {
+      "type": "object",
+      "required": ["synthesis_validated"],
+      "properties": {
+        "synthesis_validated": { "type": "boolean" },
+        "autonomy_mode": { "type": ["string", "null"], "enum": ["apprendre", "deleguer", "mixte", null] },
+        "first_wins": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["caillou_id", "loop_description"],
+            "properties": {
+              "caillou_id": { "type": "string" },
+              "loop_description": { "type": "string" },
+              "expected_benefit": { "type": "string" },
+              "guardrail": { "type": "string" }
+            }
+          }
+        },
+        "known_gaps": { "type": "array", "items": { "type": "string" }, "description": "ce qui reste hypothétique ou manquant, dit au client" },
+        "exit_choice": { "type": "array", "items": { "type": "string", "enum": ["view_report", "email_report", "download_report", "price_estimate"] } }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "description": "Infos pratiques pour le devis et l'onboarding — jamais de secrets",
+      "properties": {
+        "infra_preference": { "type": ["string", "null"], "enum": ["vps", "pc", "hybride", "indecis", null] },
+        "pc_specs": {
+          "type": "object",
+          "description": "si PC envisagé — champs requis omar-top profiles",
+          "properties": {
+            "os_id": { "type": ["string", "null"] },
+            "os_version": { "type": ["string", "null"] },
+            "arch": { "type": ["string", "null"] },
+            "ram_mb": { "type": ["integer", "null"] },
+            "disk_gb": { "type": ["integer", "null"] }
+          }
+        },
+        "preferred_channels": { "type": "array", "items": { "type": "string", "enum": ["telegram", "whatsapp", "email", "hermes_desktop", "openwebui", "web_app"] } },
+        "existing_accounts": { "type": "array", "items": { "type": "string" }, "description": "comptes existants pertinents (google_workspace, stripe...) — noms seulement" },
+        "budget_signal": { "type": ["string", "null"], "description": "signal exprimé spontanément, jamais demandé frontalement pendant l'audit" },
+        "decision_maker": { "type": ["string", "null"] },
+        "timing": { "type": ["string", "null"] }
+      }
+    },
+    "devis_source": {
+      "type": "object",
+      "description": "Pont vers /devis/ — chaque recommandation cite le caillou qui la justifie",
+      "properties": {
+        "recommendations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["catalog_id", "reason", "confidence"],
+            "properties": {
+              "catalog_id": { "type": "string", "description": "id catalog.json, ex. formule-pro, mod-crm" },
+              "reason": { "type": "string" },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "caillou_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "promo_hint": { "type": ["string", "null"], "description": "coupon / offre pilote applicable" }
+      }
+    },
+    "report": {
+      "type": "object",
+      "properties": {
+        "report_id": { "type": ["string", "null"] },
+        "formats_generated": { "type": "array", "items": { "type": "string", "enum": ["html", "markdown", "pdf", "email"] } },
+        "sent_to": { "type": ["string", "null"], "format": "email" }
+      }
+    }
+  },
+  "definitions": {
+    "consent": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["granted", "refused", "not_asked"] },
+        "reference": { "type": ["string", "null"], "description": "URL/identifiant public fourni par le client" }
+      }
+    }
+  }
+}

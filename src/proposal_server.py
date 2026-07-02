@@ -1020,6 +1020,9 @@ class ProposalHandler(BaseHTTPRequestHandler):
         APP_PAGES = {
             "/": "home.html",
             "/audit/": "audit.html", "/audit": "audit.html",
+            # V2 en préversion (Fable 2, 2026-07-02) — visible après restart du serveur ;
+            # bascule finale = échanger les fichiers audit.html/audit-v2.html après GO Alex.
+            "/audit-v2/": "audit-v2.html", "/audit-v2": "audit-v2.html",
             "/devis/": "devis.html", "/devis": "devis.html",
             "/onboarding/": "onboarding.html", "/onboarding": "onboarding.html",
             "/sav/": "sav.html", "/sav": "sav.html",
@@ -1442,8 +1445,22 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 continue
             line_mensuel = p.get("prix_mensuel")
             line_unique = p.get("prix_unique")
-            lignes.append({"id": p["id"], "label": p["label"], "qty": qty,
-                           "prix_mensuel": line_mensuel, "prix_unique": line_unique})
+            line = {"id": p["id"], "label": p["label"], "qty": qty,
+                    "prix_mensuel": line_mensuel, "prix_unique": line_unique}
+            # Expose le mapping Catalogue/AppOmar dans chaque ligne de devis sans
+            # transformer une capacité de cadrage en promesse runtime client.
+            for key in (
+                "catalogue_id",
+                "catalogue_refs",
+                "capability_status",
+                "runtime_status",
+                "cost_status",
+                "commercial_scope",
+                "human_approval_required",
+            ):
+                if key in p:
+                    line[key] = p[key]
+            lignes.append(line)
             mensuel += (line_mensuel or 0) * qty
             unique += (line_unique or 0) * qty
         if not lignes:

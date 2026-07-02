@@ -520,6 +520,59 @@ def test_devis_api_accepts_item_objects_from_frontend_without_crashing(tmp_path)
         proc.terminate()
         proc.wait(timeout=3)
 
+
+def test_devis_api_accepts_catalogue_v1_ids_with_honest_runtime_status(tmp_path):
+    required = [
+        "presence-google-business-avis",
+        "recrutement-annonces-candidats",
+        "secretaire-tri-demandes",
+        "secretaire-redaction-reponses",
+        "secretaire-taches-relances",
+        "secretaire-documents-devis-syntheses",
+        "secretaire-connexions-surveillance",
+    ]
+    catalog_ids = {item["id"] for item in proposal_server.load_catalog()["products"]}
+    assert set(required) <= catalog_ids
+
+    proc, port = start_server(tmp_path)
+    try:
+        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/devis", {"items": required})
+        assert status == 201
+        lines = created["devis"]["lignes"]
+        assert [line["id"] for line in lines] == required
+        assert all(line["label"].strip() for line in lines)
+        assert all(line["catalogue_id"] == line["id"] for line in lines)
+        assert {line["capability_status"] for line in lines} == {"potential"}
+        assert {line["runtime_status"] for line in lines} == {"unknown"}
+        assert {line["cost_status"] for line in lines} == {"unknown"}
+        serialized = json.dumps(lines, ensure_ascii=False).lower()
+        for forbidden in ["installed", "enabled", "healthy", "live"]:
+            assert forbidden not in serialized
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
+def test_legacy_modules_map_to_catalogue_v1_refs_in_devis(tmp_path):
+    proc, port = start_server(tmp_path)
+    try:
+        payload = {"items": ["mod-presence", "mod-paperasse"]}
+        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/devis", payload)
+        assert status == 201
+        lines_by_id = {line["id"]: line for line in created["devis"]["lignes"]}
+        assert lines_by_id["mod-presence"]["catalogue_refs"] == ["presence-google-business-avis"]
+        assert set(lines_by_id["mod-paperasse"]["catalogue_refs"]) >= {
+            "secretaire-tri-demandes",
+            "secretaire-redaction-reponses",
+            "secretaire-taches-relances",
+            "secretaire-documents-devis-syntheses",
+        }
+        assert created["devis"]["total_mensuel_eur"] == 45
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
 def test_rigorous_audit_persists_consents_sources_devis_source_and_delete(tmp_path):
     proc, port = start_server(tmp_path)
     try:
