@@ -1,0 +1,80 @@
+{
+  "status": "done",
+  "agent": "oa-builder",
+  "date": "2026-06-30",
+  "stream": "revenue_appomar",
+  "artifact_type": "sales_readiness_snapshot",
+  "scope": "AppOmar/Omar App vendre réellement: audit IA, offre, devis, onboarding",
+  "verified_sources": [
+    {
+      "path": "/home/omar/23-Offre/actifs/omar-app/APP_CONTRACT.md",
+      "facts": [
+        "AppOmar internal codename; customer-facing product Omar App on app.omar.paris",
+        "Primary JTBD: onboarding conversationnel -> devis -> Stripe test/simulation -> provisioning timeline -> agent_spec",
+        "V0.5.0 routes include /audit/, /onboarding/, /devis/, /sav/, /compte/, /aide/, /changelog/"
+      ]
+    },
+    {
+      "path": "/home/omar/23-Offre/actifs/omar-app/catalog.json",
+      "facts": [
+        "formule-starter: 49 EUR/mois",
+        "formule-pro: 99 EUR/mois",
+        "presta-onboarding: 150 EUR unique",
+        "presta-sav: 60 EUR unique"
+      ]
+    },
+    {
+      "path": "/home/omar/23-Offre/actifs/omar-landing/public/tarifs/index.html",
+      "facts": [
+        "public landing states precommande a partir de 80 EUR/mois",
+        "CTA principal points to https://app.omar.paris/audit/"
+      ]
+    }
+  ],
+  "verification": {
+    "local_build_and_tests": {
+      "command": "python3 scripts/build.py && python3 -m pytest -q tests/test_static_contract.py tests/test_proposal_server.py tests/test_auditbiz_schema.py",
+      "workdir": "/home/omar/23-Offre/actifs/omar-app",
+      "result": "built 10 routes; 32 passed in 2.83s"
+    },
+    "live_route_headers": {
+      "command": "curl -L -I https://app.omar.paris{/,/audit/,/devis/,/onboarding/}",
+      "result": "each route returns HTTP/2 302 to /oauth2/start?rd=... before content"
+    }
+  },
+  "sales_ready_now": [
+    "Omar App already has verifiable A->Z assets: audit cockpit, onboarding, devis, checkout test/simulation, provisioning timeline, agent_spec contract.",
+    "A no-spend demo can be shown locally from built public pages and API tests; live public app currently redirects to OAuth before content.",
+    "The most concrete sellable pack in AppOmar catalog is Starter 49 EUR/mois + optional onboarding 150 EUR, but the public landing says a partir de 80 EUR/mois. This needs commercial arbitration before prospect traffic."
+  ],
+  "conversion_blockers": [
+    {
+      "severity": "high",
+      "item": "Public landing CTA to /audit/ hits OAuth redirect",
+      "impact": "A cold prospect may not reach audit/onboarding without a Google-auth path or public pre-audit funnel.",
+      "evidence": "curl -L -I https://app.omar.paris/audit/ -> HTTP/2 302 location: /oauth2/start?rd=https://app.omar.paris/audit/"
+    },
+    {
+      "severity": "medium",
+      "item": "Price mismatch between landing and AppOmar catalog",
+      "impact": "Sales wording can promise 80 EUR/mois while checkout catalog displays 49/99 EUR/mois.",
+      "evidence": "landing tarifs meta/body: a partir de 80 EUR/mois; catalog.json: formule-starter 49, formule-pro 99"
+    }
+  ],
+  "recommended_next_offer": {
+    "name": "Audit IA Omar & Alex -> Devis AppOmar",
+    "promise": "En 15 minutes, produire un diagnostic IA exploitable puis un devis Omar App sans action payante automatique.",
+    "cta": "Demarrer l'audit IA puis composer le devis",
+    "safe_mode": "paid_actions=none; Stripe test/simulation; provisioning pending_go"
+  },
+  "needs_from_other_agents": [
+    {
+      "from": "oa-commerce",
+      "ask": "Arbitrer prix public unique pour AppOmar avant trafic prospect: conserver landing a partir de 80 EUR/mois ou aligner AppOmar catalog Starter 49/Pro 99 + onboarding 150; livrer wording CTA et objections."
+    }
+  ],
+  "next_action": {
+    "owner": "oa-commerce",
+    "action": "Choisir et documenter l'offre/prix canonique AppOmar pour que Builder aligne landing + catalog + devis."
+  }
+}
