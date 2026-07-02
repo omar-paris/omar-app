@@ -199,8 +199,11 @@
   </div>
 
   <div id="submit-msg" style="margin-top:16px"></div>
+  <div id="resume-msg" style="margin-top:8px;font-size:12px;color:#64748b">Autosave local + serveur prêt — reprise via record_id après première sauvegarde.</div>
+  <div id="simulation-console" class="agent-spec" style="display:none;margin-top:12px" aria-label="Simulation configuration dry-run"></div>
   <div class="nav">
     <button class="btn" onclick="go(4)">← Retour</button>
+    <button class="btn" onclick="simulateConfiguration()" type="button">Simuler la configuration</button>
     <button class="btn pri next" onclick="submitOnboarding()">Valider et passer au devis →</button>
   </div>
 </div>
@@ -217,6 +220,21 @@
 <script>
 const STEPS = ["Identité", "Objectifs", "Outils", "Infra", "Agent", "Récap"];
 let cur = 0;
+let recordId = new URLSearchParams(window.location.search).get("record_id") || localStorage.getItem("appomar_onboarding_record_id") || "";
+let autosaveTimer = null;
+let lastSavedHash = "";
+const SECTION_KEYS = ["identite", "objectifs", "outils", "infra", "agent", "recap"];
+
+function completedSections(){ return SECTION_KEYS.slice(0, Math.max(0, Math.min(cur, SECTION_KEYS.length))); }
+function resumeStatus(text){ const el=document.getElementById("resume-msg"); if(el) el.textContent=text; }
+function onboardingPayload(autosave=false){
+  const d=collectData();
+  const spec=agentSpec(d);
+  return {record_id: recordId || undefined, record:{identite:d.identite,entreprise:d.entreprise,activite:d.activite,email:d.email,domaine:d.domaine,
+    objectifs:d.objectifs,objectifs_libre:d.objectifs_libre,outils:d.outils,
+    infra:d.infra,appareils:d.appareils},
+    agent_profile:spec, completed_sections:completedSections(), current_step:cur, autosave};
+}
 
 // --- step navigation ---
 function renderBar(){
@@ -233,6 +251,7 @@ function go(n){
   if(n===3) updateChat4();
   if(n===4) updateChat5();
   if(n===5) buildRecap();
+  autosaveOnboarding();
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
@@ -366,25 +385,96 @@ function buildRecap(){
   <div style="font-size:11px;color:#94a3b8;margin-top:6px">Ce spec sera exploitable par Hermes pour bootstrapper votre agent.</div>`;
 }
 
+// --- persistence + simulation ---
+function applyChipStates(){
+  document.querySelectorAll(".chip").forEach(chip=>{
+    const inp=chip.querySelector("input");
+    if(inp) chip.classList.toggle("on", inp.checked);
+  });
+}
+function setCheckedValues(containerId, values){
+  const wanted = new Set(values||[]);
+  document.querySelectorAll(`#${containerId} input`).forEach(i=>{ i.checked = wanted.has(i.value); });
+}
+function setRadioValue(name, value){
+  document.querySelectorAll(`input[name="${name}"]`).forEach(i=>{ i.checked = i.value===value; });
+}
+function fillData(onboarding){
+  const r=onboarding.record||{}, a=onboarding.agent_profile||{};
+  document.getElementById("f_nom").value=r.identite||"";
+  document.getElementById("f_entreprise").value=r.entreprise||"";
+  document.getElementById("f_activite").value=r.activite||"";
+  document.getElementById("f_email").value=r.email||"";
+  document.getElementById("f_domaine").value=r.domaine||"";
+  document.getElementById("f_objectifs_libre").value=r.objectifs_libre||"";
+  setCheckedValues("chips_goals", r.objectifs||[]);
+  setCheckedValues("chips_outils", r.outils||[]);
+  setRadioValue("infra", r.infra||a.infra||"inconnu");
+  document.querySelectorAll('.step-panel[data-step="3"] .chips input[type=checkbox]').forEach(i=>{ i.checked=(r.appareils||[]).includes(i.value); });
+  document.getElementById("f_agent_nom").value=a.agent_name||"";
+  setRadioValue("ton", (a.personality||{}).ton || a.ton || "neutre");
+  setRadioValue("tutoiement", String((a.personality||{}).tutoiement ?? true));
+  setRadioValue("autonomie", (a.personality||{}).autonomie || "moderee");
+  document.querySelectorAll('.step-panel[data-step="4"] .chips input[type=checkbox]').forEach(i=>{ i.checked=(a.canaux||[]).includes(i.value); });
+  cur=Math.max(0,Math.min(5,Number(onboarding.current_step||0))); applyChipStates(); renderBar(); go(cur);
+}
+async function loadOnboardingRecord(){
+  if(!recordId) return;
+  try{
+    const r=await fetch(`/api/onboarding/${encodeURIComponent(recordId)}`);
+    const j=await r.json();
+    if(!r.ok||!j.ok) throw new Error(j.error||r.status);
+    fillData(j.onboarding); lastSavedHash=JSON.stringify(onboardingPayload(true));
+    resumeStatus(`Reprise activée : ${recordId} · ${j.onboarding.resume_url}`);
+  }catch(e){ resumeStatus(`Reprise indisponible (${recordId}) : ${e.message}`); }
+}
+async function saveOnboarding(autosave=false){
+  const payload=onboardingPayload(autosave);
+  const hash=JSON.stringify(payload);
+  if(autosave && hash===lastSavedHash) return null;
+  try{
+    const r=await fetch("/api/onboarding",{method:"POST",headers:{"content-type":"application/json"},body:hash});
+    const j=await r.json();
+    if(!r.ok||!j.ok) throw new Error(j.error||r.status);
+    recordId=j.onboarding.id; localStorage.setItem("appomar_onboarding_record_id", recordId); lastSavedHash=JSON.stringify(onboardingPayload(true));
+    resumeStatus(`Reprise activée : ${recordId} · resume_url=${j.onboarding.resume_url}`);
+    return j;
+  }catch(e){ if(!autosave) throw e; resumeStatus(`Autosave serveur en attente : ${e.message}`); return null; }
+}
+function autosaveOnboarding(){
+  clearTimeout(autosaveTimer);
+  autosaveTimer=setTimeout(()=>saveOnboarding(true), 500);
+}
+function normalizeInfraTarget(value){
+  const mapping={"vps_managé":"vps",vps:"vps",pc:"pc",hybride:"hybride",inconnu:"vps"};
+  return mapping[value]||"vps";
+}
+async function simulateConfiguration(){
+  const box=document.getElementById("simulation-console");
+  box.style.display="block"; box.textContent="Simulation en cours…";
+  try{
+    const saved=await saveOnboarding(true);
+    const id=(saved&&saved.onboarding.id)||recordId;
+    if(!id) throw new Error("record_id absent");
+    const r=await fetch(`/api/onboarding/${encodeURIComponent(id)}/simulate`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({target:normalizeInfraTarget(collectData().infra)})});
+    const j=await r.json();
+    if(!r.ok||!j.ok) throw new Error(j.error||r.status);
+    box.textContent=`simulation_console paid_actions=${j.simulation.safety.paid_actions}\n`+JSON.stringify(j.simulation,null,2);
+  }catch(e){ box.textContent=`Simulation indisponible : ${e.message}`; }
+}
+
 // --- submit ---
 async function submitOnboarding(){
-  const d=collectData();
-  const spec=agentSpec(d);
-  const payload={record:{identite:d.identite,entreprise:d.entreprise,activite:d.activite,email:d.email,domaine:d.domaine,
-    objectifs:d.objectifs,objectifs_libre:d.objectifs_libre,outils:d.outils,
-    infra:d.infra,appareils:d.appareils},
-    agent_profile:spec};
   const msgEl=document.getElementById("submit-msg");
   msgEl.innerHTML='<div class="chat-msg bot">Envoi en cours…</div>';
   try{
-    const r=await fetch("/api/onboarding",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
-    const j=await r.json();
-    if(r.ok&&j.ok){
-      msgEl.innerHTML='<div style="color:#16a34a;font-weight:600">✓ Profil enregistré !</div>';
+    const j=await saveOnboarding(false);
+    if(j&&j.ok){
+      msgEl.innerHTML=`<div style="color:#16a34a;font-weight:600">✓ Profil enregistré ! Lien de reprise : ${j.onboarding.resume_url}</div>`;
       document.getElementById("recap_final").innerHTML=document.getElementById("recap").innerHTML;
       go(6);
     } else {
-      msgEl.innerHTML=`<div style="color:#dc2626">Erreur : ${j.error||r.status}</div>`;
+      msgEl.innerHTML='<div style="color:#dc2626">Erreur : sauvegarde indisponible</div>';
     }
   }catch(e){
     msgEl.innerHTML=`<div style="color:#dc2626">Erreur réseau : ${e.message}</div>`;
@@ -393,4 +483,7 @@ async function submitOnboarding(){
 
 // init
 renderBar();
+document.addEventListener("input", autosaveOnboarding);
+document.addEventListener("change", autosaveOnboarding);
+loadOnboardingRecord();
 </script></body></html>

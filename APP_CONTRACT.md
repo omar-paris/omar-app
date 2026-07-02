@@ -42,7 +42,12 @@ Primary job-to-be-done:
   3. Outils (comment travaillez-vous aujourd'hui ?)
   4. Infra (VPS/PC/hybride — ou "je ne sais pas")
   5. Préférences agent (nom, ton, autonomie)
-  6. Récap → POST /api/onboarding → /devis/
+  6. Récap → POST /api/onboarding → lien de reprise `record_id` → simulation configuration → /devis/
+
+  Reprise : `GET /api/onboarding/<record_id>` recharge les sections validées,
+  `completed_sections`, `current_step`, `record` et `agent_profile`.
+  Simulation vendable : `POST /api/onboarding/<record_id>/simulate` prévisualise
+  `agent_spec` + `provisioning_preview` en dry-run, `paid_actions=none`.
 
 /devis/
   Composez votre solution : formule + modules + prestations.
@@ -93,6 +98,16 @@ Chat : assistant simulé avec `agent_spec` exploitable — le backend renvoie de
 pré-programmés contextuels. Quand un vrai agent sera connecté, le même endpoint
 sera utilisé sans changement UI.
 
+Persistance/reprise (issue #35) :
+- `POST /api/onboarding` crée ou met à jour un record local JSON sous `var/clients/`.
+- La réponse contient `id` opaque/non énumérable, `resume_url=/onboarding/?record_id=<id>`,
+  `completed_sections`, `current_step` et `safety.paid_actions=none`.
+- Le frontend autosauvegarde et peut recharger un onboarding via `record_id` opaque ;
+  aucun nom/email/entreprise/timestamp ne doit apparaître dans l'identifiant de reprise.
+- `POST /api/onboarding/<id>/simulate` produit une console de simulation :
+  `appomar.onboarding_simulation.v1`, `agent_spec`, `provisioning_preview.mode=dry-run`,
+  `provisioning_preview.paid_actions=none`, et prochains pas vers devis / dry-run / GO humain.
+
 ### Devis (V0.6.0)
 
 Devis = sélection catalogue → devis JSON/PDF → checkout Stripe test/simulation.
@@ -138,6 +153,8 @@ Ce spec est exploitable par Hermes pour bootstrapper l'agent client.
 | Étape | Simulation | Preuve |
 |---|---|---|
 | Onboarding | profil client + agent_profile JSON | `POST /api/onboarding` |
+| Reprise onboarding | record_id + resume_url + sections validées | `GET /api/onboarding/<id>` |
+| Simulation configuration | agent_spec + provisioning_preview dry-run | `POST /api/onboarding/<id>/simulate` |
 | Devis | lignes catalogue non vides | `POST /api/devis` |
 | Paiement | Stripe test statut `paid_test` | `POST /api/checkout` (503 attendu) |
 | Infra | Hetzner dry-run / `paid_actions=none` | `GET /api/hetzner/pricing` |
@@ -189,9 +206,23 @@ agent_profile:
 
 onboarding_session:
   id:
+  schema: appomar.onboarding_record.v1
   record: { client_profile, agent_profile }
   status: draft | submitted | ready_for_config
+  resume_url:
+  completed_sections: []
+  current_step:
+  safety: { paid_actions: none, provisioning: none }
   received_at:
+
+onboarding_simulation:
+  schema: appomar.onboarding_simulation.v1
+  source_onboarding_id:
+  agent_spec:
+  provisioning_preview:
+    mode: dry-run
+    paid_actions: none
+    status: pending_devis_then_human_go
 
 devis:
   id:
@@ -243,6 +274,8 @@ Smoke test attendu avant installation réelle :
 ## Success criteria V0.5.0
 
 - Un prospect peut parcourir le tunnel A→Z sur mobile.
+- Un prospect peut revenir via `record_id`/`resume_url` et retrouver ses sections validées.
+- Un prospect peut cliquer "Simuler la configuration" pour prévisualiser agent_spec/provisioning sans coût.
 - Onboarding collecte identité, objectifs, outils, infra, agent_spec.
 - Devis non vide avec produits catalogue cohérents.
 - Stripe test simulé lisible (503 attendu, pas faux paiement).
