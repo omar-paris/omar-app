@@ -33,7 +33,15 @@
         "Veille + relances documents"
       ],
       "cible": "TPE avec dossiers clients (avocat, agence)",
-      "est_pack_initial": true
+      "est_pack_initial": true,
+      "catalogue_refs": [
+        "secretaire-connexions-surveillance"
+      ],
+      "capability_status": "configured",
+      "runtime_status": "unknown",
+      "cost_status": "known",
+      "human_approval_required": true,
+      "commercial_scope": "appomar_v1_mapping"
     },
     {
       "id": "formule-sur-mesure",
@@ -55,7 +63,15 @@
       "label": "Module CRM",
       "pitch": "Clients, entreprises, projets, factures, encours.",
       "prix_mensuel": 25,
-      "est_pack_initial": false
+      "est_pack_initial": false,
+      "catalogue_refs": [
+        "recrutement-annonces-candidats"
+      ],
+      "capability_status": "potential",
+      "runtime_status": "unknown",
+      "cost_status": "known",
+      "human_approval_required": true,
+      "commercial_scope": "appomar_v1_mapping"
     },
     {
       "id": "mod-presence",
@@ -63,7 +79,15 @@
       "label": "Présence locale",
       "pitch": "Google Business, avis, fiche à jour.",
       "prix_mensuel": 20,
-      "est_pack_initial": false
+      "est_pack_initial": false,
+      "catalogue_refs": [
+        "presence-google-business-avis"
+      ],
+      "capability_status": "potential",
+      "runtime_status": "unknown",
+      "cost_status": "known",
+      "human_approval_required": true,
+      "commercial_scope": "appomar_v1_mapping"
     },
     {
       "id": "mod-paperasse",
@@ -71,7 +95,18 @@
       "label": "Paperasse & documents",
       "pitch": "Arborescence Drive/OneDrive + checklists + relances.",
       "prix_mensuel": 25,
-      "est_pack_initial": false
+      "est_pack_initial": false,
+      "catalogue_refs": [
+        "secretaire-tri-demandes",
+        "secretaire-redaction-reponses",
+        "secretaire-taches-relances",
+        "secretaire-documents-devis-syntheses"
+      ],
+      "capability_status": "potential",
+      "runtime_status": "unknown",
+      "cost_status": "known",
+      "human_approval_required": true,
+      "commercial_scope": "appomar_v1_mapping"
     },
     {
       "id": "presta-onboarding",
@@ -88,6 +123,159 @@
       "pitch": "Inspection + correction assistée du VPS (à la demande).",
       "prix_unique": 60,
       "est_pack_initial": false
+    },
+    {
+      "id": "presta-install-windows-pilote",
+      "famille": "prestation",
+      "label": "Installation PC Windows — offre pilote",
+      "pitch": "Installation accompagnée de votre agent sur votre propre PC Windows : vérification de la machine, smoke test, mise en service sécurisée. Offerte pendant la phase pilote.",
+      "prix_unique": 0,
+      "est_pack_initial": false,
+      "capability_status": "pilot",
+      "runtime_status": "unknown",
+      "cost_status": "known",
+      "human_approval_required": true,
+      "commercial_scope": "appomar_v1_mapping"
+    },
+    {
+      "id": "presence-google-business-avis",
+      "famille": "module",
+      "label": "Présence Google Business & avis",
+      "pitch": "Audit, checklist et brouillons soumis à validation pour fiche Google Business, photos, posts, questions/réponses et demandes d’avis.",
+      "prix_mensuel": null,
+      "est_pack_initial": false,
+      "catalogue_id": "presence-google-business-avis",
+      "catalogue_refs": [
+        "presence-google-business-avis"
+      ],
+      "capability_status": "potential",
+      "runtime_status": "unknown",
+      "cost_status": "unknown",
+      "commercial_scope": "cadrage_n1_assiste",
+      "human_approval_required": true,
+      "ram_mb": "unknown",
+      "disk_mb": "unknown",
+      "runtime_client_proven": false
+    },
+    {
+      "id": "recrutement-annonces-candidats",
+      "famille": "module",
+      "label": "Recrutement — annonces & candidats",
+      "pitch": "Pipeline RH assisté: annonces, candidatures, statuts, relances et notes d’entretien, sans décision automatique.",
+      "prix_mensuel": null,
+      "est_pack_initial": false,
+      "catalogue_id": "recrutement-annonces-candidats",
+      "catalogue_refs": [
+        "recrutement-annonces-candidats"
+      ],
+      "capability_status": "potential",
+      "runtime_status": "unknown",
+      "cost_status": "unknown",
+      "commercial_scope": "cadrage_n1_assiste",
+      "human_approval_required": true,
+      "ram_mb": "unknown",
+      "disk_mb": "unknown",
+      "runtime_client_proven": false
+    },
+    {
+      "id": "secretaire-tri-demandes",
+      "famille": "module",
+      "label": "Secrétaire V1 — tri des demandes",
+      "pitch": "Tri, résumé, priorité et prochaine action pour demandes clients/pro autorisées.",
+      "prix_mensuel": null,
+      "est_pack_initial": false,
+      "catalogue_id": "secretaire-tri-demandes",
+      "catalogue_refs": [
+        "secretaire-tri-demandes"
+      ],
+      "capability_status": "potential",
+      "runtime_status": "unknown",
+      "cost_status": "unknown",
+      "commercial_scope": "cadrage_n1_assiste",
+      "human_approval_required": true,
+      "ram_mb": "unknown",
+      "disk_mb": "unknown",
+      "runtime_client_proven": false
+    },
+    {
+      "id": "secretaire-redaction-reponses",
+      "famille": "module",
+      "label": "Secrétaire V1 — rédaction de réponses",
+      "pitch": "Brouillons email/SMS/Telegram/WhatsApp avec ton et contexte, sans envoi automatique risqué.",
+      "prix_mensuel": null,
+      "est_pack_initial": false,
+      "catalogue_id": "secretaire-redaction-reponses",
+      "catalogue_refs": [
+        "secretaire-redaction-reponses"
+      ],
+      "capability_status": "potential",
+      "runtime_status": "unknown",
+      "cost_status": "unknown",
+      "commercial_scope": "cadrage_n1_assiste",
+      "human_approval_required": true,
+      "ram_mb": "unknown",
+      "disk_mb": "unknown",
+      "runtime_client_proven": false
+    },
+    {
+      "id": "secretaire-taches-relances",
+      "famille": "module",
+      "label": "Secrétaire V1 — tâches & relances",
+      "pitch": "Préparation de tâches, rappels et relances en brouillon, validation humaine avant envoi groupé.",
+      "prix_mensuel": null,
+      "est_pack_initial": false,
+      "catalogue_id": "secretaire-taches-relances",
+      "catalogue_refs": [
+        "secretaire-taches-relances"
+      ],
+      "capability_status": "potential",
+      "runtime_status": "unknown",
+      "cost_status": "unknown",
+      "commercial_scope": "cadrage_n1_assiste",
+      "human_approval_required": true,
+      "ram_mb": "unknown",
+      "disk_mb": "unknown",
+      "runtime_client_proven": false
+    },
+    {
+      "id": "secretaire-documents-devis-syntheses",
+      "famille": "module",
+      "label": "Secrétaire V1 — documents, devis & synthèses",
+      "pitch": "Synthèses, comptes rendus, checklists, propositions et brouillons de devis à valider avant usage officiel.",
+      "prix_mensuel": null,
+      "est_pack_initial": false,
+      "catalogue_id": "secretaire-documents-devis-syntheses",
+      "catalogue_refs": [
+        "secretaire-documents-devis-syntheses"
+      ],
+      "capability_status": "potential",
+      "runtime_status": "unknown",
+      "cost_status": "unknown",
+      "commercial_scope": "cadrage_n1_assiste",
+      "human_approval_required": true,
+      "ram_mb": "unknown",
+      "disk_mb": "unknown",
+      "runtime_client_proven": false
+    },
+    {
+      "id": "secretaire-connexions-surveillance",
+      "famille": "module",
+      "label": "Secrétaire V1 — connexions & surveillance",
+      "pitch": "Readiness et surveillance connecteurs/agent/VPS en lecture seule; aucune mutation infra ou secret sans GO humain.",
+      "prix_mensuel": null,
+      "est_pack_initial": false,
+      "catalogue_id": "secretaire-connexions-surveillance",
+      "catalogue_refs": [
+        "secretaire-connexions-surveillance"
+      ],
+      "capability_status": "potential",
+      "runtime_status": "unknown",
+      "cost_status": "unknown",
+      "commercial_scope": "cadrage_n1_assiste",
+      "human_approval_required": true,
+      "ram_mb": "unknown",
+      "disk_mb": "unknown",
+      "runtime_client_proven": false
     }
   ]
 }
