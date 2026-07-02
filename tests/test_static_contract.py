@@ -203,6 +203,28 @@ def test_onboarding_pc_option_has_reproducible_smoke_contract():
         assert term in text
 
 
+def test_onboarding_frontend_exposes_resume_autosave_and_simulation_console():
+    text = (ROOT / "pages-app" / "onboarding.html").read_text(encoding="utf-8")
+    for term in [
+        "record_id",
+        "resume_url",
+        "completed_sections",
+        "autosaveOnboarding",
+        "loadOnboardingRecord",
+        "simulateConfiguration",
+        "normalizeInfraTarget",
+        "vps_managé\":\"vps",
+        "inconnu:\"vps",
+        "/api/onboarding/",
+        "/simulate",
+        "Simuler la configuration",
+        "Reprise activée",
+        "paid_actions",
+        "none",
+    ]:
+        assert term in text
+
+
 def test_changelog_exists_and_no_secret_like_literals_are_exposed():
     build_site()
     changelog = html(PUBLIC / "changelog" / "index.html")

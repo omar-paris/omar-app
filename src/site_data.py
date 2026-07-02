@@ -152,6 +152,7 @@ PAGES = {
         "eyebrow": "Historique Omar App",
         "summary": "V0.5.0 · 26 juin 2026 · Tunnel A→Z onboarding → devis → agent + option PC smoke.",
         "sections": [
+            ("V0.5.1 — P7 onboarding reprise/simulation", ["Onboarding persistant avec record_id et resume_url", "Rechargement des sections validées et current_step", "Console Simuler la configuration", "Simulation agent_spec + provisioning_preview dry-run", "paid_actions=none"]),
             ("V0.5.0", ["Onboarding conversationnel 6 étapes", "Routes canoniques /onboarding/, /devis/, /sav/, /compte/", "Agent profile exploitable par Hermes", "Option PC alignée OmarTop pc-smoke-check", "paid_actions=none tant que non configuré"]),
             ("V0.4.0", ["Sécurité anti-énumération PII", "Statuts onboarding/SAV isolés par client", "Forward-auth requis pour endpoints multi-tenant", "Catalogue et pricing exposés en read-only"]),
             ("V0.3.0", ["POST /api/proposals pour stocker les propositions", "GET /api/proposals/<id> pour relecture opérateur", "GET /api/hetzner/pricing read-only", "Fallback statique si token Hetzner non disponible", "Toujours aucun coût sans GO humain"]),
