@@ -289,9 +289,11 @@ def test_caddy_protects_multitenant_api_before_generic_api_bypass():
     """
     caddy = (ROOT / "deploy" / "app.omar.paris.caddy").read_text(encoding="utf-8")
     generic_pos = caddy.index("handle /api/*")
-    for route in ("/api/onboarding/status", "/api/sav/status"):
+    for route in ("/api/onboarding/status", "/api/sav/status", "/api/proposals/*", "/api/proposals*"):
         block_start = caddy.index(f"handle {route}")
         assert block_start < generic_pos
-        block = caddy[block_start:generic_pos]
+        next_handle = caddy.find("\n\thandle ", block_start + 1)
+        assert next_handle != -1
+        block = caddy[block_start:next_handle]
         assert "forward_auth 127.0.0.1:4180" in block
         assert "copy_headers X-Auth-Request-User X-Auth-Request-Email" in block
