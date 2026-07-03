@@ -352,20 +352,44 @@
     updateProgress();
   }
   async function startSession(){
-    try{const d=await api('/api/audit-sessions',{});syncSession(d.session);addDivider(currentStep().label);askBackend(d.omar);}
+    try{const d=await api('/api/audit-sessions',{});syncSession(d.session);addDivider(currentStep().label);
+      chatSend('Bonjour. '+(state.answers.intro||'Je suis prêt à commencer.'));}
     catch(e){setStatus('démo');askStepLocal();}
   }
   function sendText(text){
     clearChoices();addClient(text);
     const step=currentStep();
     state.answers[step.id]=state.answers[step.id]?state.answers[step.id]+'\n'+text:text;
-    if(state.sessionId){
-      api(`/api/audit-sessions/${state.sessionId}/message`,{message:text})
-        .then(d=>{syncSession(d.session);offerValidateOr(()=>askBackend(d.omar));})
-        .catch(()=>offerValidateOr(null));
+    if(state.sessionId&&state.chatMode!==false){
+      chatSend(text);
+    }else if(state.sessionId){
+      deterministicSend(text);
     }else{
       offerValidateOr(null);
     }
+  }
+  function chatSend(text){
+    const t=document.createElement('div');t.className='typing-row';t.innerHTML=OMAR_AV+'<span class="typing"><i></i><i></i><i></i></span>';$('col').appendChild(t);scroll();
+    api(`/api/audit-sessions/${state.sessionId}/chat`,{message:text})
+      .then(d=>{
+        t.remove();state.chatMode=true;
+        const oc=d.omar_chat||{};
+        if(oc.step_advanced&&oc.done_step){const s=steps.find(x=>x.id===oc.done_step);if(s)addNote(`${s.label} — noté`);}
+        syncSession(d.session);
+        addOmar(oc.reply||'…');
+        if((oc.choices||[]).length){showChoices(oc.choices.map(c=>({label:c,onpick:()=>sendText(c)})));}
+        if(((d.session||{}).validated_steps||[]).length>=steps.length){offerReport();}
+      })
+      .catch(()=>{
+        t.remove();
+        if(state.chatMode!==true){state.chatMode=false;deterministicSend(text);}
+        else{omarSays('Je vous entends mal un instant — pouvez-vous renvoyer votre message ?');}
+      });
+  }
+  function deterministicSend(text){
+    api(`/api/audit-sessions/${state.sessionId}/message`,{message:text})
+      .then(d=>{syncSession(d.session);offerValidateOr(()=>askBackend(d.omar));})
+      .catch(()=>offerValidateOr(null));
   }
   function offerValidateOr(next){
     const step=currentStep();
@@ -415,6 +439,7 @@
   }
   function skipQuestion(){
     if(state.phase!=='audit')return;
+    if(state.sessionId&&state.chatMode!==false){sendText('Je préfère passer cette question.');return;}
     state.answers[currentStep().id]=(state.answers[currentStep().id]||'')+'\n[Question passée par le client]';
     omarSays('On passe, sans problème.',()=>{showChoices([{label:'Question suivante',main:true,onpick:()=>validateStep(null)}]);});
   }
