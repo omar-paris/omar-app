@@ -11,7 +11,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from site_data import APPS_L1, DOMAIN, NAV, OA_START_PACKS, PAGES, PUBLISHED, VERSION  # noqa: E402
+from site_data import APPS_L1, CONNECTOR_READINESS, DOMAIN, NAV, OA_START_PACKS, PAGES, PUBLISHED, VERSION  # noqa: E402
 
 PUBLIC = ROOT / "public"
 
@@ -37,7 +37,7 @@ CSS += """
 """
 
 CSS += """
-.plan-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:24px}.plan-col{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(15,23,42,.06)}.plan-col h2{margin:0 0 12px;font-size:17px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}.plan-action{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:10px;background:#fbfdff}.plan-action .t{font-weight:800;font-size:14px}.plan-action .d{color:var(--muted);font-size:12.5px;margin-top:3px}.plan-status{display:inline-block;margin-top:8px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 9px;border-radius:999px}.st-fait{background:#dcfce7;color:#166534}.st-encours{background:#fef9c3;color:#854d0e}.st-afaire{background:#e2e8f0;color:#334155}.st-gate{background:#fee2e2;color:#991b1b}@media(max-width:980px){.plan-board{grid-template-columns:1fr}}
+.plan-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:24px}.plan-col{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(15,23,42,.06)}.plan-col h2{margin:0 0 12px;font-size:17px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}.plan-action{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:10px;background:#fbfdff}.plan-action .t{font-weight:800;font-size:14px}.plan-action .d{color:var(--muted);font-size:12.5px;margin-top:3px}.plan-status{display:inline-block;margin-top:8px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 9px;border-radius:999px}.st-fait{background:#dcfce7;color:#166534}.st-encours{background:#fef9c3;color:#854d0e}.st-afaire{background:#e2e8f0;color:#334155}.st-gate{background:#fee2e2;color:#991b1b}.readiness-table{width:100%;border-collapse:separate;border-spacing:0 10px}.readiness-table th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0 10px}.readiness-table td{background:#f8fafc;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 10px;vertical-align:top;font-size:13px}.readiness-table td:first-child{border-left:1px solid var(--line);border-radius:12px 0 0 12px;font-weight:900}.readiness-table td:last-child{border-right:1px solid var(--line);border-radius:0 12px 12px 0}.readiness-badge{display:inline-block;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:900;text-transform:uppercase}.readiness-badge.potential{background:#fef3c7;color:#92400e}.readiness-badge.configured{background:#dbeafe;color:#1e40af}.readiness-badge.proven{background:#dcfce7;color:#166534}.readiness-badge.unknown{background:#e2e8f0;color:#334155}@media(max-width:980px){.plan-board{grid-template-columns:1fr}.readiness-table,.readiness-table tbody,.readiness-table tr,.readiness-table td{display:block}.readiness-table thead{display:none}.readiness-table td{border:1px solid var(--line);border-width:0 1px 1px}.readiness-table td:first-child{border-radius:12px 12px 0 0;border-top-width:1px}.readiness-table td:last-child{border-radius:0 0 12px 12px}}
 """
 
 APP_JS = r"""
@@ -224,6 +224,29 @@ def render_config_wizard() -> str:
 """
 
 
+def render_connector_readiness() -> str:
+    rows = "".join(
+        "<tr>"
+        f"<td>{escape(item['capability'])}</td>"
+        f"<td><span class='readiness-badge {escape(item['classification'])}'>{escape(item['classification'])}</span></td>"
+        f"<td>{escape(item['proof'])}</td>"
+        f"<td>{escape(item['gap'])}</td>"
+        "</tr>"
+        for item in CONNECTOR_READINESS
+    )
+    return f"""
+  <section class="card" id="connector_readiness" style="margin-top:22px">
+    <h2>Readiness connecteurs — Catalogue → AppOmar</h2>
+    <p class="meta">Source: Catalogue OA public anonymisé. Vocabulaire contractuel: potential/configured/proven/unknown. Les détails client, propriétaires internes et états infra restent hors de cette surface publique.</p>
+    <table class="readiness-table" aria-label="Readiness connecteurs Catalogue">
+      <thead><tr><th>Capacité</th><th>Statut</th><th>Preuve publique</th><th>Next action / gap</th></tr></thead>
+      <tbody>{rows}</tbody>
+    </table>
+    <p class="meta">JSON public: <code>/api/connector-readiness.json</code>. Les preuves détaillées et décisions internes doivent vivre dans Hub/Tailnet ou artefact review, pas ici.</p>
+  </section>
+"""
+
+
 def render_page(route: str, page: dict) -> str:
     if route == "/audit/":
         text = (ROOT / "pages-app" / "audit.html").read_text(encoding="utf-8")
@@ -239,7 +262,11 @@ def render_page(route: str, page: dict) -> str:
         "<section class='card'><h2>" + escape(title) + "</h2><ul>" + "".join(f"<li>{escape(item)}</li>" for item in items) + "</ul></section>"
         for title, items in page["sections"]
     )
-    extra = render_config_wizard() if route == "/config/" else ""
+    extra = ""
+    if route == "/config/":
+        extra = render_config_wizard()
+    elif route == "/compte/":
+        extra = render_connector_readiness()
     script = '<script src="/assets/app.js" defer></script>' if route == "/config/" else ""
     return f"""<!doctype html>
 <html lang="fr">
@@ -397,8 +424,24 @@ def write_api_assets() -> None:
         "install_state_default": "expected",
         "apps": APPS_L1,
     }
+    connector_payload = {
+        "schema": "appomar.connector_readiness.v1",
+        "source": "oa-catalogue public anonymized connector readiness",
+        "status_vocabulary": ["potential", "configured", "proven", "unknown"],
+        "items": CONNECTOR_READINESS,
+        "safety": {
+            "secrets_exposed": False,
+            "client_details_exposed": False,
+            "internal_responsibles_exposed": False,
+            "infra_state_exposed": False,
+            "public_payload_anonymized": True,
+            "proven_requires_measured_or_read_proof": True,
+            "internal_details_location": "Hub/Tailnet or review artifact only",
+        },
+    }
     (api / "oa-start-packs.json").write_text(json.dumps(packs_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     (api / "apps-l1.json").write_text(json.dumps(apps_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    (api / "connector-readiness.json").write_text(json.dumps(connector_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     app_js = APP_JS.replace("__PACKS__", json.dumps(OA_START_PACKS, ensure_ascii=False)).replace(
         "__APPS_L1__", json.dumps(APPS_L1, ensure_ascii=False)
     )
@@ -415,12 +458,13 @@ def main() -> None:
         out = route_to_file(route)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(render_page(route, page), encoding="utf-8")
-    jab_html = render_jab_plan()
-    if jab_html:
-        jab_out = PUBLIC / "jab" / "index.html"
-        jab_out.parent.mkdir(parents=True, exist_ok=True)
-        jab_out.write_text(jab_html, encoding="utf-8")
-        print("built /jab/ from data/plan-jab.yaml")
+    if os.environ.get("APPOMAR_BUILD_INTERNAL_JAB") == "1":
+        jab_html = render_jab_plan()
+        if jab_html:
+            jab_out = ROOT / "internal" / "jab" / "index.html"
+            jab_out.parent.mkdir(parents=True, exist_ok=True)
+            jab_out.write_text(jab_html, encoding="utf-8")
+            print("built internal/jab/index.html from data/plan-jab.yaml")
     print(f"built {len(PAGES)} routes into {PUBLIC}")
 
 
