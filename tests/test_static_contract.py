@@ -203,6 +203,46 @@ def test_onboarding_pc_option_has_reproducible_smoke_contract():
         assert term in text
 
 
+def test_caddy_machine_token_uses_runtime_placeholder_not_literal_secret():
+    caddyfile = ROOT / "deploy" / "app.omar.paris.caddy"
+    text = caddyfile.read_text(encoding="utf-8")
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "X-OA-Token" not in stripped:
+            continue
+        parts = stripped.split()
+        assert parts[:2] == ["header", "X-OA-Token"], f"Unexpected X-OA-Token matcher at {caddyfile}:{lineno}"
+        assert len(parts) == 3, f"X-OA-Token matcher must use exactly one runtime placeholder at {caddyfile}:{lineno}"
+        value = parts[2]
+        if not (value.startswith("{$") and value.endswith("}")):
+            raise AssertionError(
+                "X-OA-Token matcher must reference a Caddy runtime env placeholder, "
+                f"not a deployable literal, at {caddyfile}:{lineno}"
+            )
+        if ":" in value:
+            raise AssertionError(f"X-OA-Token runtime placeholder must not define a fallback secret at {caddyfile}:{lineno}")
+
+
+def test_tracked_sources_do_not_define_deployable_machine_token_literals():
+    result = subprocess.run(["git", "ls-files"], cwd=ROOT, check=True, capture_output=True, text=True)
+    findings = []
+    for rel in result.stdout.splitlines():
+        path = ROOT / rel
+        if not path.is_file() or rel.startswith(("tests/", ".ops/")):
+            continue
+        if path.suffix.lower() not in {".html", ".md", ".json", ".yaml", ".yml", ".py", ".js", ".css", ".txt", ".caddy"}:
+            continue
+        for lineno, line in enumerate(path.read_text(encoding="utf-8", errors="ignore").splitlines(), start=1):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            has_literal_oa_header = re.search(r"X-OA-Token\s+[A-Za-z0-9_-]{16,}", stripped)
+            has_literal_bearer = re.search(r"authorization\s+Bearer\s+[A-Za-z0-9_-]{16,}", stripped, flags=re.IGNORECASE)
+            if has_literal_oa_header or has_literal_bearer:
+                findings.append(f"{rel}:{lineno}")
+    assert findings == []
+
+
 def test_connector_readiness_json_and_account_surface_expose_catalogue_statuses():
     build_site()
     api_path = PUBLIC / "api" / "connector-readiness.json"

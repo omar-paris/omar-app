@@ -82,10 +82,11 @@ app.omar.paris {
 		reverse_proxy 127.0.0.1:4180
 	}
 
-	# Sondes machine (tailnet + token) → portail sans OAuth, servi par le serveur
+	# Sondes machine (tailnet + token) → portail sans OAuth, servi par le serveur.
+	# OA_MACHINE_TOKEN est injecté au runtime (systemd/Infisical/env Caddy), jamais commité.
 	@machine {
 		remote_ip 100.64.0.0/10 127.0.0.1/8
-		header X-OA-Token ca5f4565639415534f91e4c0a898cb8181272bc4580e15e8
+		header X-OA-Token {$OA_MACHINE_TOKEN}
 	}
 	handle @machine {
 		reverse_proxy 127.0.0.1:8096
