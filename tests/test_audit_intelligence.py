@@ -63,7 +63,7 @@ def test_next_question_asks_missing_structuring_fields_before_validation():
     q = ai.next_question(session, "activity")
     assert q["sector_id"] == "bakery"
     assert "location" in q["missing_fields"]
-    assert "taille" in q["question"].lower() or "où" in q["question"].lower()
+    assert any(token in q["question"].lower() for token in ["combien", "taille", "où"])
 
     result = ai.validate_step(session, "activity")
     assert result["ok"] is False
@@ -83,10 +83,10 @@ def test_activity_step_becomes_ready_after_precise_company_context():
     assert result["completion"]["ready"] is True
     assert session["sector_id"] == "bakery"
     assert "activity" in session["validated_steps"]
-    assert session["current_step"] == "research"
+    assert session["current_step"] == "real_week"
 
 
-def test_research_step_collects_public_sources_or_explicit_refusal_before_pain():
+def test_research_sources_are_collected_as_optional_activity_context_in_fable_v0():
     created = ai.create_session()
     session = created["session"]
     ai.add_message(
@@ -94,15 +94,11 @@ def test_research_step_collects_public_sources_or_explicit_refusal_before_pain()
         "Je suis boulanger à Lille, boutique de 4 personnes, clients particuliers et entreprises, créée il y a 8 ans, environ 350k€ de CA.",
     )
     assert ai.validate_step(session, "activity")["ok"] is True
-
-    blocked = ai.validate_step(session, "research")
-    assert blocked["ok"] is False
-    assert "public_research_scope" in blocked["completion"]["missing_fields"]
+    assert session["current_step"] == "real_week"
 
     ai.add_message(session, "L'enseigne s'appelle Pain Nord, site https://pain-nord.example, j'autorise la recherche web publique.")
-    result = ai.validate_step(session, "research")
-    assert result["ok"] is True
-    assert session["current_step"] == "pain"
+    understanding = ai.build_client_understanding(session)
+    assert understanding["next_step"] == "research"
 
 
 def test_research_plan_is_sector_localized_and_consent_aware():
@@ -137,11 +133,9 @@ def test_conversation_starts_with_tone_and_mode_preferences():
     q = created["omar"]
     assert session["current_step"] == "intro"
     assert q["step"] == "intro"
-    assert "tutoie" in q["question"].lower() or "vouvoie" in q["question"].lower()
-    assert any("mode" in item.lower() or "ton" in item.lower() for item in q["validation_criteria"])
-    blocked = ai.validate_step(session, "intro")
-    assert blocked["ok"] is False
-    ai.add_message(session, "Vous pouvez me vouvoyer, je préfère un mode guidé avec questions courtes.")
+    assert "vous" in q["question"].lower()
+    assert "tutoie" not in q["question"].lower()
+    assert any("vouvoiement" in item.lower() or "pacte" in item.lower() for item in q["validation_criteria"])
     result = ai.validate_step(session, "intro")
     assert result["ok"] is True
     assert session["current_step"] == "activity"
@@ -170,7 +164,7 @@ def test_client_understanding_summarizes_declared_known_and_missing_context():
     assert understanding["summary"].startswith("Voici ce que j’ai compris")
     assert "restaurant" in understanding["summary"].lower()
     assert any(item["field"] == "location" and item["status"] == "present" for item in understanding["context_fields"])
-    assert understanding["next_step"] == "research"
+    assert understanding["next_step"] == "activity"
 
 
 def test_bakery_activity_options_and_address_context_support_micro_validation():
@@ -279,3 +273,40 @@ def test_exports_include_markdown_and_linkedin_copy():
     assert "## Diagnostic" in exports["markdown"]
     assert "LinkedIn" not in exports["linkedin_text"]  # texte prêt à copier, pas un libellé UI
     assert exports["pdf_status"] == "pending_renderer"
+
+
+def test_activity_guided_buttons_advance_to_next_subquestion():
+    created = ai.create_session()
+    session = created["session"]
+
+    ai.validate_step(session, "intro")
+    first = ai.next_question(session, "activity")
+    assert first["question"].startswith("Pour commencer")
+    assert "Traducteur freelance" in first["options"]
+    assert "Solo" not in first["options"]
+
+    ai.add_message(session, "Traducteur freelance")
+    q2 = ai.next_question(session, "activity")
+    assert q2["question"].startswith("Vous êtes combien")
+    assert q2["options"] == ["Solo", "2-5", "6-20", "20+", "Je précise"]
+
+    ai.add_message(session, "Solo")
+    q3 = ai.next_question(session, "activity")
+    assert "Depuis combien de temps" in q3["question"]
+    assert "Solo" not in q3["options"]
+    assert "1-3 ans" in q3["options"]
+
+
+def test_help_request_does_not_repeat_same_real_week_question():
+    created = ai.create_session()
+    session = created["session"]
+    ai.add_message(session, "Je suis traducteur freelance à Paris, je travaille solo, depuis 4 ans, clients professionnels, par recommandations.")
+    assert ai.validate_step(session, "activity")["ok"] is True
+
+    q1 = ai.next_question(session, "real_week")
+    assert "semaine dernière" in q1["question"]
+    ai.add_message(session, "Je ne sais pas")
+    q2 = ai.next_question(session, "real_week")
+    assert q2["question"].startswith("Je vous propose des pistes")
+    assert "Devis / propositions" in q2["options"]
+    assert q2["question"] != q1["question"]
