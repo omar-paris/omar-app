@@ -70,10 +70,39 @@ app.omar.paris {
 	}
 
 	# Autres API + assets du portail → serveur (machine, humain, ou Stripe externe)
+	# Tunnel prospect public : audit conversationnel + onboarding draft/simulation.
+	# Pas de provisioning payé, pas de secrets, pas d'accès multi-tenant client.
+	handle /api/audits* {
+		reverse_proxy 127.0.0.1:8096
+	}
+	handle /api/audit-sessions* {
+		reverse_proxy 127.0.0.1:8096
+	}
+	handle /api/onboarding {
+		reverse_proxy 127.0.0.1:8096
+	}
+	handle /api/onboarding/* {
+		reverse_proxy 127.0.0.1:8096
+	}
+	handle /api/oa-start-packs.json {
+		reverse_proxy 127.0.0.1:8096
+	}
+	handle /api/apps-l1.json {
+		reverse_proxy 127.0.0.1:8096
+	}
+	handle /api/connector-readiness.json {
+		reverse_proxy 127.0.0.1:8096
+	}
 	handle /api/* {
 		reverse_proxy 127.0.0.1:8096
 	}
 	handle /pages-app/* {
+		reverse_proxy 127.0.0.1:8096
+	}
+	handle /audit* {
+		reverse_proxy 127.0.0.1:8096
+	}
+	handle /onboarding* {
 		reverse_proxy 127.0.0.1:8096
 	}
 

@@ -1077,6 +1077,21 @@ class ProposalHandler(BaseHTTPRequestHandler):
             if fp.exists():
                 self._serve_file(fp, "application/javascript; charset=utf-8")
                 return
+        # Contrats publics générés par scripts/build.py.
+        # Ces endpoints alimentent le wizard prospect et ne portent ni PII ni secret.
+        PUBLIC_API_FILES = {
+            "/api/oa-start-packs.json": "oa-start-packs.json",
+            "/api/apps-l1.json": "apps-l1.json",
+            "/api/connector-readiness.json": "connector-readiness.json",
+        }
+        public_api_file = PUBLIC_API_FILES.get(path)
+        if public_api_file:
+            fp = ROOT / "public" / "api" / public_api_file
+            if fp.exists():
+                self._serve_file(fp, "application/json; charset=utf-8")
+                return
+            self.send_json(404, {"ok": False, "error": "public_api_contract_not_built"})
+            return
         if path == "/api/onboarding/status":
             # Isolation multi-tenant (app#13/#14) : un client connecté ne voit QUE
             # son propre dossier. L'email vient du forward_auth OAuth amont.
