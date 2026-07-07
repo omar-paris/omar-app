@@ -25,9 +25,11 @@ from audit_intelligence import (  # noqa: E402
     add_message as audit_add_message,
     build_devis_source as audit_build_devis_source,
     build_exports as audit_build_exports,
+    build_onboarding_pack_v1 as audit_build_onboarding_pack_v1,
     build_public_research_result as audit_build_public_research_result,
     build_research_plan as audit_build_research_plan,
     build_sources_used as audit_build_sources_used,
+    build_synthesis_card as audit_build_synthesis_card,
     create_session as audit_create_session,
     normalize_consents as audit_normalize_consents,
     validate_step as audit_validate_step,
@@ -497,55 +499,74 @@ def _audit_list(value: str, *, fallback: str) -> list[str]:
 
 
 def build_audit_report(payload: dict[str, Any]) -> dict[str, Any]:
-    activity = str(payload.get("activity") or "votre activité").strip()[:140]
-    urgency = str(payload.get("urgency") or "gagner du temps").strip()[:120]
-    ai_level = str(payload.get("ai_level") or "débutant").strip()[:80]
+    activity = str(payload.get("activity") or "votre activité").strip()[:160]
+    urgency = str(payload.get("urgency") or "gagner du temps").strip()[:140]
+    ai_level = str(payload.get("ai_level") or "conversationnel").strip()[:80]
     tasks = _audit_list(str(payload.get("repetitive_tasks") or ""), fallback="Identifier une tâche répétitive non sensible à tester en premier.")
     tools = _audit_list(str(payload.get("current_tools") or ""), fallback="Lister les outils actuels avant de brancher de nouvelles automatisations.")
     constraints = _audit_list(str(payload.get("constraints") or ""), fallback="Garder validation humaine pour les données sensibles, paiements et publications externes.")
+    opportunities_payload = _audit_list(str(payload.get("opportunities") or ""), fallback="Première boucle IA à confirmer avec le client.")
     first_task = tasks[0]
+    declared = [
+        f"Activité déclarée : {activity}.",
+        f"Irritant prioritaire déclaré : {first_task}.",
+        f"Outils/canaux déclarés : {', '.join(tools[:4])}.",
+    ]
+    verified = [
+        "Aucune source publique n’est utilisée sans consentement explicite source par source en V0.",
+        "Les éventuelles sources autorisées sont conservées séparément des déclarations client.",
+    ]
+    hypotheses = [
+        f"Hypothèse Omar : le premier gain vient de {first_task}.",
+        f"Hypothèse de cadrage : niveau IA {ai_level}, commencer par une boucle courte et vérifiable.",
+    ]
+    do_not_automate = [
+        "Ne pas envoyer de message externe sans validation humaine au démarrage.",
+        "Ne pas manipuler mots de passe, moyens de paiement, secrets ou données sensibles dans le chat.",
+        *[f"À ne pas automatiser sans règle claire : {item}." for item in constraints[:3]],
+    ]
+    quick_wins = [
+        "Écrire la procédure actuelle de traitement d’une demande type.",
+        "Rassembler trois exemples anonymisés de demandes clients réelles.",
+        "Tester une réponse brouillon IA, relue humainement, pendant sept jours.",
+    ]
+    prompts = [
+        f"Tu es mon assistant métier. Mon activité : {activity}. Aide-moi à traiter ce cas : {first_task}. Pose les questions manquantes avant de proposer une réponse.",
+        "Transforme ces notes brutes en procédure simple : objectif, étapes, validation humaine, risques, modèle réutilisable.",
+        "Liste ce qu’il ne faut surtout pas automatiser dans ce flux, puis propose une version prudente avec validation humaine.",
+    ]
     return {
-        "title": f"Première synthèse IA — {activity}",
-        "summary": f"Votre enjeu prioritaire est de {urgency}. Niveau IA déclaré : {ai_level}. La première étape n’est pas de tout automatiser, mais d’isoler une boucle utile, vérifiable et peu risquée.",
-        "diagnostic": [
-            f"Activité analysée : {activity}.",
-            f"Urgence principale : {urgency}.",
-            f"Tâche répétitive candidate : {first_task}.",
-            "Le bon angle est de transformer une répétition réelle en méthode, puis seulement en automatisation.",
-        ],
+        "schema": "oa_audit_report.fable_v0",
+        "title": f"Diagnostic IA — {activity}",
+        "summary": f"Votre enjeu prioritaire : {urgency}. Le bon départ n’est pas de tout automatiser, mais de choisir une boucle utile, mesurable et sûre.",
+        "declared_by_client": declared,
+        "verified_sources": verified,
+        "omar_hypotheses": hypotheses,
+        "diagnostic": declared + hypotheses[:1],
+        "pain_map": tasks,
         "opportunities": [
-            f"Créer un modèle réutilisable pour : {first_task}.",
-            f"Documenter les outils actuels avant intégration : {', '.join(tools[:3])}.",
-            "Mettre en place une validation humaine avant toute action externe sensible.",
-            "Mesurer le gain sur une semaine : temps gagné, erreurs évitées, relances mieux suivies.",
+            f"Créer une boucle assistée pour : {first_task}.",
+            f"Structurer les outils actuels avant intégration : {', '.join(tools[:3])}.",
+            *[f"À étudier : {item}." for item in opportunities_payload[:2]],
         ],
-        "limits": [
-            "L’IA peut préparer, structurer, relancer et résumer ; elle ne doit pas engager l’activité sans cadre explicite.",
-            f"Contraintes à respecter : {', '.join(constraints[:3])}.",
-            "Les outils cloud génériques ne doivent pas recevoir de secrets, mots de passe, moyens de paiement ou données sensibles non anonymisées.",
-        ],
+        "limits": do_not_automate,
+        "do_not_automate": do_not_automate,
+        "quick_wins": quick_wins,
         "tutorial": [
             "Choisir une tâche répétitive non sensible.",
             "Rassembler trois exemples réels anonymisés.",
-            "Demander à l’IA de produire un modèle de réponse ou de procédure.",
-            "Corriger le modèle, puis l’utiliser pendant sept jours.",
-            "Décider ensuite si cette boucle mérite une automatisation ou un agent dédié.",
+            "Demander à l’IA un brouillon, jamais un envoi automatique.",
+            "Corriger le modèle, puis mesurer pendant sept jours.",
         ],
-        "prompts": [
-            f"Tu es mon assistant. Mon activité : {activity}. Aide-moi à traiter cette tâche : {first_task}. Pose-moi les questions manquantes avant de proposer une réponse.",
-            "Transforme ces notes brutes en procédure simple : objectif, étapes, validation humaine, risques, modèle réutilisable.",
-        ],
-        "commands": [
-            "mkdir -p ~/audit-ia-test/{documents,prompts,resultats}",
-        ],
+        "prompts": prompts,
+        "commands": ["mkdir -p ~/audit-ia-test/{documents,prompts,resultats}"],
         "decisions": [
-            "Quelle tâche déléguer en premier ?",
-            "Quelles données ne doivent jamais sortir de l’environnement contrôlé ?",
-            "Souhaitez-vous tester seul avec le tutoriel ou demander une proposition Omar & Alex ?",
+            "Quelle boucle tester en premier ?",
+            "Quelles validations humaines sont obligatoires ?",
+            "Souhaitez-vous apprendre seul, être accompagné, ou préparer un agent ?",
         ],
-        "next_steps": ["24h : choisir le premier cas", "7 jours : tester le modèle", "30 jours : décider autonomie ou accompagnement"],
+        "next_steps": ["24h : choisir le premier cas", "7 jours : tester le brouillon", "30 jours : décider autonomie, accompagnement ou agent"],
     }
-
 
 def validate_audit_payload(payload: dict[str, Any]) -> str | None:
     if not str(payload.get("activity") or "").strip():
@@ -569,15 +590,17 @@ def safe_write_audit(data_dir: Path, payload: dict[str, Any]) -> dict[str, Any]:
     consent_snapshot = audit_normalize_consents(payload)
     sources_used = audit_build_sources_used(payload)
     devis_source = audit_build_devis_source(payload, report, consent_snapshot)
+    onboarding_pack = audit_build_onboarding_pack_v1(payload, report)
     out = {
         "id": aid,
-        "schema": "oa_audit_ia.v1_rigorous",
+        "schema": "oa_audit_ia.fable_v0",
         "status": "draft_report_ready",
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "input": payload,
         "consent_snapshot": consent_snapshot,
         "sources_used": sources_used,
         "report": report,
+        "onboarding_pack": onboarding_pack,
         "devis_source": devis_source,
         "data_rights": {
             "can_delete": True,
@@ -1427,13 +1450,14 @@ class ProposalHandler(BaseHTTPRequestHandler):
                     "opportunities": str(payload.get("opportunities") or ""),
                     "autonomy": str(payload.get("autonomy") or ""),
                     "validation": str(payload.get("validation") or ""),
+                    "synthesis_card": audit_build_synthesis_card(session),
                     "transcript": session.get("messages", []),
                     "sector_id": session.get("sector_id"),
                     "interface": "audit_cockpit_conversationnel_sectoriel.v0",
                 }
                 audit = safe_write_audit(self.data_dir, payload)
                 share = audit_share_payload(audit)
-                self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share})
+                self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share})
                 return
             self.send_json(404, {"ok": False, "error": "unknown_audit_session_action"})
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
@@ -1453,7 +1477,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
             self.send_json(422, {"ok": False, "error": str(exc)})
             return
-        self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", [])})
+        self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", [])})
 
     def handle_devis(self) -> None:
         """Crée un devis depuis une sélection de produits du catalogue (app#24/qg#28).

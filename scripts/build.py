@@ -453,6 +453,9 @@ def main() -> None:
         shutil.rmtree(PUBLIC)
     (PUBLIC / "assets").mkdir(parents=True)
     (PUBLIC / "assets" / "styles.css").write_text(CSS, encoding="utf-8")
+    app_assets = ROOT / "pages-app" / "assets"
+    if app_assets.exists():
+        shutil.copytree(app_assets, PUBLIC / "pages-app" / "assets", dirs_exist_ok=True)
     write_api_assets()
     for route, page in PAGES.items():
         out = route_to_file(route)

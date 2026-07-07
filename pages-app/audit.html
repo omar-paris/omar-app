@@ -1,8 +1,8 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Audit — conversation avec Omar · Omar App</title>
-<meta name="description" content="Audit conversationnel Omar : un fil de discussion, une saisie, un rail discret de huit étapes.">
-<meta name="omar-audit-ui" content="v4-conversation-minimal">
+<meta name="description" content="Audit conversationnel Omar : trois actes, questions ouvertes, synthèse validée, rapport et onboarding agent.">
+<meta name="omar-audit-ui" content="v4-fable-tree-v0">
 <script src="/pages-app/_portal.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,7 +12,7 @@
 :root{--encre:#16140f;--corail:#a8553a;--papier:#faf8f4;--sable:#f3efe7;--bordure:#ece7df;--muted:#7a756c;--para:#56524b;--sur-encre:#b8b2a7;--card:#fff;--ok:#3fa06a;--ok-encre:#3fd07f;--shadow:0 1px 3px rgba(0,0,0,.07)}
 html,body{min-height:100%}
 body{background:var(--papier);font-family:'Hanken Grotesk',sans-serif;color:var(--encre);-webkit-font-smoothing:antialiased;overflow:auto}
-body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!important;padding:0!important;width:100%!important}::selection{background:var(--encre);color:var(--papier)}:focus-visible{outline:2px solid var(--corail);outline-offset:3px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.audit-shell{min-height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:14px;max-width:1180px;margin:0 auto;padding:18px 40px 18px}.audit-top{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}.brand{display:flex;align-items:center;gap:10px;color:var(--encre);text-decoration:none}.omar-headshot{width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid rgba(22,20,15,.16);box-shadow:0 1px 3px rgba(0,0,0,.12)}.brand b{font-family:'Newsreader',serif;font-weight:500;font-size:21px;letter-spacing:-.01em}.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--corail)}.version{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right}.audit-core{min-height:0;display:grid;grid-template-columns:minmax(160px,220px) minmax(0,1fr);gap:22px}.rail{border:1px solid var(--bordure);border-radius:12px;background:var(--card);box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:15px;min-height:0}.rail h1{font-family:'Newsreader',serif;font-weight:400;font-size:30px;line-height:1.08;letter-spacing:-.02em}.rail-note{font-size:13px;line-height:1.45;color:var(--para)}.steps{display:grid;gap:10px;overflow:auto;padding-right:2px}.step{display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px;align-items:start;color:var(--muted)}.step i{display:grid;place-items:center;width:18px;height:18px;border:1px solid var(--bordure);border-radius:50%;font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px}.step span{font-size:13px;line-height:1.25}.step.done{color:var(--para)}.step.done i{border-color:var(--ok);background:var(--ok);color:white}.step.current{color:var(--encre)}.step.current i{border-color:var(--corail);color:var(--corail)}.progress{height:4px;background:var(--sable);border-radius:8px;overflow:hidden}.progress b{display:block;height:100%;width:0;background:var(--corail);transition:width .25s ease}.chat{min-height:0;border:1px solid var(--bordure);border-radius:12px;background:color-mix(in srgb,var(--card) 88%,transparent);box-shadow:var(--shadow);display:grid;grid-template-rows:minmax(0,1fr) auto;overflow:visible}.chat-head{padding:22px clamp(18px,3.2vw,36px);border-bottom:1px solid var(--bordure);display:flex;justify-content:space-between;gap:16px;align-items:flex-start;background:var(--papier)}.chat-title h2{font-family:'Newsreader',serif;font-weight:400;font-size:36px;line-height:1.05;letter-spacing:-.02em}.chat-title p{margin-top:8px;color:var(--para);font-size:15px;line-height:1.55;max-width:640px}.state{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}.state.online::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok-encre);box-shadow:0 0 7px var(--ok-encre);margin-right:8px}.log{min-height:0;overflow:visible;padding:24px clamp(16px,4vw,56px);display:flex;flex-direction:column;gap:14px;background:transparent;scroll-behavior:smooth}.row{display:flex;gap:10px;align-items:flex-end}.row.client{justify-content:flex-end}.avatar{width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid rgba(22,20,15,.18);box-shadow:0 1px 3px rgba(0,0,0,.12);flex:0 0 auto}.bubble{max-width:min(720px,82%);border-radius:12px;padding:14px 16px;font-size:16px;line-height:1.58;white-space:pre-wrap;overflow-wrap:anywhere}.bubble.omar{border:1px solid var(--bordure);background:#fff;color:var(--encre);border-bottom-left-radius:6px}.bubble.client{background:var(--encre);color:var(--papier);border-bottom-right-radius:6px}.bubble.system{align-self:center;max-width:720px;border:1px solid var(--bordure);background:var(--sable);color:var(--para);font-size:13px;text-align:center}.composer{border-top:1px solid var(--bordure);background:#fff;padding:14px clamp(14px,2.2vw,24px)}.composer form{display:grid;grid-template-columns:minmax(0,1fr) 52px;gap:10px;align-items:end;border:1px solid var(--bordure);border-radius:12px;background:var(--papier);padding:8px}.composer form:focus-within{border-color:var(--corail)}textarea{width:100%;border:0;background:transparent;color:var(--encre);font:inherit;font-size:16px;line-height:1.45;min-height:46px;max-height:150px;resize:none;padding:11px 8px;outline:0}.send{width:46px;height:46px;border:0;border-radius:8px;background:var(--encre);color:var(--papier);font-size:18px;cursor:pointer}.send:disabled{opacity:.45;cursor:not-allowed}.status{min-height:18px;margin:8px 6px 0;color:var(--muted);font-size:13px}.audit-foot{display:flex;justify-content:space-between;gap:12px;align-items:center;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase}.result{display:none;border:1px solid var(--bordure);border-radius:12px;background:#fff;padding:18px;margin-top:12px;color:var(--para);font-size:14px;line-height:1.55}.result.visible{display:block}.result h3{font-family:'Newsreader',serif;color:var(--encre);font-weight:400;font-size:26px;margin-bottom:8px}.typing{display:inline-flex;gap:4px;vertical-align:middle}.typing span{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:pulse 1.2s infinite}.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}@keyframes pulse{0%,80%,100%{opacity:.35}40%{opacity:1}}@media(max-width:860px){body{overflow:auto}.audit-shell{height:auto;min-height:100vh;padding:14px 16px}.audit-core{grid-template-columns:1fr}.rail{order:2}.chat{order:1;min-height:68vh}.audit-top{align-items:flex-start}.audit-foot{display:block;line-height:1.7}.bubble{max-width:90%}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!important;padding:0!important;width:100%!important}::selection{background:var(--encre);color:var(--papier)}:focus-visible{outline:2px solid var(--corail);outline-offset:3px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.audit-shell{min-height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:14px;max-width:1180px;margin:0 auto;padding:18px 40px 18px}.audit-top{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}.brand{display:flex;align-items:center;gap:10px;color:var(--encre);text-decoration:none}.omar-headshot{width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid rgba(22,20,15,.16);box-shadow:0 1px 3px rgba(0,0,0,.12)}.brand b{font-family:'Newsreader',serif;font-weight:500;font-size:21px;letter-spacing:-.01em}.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--corail)}.version{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right}.audit-core{min-height:0;display:grid;grid-template-columns:minmax(160px,220px) minmax(0,1fr);gap:22px}.rail{border:1px solid var(--bordure);border-radius:12px;background:var(--card);box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:15px;min-height:0}.rail h1{font-family:'Newsreader',serif;font-weight:400;font-size:30px;line-height:1.08;letter-spacing:-.02em}.rail-note{font-size:13px;line-height:1.45;color:var(--para)}.steps{display:grid;gap:10px;overflow:auto;padding-right:2px}.step{display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px;align-items:start;color:var(--muted)}.step i{display:grid;place-items:center;width:18px;height:18px;border:1px solid var(--bordure);border-radius:50%;font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px}.step span{font-size:13px;line-height:1.25}.step.done{color:var(--para)}.step.done i{border-color:var(--ok);background:var(--ok);color:white}.step.current{color:var(--encre)}.step.current i{border-color:var(--corail);color:var(--corail)}.progress{height:4px;background:var(--sable);border-radius:8px;overflow:hidden}.progress b{display:block;height:100%;width:0;background:var(--corail);transition:width .25s ease}.chat{min-height:0;border:1px solid var(--bordure);border-radius:12px;background:color-mix(in srgb,var(--card) 88%,transparent);box-shadow:var(--shadow);display:grid;grid-template-rows:minmax(0,1fr) auto;overflow:visible}.chat-head{padding:22px clamp(18px,3.2vw,36px);border-bottom:1px solid var(--bordure);display:flex;justify-content:space-between;gap:16px;align-items:flex-start;background:var(--papier)}.chat-title h2{font-family:'Newsreader',serif;font-weight:400;font-size:36px;line-height:1.05;letter-spacing:-.02em}.chat-title p{margin-top:8px;color:var(--para);font-size:15px;line-height:1.55;max-width:640px}.state{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}.state.online::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok-encre);box-shadow:0 0 7px var(--ok-encre);margin-right:8px}.log{min-height:0;overflow:visible;padding:24px clamp(16px,4vw,56px);display:flex;flex-direction:column;gap:14px;background:transparent;scroll-behavior:smooth}.row{display:flex;gap:10px;align-items:flex-end}.row.client{justify-content:flex-end}.avatar{width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid rgba(22,20,15,.18);box-shadow:0 1px 3px rgba(0,0,0,.12);flex:0 0 auto}.bubble{max-width:min(720px,82%);border-radius:12px;padding:14px 16px;font-size:16px;line-height:1.58;white-space:pre-wrap;overflow-wrap:anywhere}.bubble.omar{border:1px solid var(--bordure);background:#fff;color:var(--encre);border-bottom-left-radius:6px}.bubble.client{background:var(--encre);color:var(--papier);border-bottom-right-radius:6px}.bubble.system{align-self:center;max-width:720px;border:1px solid var(--bordure);background:var(--sable);color:var(--para);font-size:13px;text-align:center}.quick{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 4px 40px}.quick button{border:1px solid var(--bordure);background:#fff;border-radius:999px;padding:8px 11px;color:var(--encre);font:inherit;font-size:14px;cursor:pointer}.quick button:hover{border-color:var(--corail)}.understanding{margin-left:40px;max-width:760px;border:1px solid var(--corail);background:var(--sable);border-radius:14px;padding:14px 16px;color:var(--encre)}.understanding h3{font-family:'Newsreader',serif;font-weight:400;font-size:22px;margin-bottom:8px}.understanding dl{display:grid;gap:8px}.understanding dt{font-weight:700;font-size:13px}.understanding dd{color:var(--para);font-size:14px;line-height:1.45}.acts .step{grid-template-columns:18px minmax(0,1fr)}.substeps{border-top:1px solid var(--bordure);padding-top:10px}.composer{border-top:1px solid var(--bordure);background:#fff;padding:14px clamp(14px,2.2vw,24px)}.composer form{display:grid;grid-template-columns:minmax(0,1fr) 52px;gap:10px;align-items:end;border:1px solid var(--bordure);border-radius:12px;background:var(--papier);padding:8px}.composer form:focus-within{border-color:var(--corail)}textarea{width:100%;border:0;background:transparent;color:var(--encre);font:inherit;font-size:16px;line-height:1.45;min-height:46px;max-height:150px;resize:none;padding:11px 8px;outline:0}.send{width:46px;height:46px;border:0;border-radius:8px;background:var(--encre);color:var(--papier);font-size:18px;cursor:pointer}.send:disabled{opacity:.45;cursor:not-allowed}.status{min-height:18px;margin:8px 6px 0;color:var(--muted);font-size:13px}.audit-foot{display:flex;justify-content:space-between;gap:12px;align-items:center;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase}.result{display:none;border:1px solid var(--bordure);border-radius:12px;background:#fff;padding:18px;margin-top:12px;color:var(--para);font-size:14px;line-height:1.55}.result.visible{display:block}.result h3{font-family:'Newsreader',serif;color:var(--encre);font-weight:400;font-size:26px;margin-bottom:8px}.typing{display:inline-flex;gap:4px;vertical-align:middle}.typing span{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:pulse 1.2s infinite}.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}@keyframes pulse{0%,80%,100%{opacity:.35}40%{opacity:1}}@media(max-width:860px){body{overflow:auto}.audit-shell{height:auto;min-height:100vh;padding:14px 16px}.audit-core{grid-template-columns:1fr}.rail{order:2}.chat{order:1;min-height:68vh}.audit-top{align-items:flex-start}.audit-foot{display:block;line-height:1.7}.bubble{max-width:90%}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 </style></head><body><main>
 <section class="audit-shell" aria-label="Audit conversationnel Omar">
   <header class="audit-top">
@@ -22,10 +22,10 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
   <div class="audit-core">
     <aside class="rail" aria-label="Rail discret des étapes de l'audit">
       <div class="eyebrow">Audit offert</div>
-      <h1>Une conversation. Huit repères.</h1>
-      <p class="rail-note">Réponds naturellement. Omar reformule, avance quand l'étape est suffisamment claire, puis produit le rapport sans paiement ni provisioning.</p>
+      <h1>Rencontre. Plongée. Livraison.</h1>
+      <p class="rail-note">Répondez librement. Les boutons servent seulement à confirmer vite ; le champ libre reste toujours disponible.</p>
       <div class="progress" aria-label="Progression"><b id="progress-bar"></b></div>
-      <div id="steps" class="steps"></div>
+      <div id="acts" class="steps acts"></div><div id="steps" class="steps substeps" aria-label="Étape courante"></div>
     </aside>
     <section class="chat" aria-label="Conversation avec Omar">
       <div id="chat-state" hidden>en ligne</div>
@@ -45,18 +45,23 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
 </section>
 </main><script>
 (function(){
-  const steps = [
-    {id:'activity', label:'Activité', fallback:'Parlez-moi de votre métier, ville, équipe, clients et volume d’activité.'},
-    {id:'research', label:'Sources', fallback:'Quelles sources publiques m’autorisez-vous à utiliser : site, fiche Google, données légales publiques ?'},
-    {id:'pain', label:'Blocages', fallback:'Qu’est-ce qui pèse le plus aujourd’hui : temps, complexité, relances, clients, outils, erreurs ?'},
-    {id:'tools', label:'Outils', fallback:'Quels outils utilisez-vous déjà : email, téléphone, WhatsApp, agenda, tableur, facturation, CRM ?'},
-    {id:'risk', label:'Risques', fallback:'Quelles données, décisions ou actions doivent rester sous validation humaine stricte ?'},
-    {id:'opportunities', label:'Opportunités', fallback:'Quelle première boucle IA serait utile et sûre à tester ?'},
-    {id:'autonomy', label:'Autonomie', fallback:'Vous voulez apprendre, déléguer, ou fonctionner en mode mixte ?'},
-    {id:'validation', label:'Validation', fallback:'Qu’est-ce qui manque avant de produire le rapport ?'}
+  const acts = [
+    {id:'rencontre', label:'Rencontre', steps:['intro','activity']},
+    {id:'plongee', label:'Plongée', steps:['real_week','tools','data_limits','opportunities']},
+    {id:'livraison', label:'Livraison', steps:['synthesis_card','report']}
   ];
-  const intro = {id:'intro', label:'Préférences', fallback:'Avant l’audit métier : vous préférez tutoiement ou vouvoiement, mode guidé ou conversation libre ?'};
-  const state = {current:'intro', sessionId:null, answers:{}, validated:{}, transcript:[], busy:false, reportReady:false, auditId:null, share:null};
+  const steps = [
+    {id:'intro', label:'Pacte', fallback:'Bonjour, je suis Omar, un agent formé par Alexandre Willemetz et biberonné sur les meilleurs standard en gestion et en informatique. Je vais vous poser des questions. Vous me répondez à votre rythme et selon vos objectifs. A la fin vous pourriez télécharger votre Audit Business & Tech.'},
+    {id:'activity', label:'Activité', fallback:'Racontez-moi votre activité simplement : métier, ville, équipe.'},
+    {id:'real_week', label:'Semaine réelle', fallback:'Racontez-moi votre semaine dernière — la vraie.'},
+    {id:'tools', label:'Outils', fallback:'Qu’utilisez-vous aujourd’hui, même si c’est téléphone, cahier ou Excel ?'},
+    {id:'data_limits', label:'Lignes rouges', fallback:'Qu’est-ce qui ne doit jamais sortir ou être automatisé ?'},
+    {id:'opportunities', label:'Opportunités', fallback:'Voilà ce que je vois pour vous. Dites-moi si je vise juste.'},
+    {id:'synthesis_card', label:'Synthèse', fallback:'Avant votre rapport, vérifiez-moi.'},
+    {id:'report', label:'Rapport', fallback:'Votre diagnostic est prêt.'}
+  ];
+  const intro = steps[0];
+  const state = {current:'intro', sessionId:null, answers:{}, validated:{}, transcript:[], busy:false, reportReady:false, auditId:null, share:null,lastOmar:null,lastSynthesis:null};
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function visibleIndex(stepId){return steps.findIndex(s=>s.id===stepId)}
@@ -70,12 +75,24 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     else{node.className=`row ${role==='client'?'client':'omar'}`; if(role==='omar'){const av=document.createElement('img'); av.className='avatar'; av.src='/pages-app/assets/omar-headshot.webp'; av.alt=''; av.width=60; av.height=60; node.appendChild(av)} const b=document.createElement('div'); b.className=`bubble ${role==='client'?'client':'omar'}`; b.textContent=text; node.appendChild(b)}
     $('chat-log').appendChild(node); node.scrollIntoView({block:'end', behavior:'smooth'});
   }
+  function currentAct(){return acts.find(a=>a.steps.includes(state.current)) || acts[0]}
   function renderSteps(){
-    const idx=visibleIndex(state.current); const doneCount=steps.filter(s=>state.validated[s.id]).length;
-    $('steps').innerHTML=steps.map((s,i)=>`<div class="step ${state.validated[s.id]?'done':''} ${i===idx?'current':''}"><i>${state.validated[s.id]?'✓':String(i+1).padStart(2,'0')}</i><span>${esc(s.label)}</span></div>`).join('');
+    const act=currentAct();
+    const validated=state.validated||{};
+    $('acts').innerHTML=acts.map((a,i)=>{const done=a.steps.every(id=>validated[id]); const cur=a.id===act.id; return `<div class="step ${done?'done':''} ${cur?'current':''}"><i>${done?'✓':String(i+1)}</i><span>${esc(a.label)}</span></div>`}).join('');
+    $('steps').innerHTML=`<div class="step current"><i>•</i><span>${esc(currentStep().label)}</span></div>`;
+    const doneCount=steps.filter(s=>validated[s.id]).length;
     $('progress-bar').style.width=Math.round((doneCount/steps.length)*100)+'%';
   }
-  function render(){renderSteps()}
+  function render(){renderSteps(); renderQuickReplies();}
+  function renderQuickReplies(){
+    let wrap=document.getElementById('quick-replies');
+    if(!wrap){wrap=document.createElement('div'); wrap.id='quick-replies'; wrap.className='quick'; $('composer-form').parentNode.insertBefore(wrap,$('composer-form'))}
+    const opts=(state.lastOmar&&state.lastOmar.options)||[];
+    wrap.innerHTML=opts.slice(0,6).map(o=>`<button type="button" data-reply="${esc(o)}">${esc(o)}</button>`).join('');
+    wrap.querySelectorAll('button').forEach(btn=>btn.onclick=()=>handleQuickReply(btn.dataset.reply));
+  }
+
   async function api(path, payload){
     const response=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload||{})});
     const data=await response.json().catch(()=>({ok:false,error:`HTTP ${response.status}`}));
@@ -85,25 +102,48 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
   function syncSession(session){
     if(!session) return; state.sessionId=session.id || state.sessionId; const step=session.current_step || state.current; state.current=step; state.validated={}; (session.validated_steps||[]).forEach(id=>{state.validated[id]=true}); render();
   }
+  function addUnderstandingCard(card){
+    if(!card || !card.sections || !card.sections.length) return;
+    state.lastSynthesis=card;
+    const node=document.createElement('section'); node.className='understanding';
+    const rows=card.sections.slice(0,6).map(sec=>`<dt>${esc(sec.label)} <span class="eyebrow">${esc(sec.kind||'')}</span></dt><dd>${esc(sec.summary||'À compléter.')}</dd>`).join('');
+    node.innerHTML=`<h3>${esc(card.title||'Ce qu’Omar a compris')}</h3><dl>${rows}</dl>`;
+    $('chat-log').appendChild(node); node.scrollIntoView({block:'end', behavior:'smooth'});
+  }
   function formatOmar(omar){
     if(!omar || !omar.question) return currentStep().fallback;
-    const introShort='Tu préfères tutoiement ou vouvoiement ? Et plutôt guidé, libre, ou avec validations régulières ?';
-    const q=state.current==='intro' ? introShort : compact(omar.question, currentStep().fallback, 190);
-    const missing=(omar.missing_fields||[]).slice(0,2);
-    const hint=missing.length ? ` Il me manque : ${missing.join(', ')}.` : '';
+    const raw=String(omar.question||'').trim().replace(/\s+/g,' ');
+    const q=omar.step==='intro' ? raw : compact(raw, currentStep().fallback, 210);
+    const missing=(omar.missing_fields||[]).slice(0,1);
+    const hint=(omar.step==='intro'||!missing.length) ? '' : ` Il me manque : ${missing.join(', ')}.`;
     return `${q}${hint}`;
   }
-  function ask(omar){window.setTimeout(()=>{setBusy(false); addBubble('omar', formatOmar(omar)); render()},180)}
+  function ask(omar){window.setTimeout(()=>{setBusy(false); state.lastOmar=omar||{}; addBubble('omar', formatOmar(omar)); if(omar&&omar.synthesis_card&&['opportunities','synthesis_card','report'].includes(omar.step)){addUnderstandingCard(omar.synthesis_card)} render()},180)}
   async function startSession(){
     setBusy(true);
-    try{const data=await api('/api/audit-sessions',{}); syncSession(data.session); $('audit-status').textContent='Moteur auditbiz actif.'; ask(data.omar)}
+    try{const data=await api('/api/audit-sessions',{}); syncSession(data.session); $('audit-status').textContent='Audit Fable V0 actif · 3 actes · aucune action payante.'; ask(data.omar)}
     catch(error){setBusy(false); $('audit-status').textContent='Mode local : moteur audit indisponible.'; addBubble('omar', intro.fallback)}
   }
+  function auditMoreText(){return "Cet audit sert à comprendre votre activité, vos outils, vos irritants, vos lignes rouges et les premières automatisations utiles. Il ne déclenche ni paiement, ni provisioning, ni recherche publique sans consentement. À la fin, vous pourrez télécharger votre Audit Business & Tech."}
+  async function handleQuickReply(text){
+    if(state.busy) return;
+    if(state.current==='intro' && text==='En savoir plus sur cet Audit.'){
+      addBubble('client', text); addBubble('omar', auditMoreText()); render(); return;
+    }
+    if(state.current==='intro' && text==='On commence !'){
+      addBubble('client', text); setBusy(true);
+      if(state.sessionId){try{const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:'intro'}); syncSession(data.session); ask(data.next); return}catch(error){setBusy(false)}}
+      state.current='activity'; state.validated.intro=true; addBubble('omar', currentStep().fallback); render(); setBusy(false); return;
+    }
+    $('reply').value=text; userSend();
+  }
+
   async function tryAdvance(stepId){
     if(!state.sessionId || state.reportReady) return false;
     try{
       const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:stepId});
       syncSession(data.session); addBubble('omar', `✓ ${currentStepLabel(stepId)} validé.`, 'system');
+      if((data.session&&data.session.current_step)==='report'){ask(data.next); await generateReport(); return true}
       if(allVisibleStepsDone()){await generateReport(); return true}
       ask(data.next); return true;
     }catch(error){return false}
@@ -120,12 +160,14 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     render();
   }
   function collectConsents(){return {public_web_search:false,legal_registry_lookup:false,social_media_lookup:false,document_analysis:false,market_trends_lookup:false,anonymized_improvement:false,accepted_at:new Date().toISOString(),consent_version:'2026-07-06.v4-minimal'};}
-  function buildFallbackPayload(){return {communication_preferences:state.answers.intro||'', activity:state.answers.activity||'', urgency:compact(state.answers.pain,'audit conversationnel'), ai_level:'conversationnel', repetitive_tasks:state.answers.pain||'', current_tools:state.answers.tools||'', constraints:state.answers.risk||'', opportunities:state.answers.opportunities||'', autonomy:state.answers.autonomy||'', validation:state.answers.validation||'', consents:collectConsents(), uploaded_documents:[], transcript:state.transcript.slice(-80), interface:'audit_conversation_v4_minimal.v1'};}
+  function buildFallbackPayload(){return {communication_preferences:'vouvoiement', activity:state.answers.activity||'', urgency:compact(state.answers.real_week,'audit conversationnel'), ai_level:'conversationnel', repetitive_tasks:state.answers.real_week||'', current_tools:state.answers.tools||'', constraints:state.answers.data_limits||'', opportunities:state.answers.opportunities||'', autonomy:state.answers.opportunities||'', validation:state.answers.synthesis_card||'', synthesis_card:state.lastSynthesis, consents:collectConsents(), uploaded_documents:[], transcript:state.transcript.slice(-80), interface:'audit_fable_tree_v0'};}
   function renderReport(data){
     const r=data.report||{}; state.reportReady=true; state.auditId=data.audit&&data.audit.id; state.share=data.share||null;
-    const diag=(r.diagnostic||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('');
+    const declared=(r.declared_by_client||r.diagnostic||[]).slice(0,3).map(x=>`<li>${esc(x)}</li>`).join('');
+    const hypo=(r.omar_hypotheses||[]).slice(0,3).map(x=>`<li>${esc(x)}</li>`).join('');
+    const noauto=(r.do_not_automate||r.limits||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('');
     const next=(r.next_steps||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('');
-    $('audit-result').innerHTML=`<h3>${esc(r.title||'Rapport audit')}</h3><p>${esc(r.summary||'Rapport généré à partir de la conversation.')}</p><ul>${diag}</ul><p><strong>Prochaines actions</strong></p><ul>${next}</ul><p class="status">Audit ${esc(state.auditId||'local')} enregistré. Aucun paiement ni provisioning déclenché.</p>`;
+    $('audit-result').innerHTML=`<h3>${esc(r.title||'Rapport audit')}</h3><p>${esc(r.summary||'Rapport généré à partir de la conversation.')}</p><p><strong>Ce que vous m’avez dit</strong></p><ul>${declared}</ul><p><strong>Mes hypothèses</strong></p><ul>${hypo}</ul><p><strong>Ce qu’il ne faut PAS automatiser</strong></p><ul>${noauto}</ul><p><strong>Prochaines actions</strong></p><ul>${next}</ul><p class="status">Audit ${esc(state.auditId||'local')} enregistré. Aucun paiement ni provisioning déclenché.</p>`;
     $('audit-result').classList.add('visible'); $('audit-status').textContent='Rapport généré depuis la conversation.'; render();
   }
   async function generateReport(){
@@ -136,7 +178,6 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
   function autoResize(){const el=$('reply'); el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,150)+'px'}
   $('composer-form').addEventListener('submit', e=>{e.preventDefault(); userSend()});
   $('reply').addEventListener('input', autoResize); $('reply').addEventListener('keydown', e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault(); userSend()}});
-  addBubble('omar','Bonjour, je suis Omar. Décris ton activité en quelques lignes : métier, ville, équipe et ce que tu veux améliorer. Je te guide ensuite jusqu’au rapport.');
   startSession(); render();
 })();
-</script><footer class="sr-only">Omar App · app.omar.paris · V0.5.0 · Audit conversation V4 minimal · audit_conversation_v4_minimal.v1 · /api/audit-sessions</footer></body></html>
+</script><footer class="sr-only">Omar App · app.omar.paris · V0.5.0 · Audit Fable V0 · audit_fable_tree_v0 · /api/audit-sessions</footer></body></html>

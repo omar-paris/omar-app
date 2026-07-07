@@ -353,6 +353,12 @@ def test_audit_api_stores_personalized_report_without_paid_actions_or_secrets(tm
         report = created["report"]
         assert "Boulangerie artisanale" in report["title"]
         assert any("relances clients" in item for item in report["opportunities"])
+        assert report["schema"] == "oa_audit_report.fable_v0"
+        assert report["declared_by_client"]
+        assert report["omar_hypotheses"]
+        assert report["do_not_automate"]
+        assert created["onboarding_pack"]["schema"] == "onboarding_pack.v1"
+        assert created["onboarding_pack"]["dry_run_contract"]["paid_actions"] == "none"
         assert report["prompts"]
         assert report["commands"] == ["mkdir -p ~/audit-ia-test/{documents,prompts,resultats}"]
         stored_path = tmp_path / "audits" / f"{created['audit']['id']}.json"
@@ -404,8 +410,10 @@ def test_audit_session_backend_drives_sector_questions_and_exports(tmp_path):
         assert status == 201
         sid = created["session"]["id"]
         assert created["session"]["sector_id"] == "bakery"
-        assert created["omar"]["missing_fields"]
-        assert "question" in created["omar"]
+        assert created["omar"]["step"] == "intro"
+        assert created["omar"]["missing_fields"] == []
+        assert created["omar"]["question"].startswith("Bonjour, je suis Omar, un agent formé par Alexandre Willemetz")
+        assert created["omar"]["options"] == ["En savoir plus sur cet Audit.", "On commence !"]
 
         req = urllib.request.Request(
             f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/validate-step",
@@ -437,7 +445,9 @@ def test_audit_session_backend_drives_sector_questions_and_exports(tmp_path):
         )
         assert status == 200
         assert valid["completion"]["ready"] is True
-        assert valid["session"]["current_step"] == "research"
+        assert valid["session"]["current_step"] == "real_week"
+        assert valid["next"]["act"] == "plongee"
+        assert valid["next"]["ui"]["rule"] == "70_30_open_questions_buttons_confirm"
 
         status, research = request_json(
             "POST",
@@ -473,16 +483,16 @@ def test_audit_session_backend_drives_sector_questions_and_exports(tmp_path):
         status, msg2 = request_json(
             "POST",
             f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/message",
-            {"message": "J'autorise la recherche web publique sur le site, la fiche Google et les concurrents proches."},
+            {"message": "La semaine dernière j'ai perdu 4 heures sur les réponses WhatsApp, les devis de gâteaux et les relances commandes."},
         )
         assert status == 200
         status, valid2 = request_json(
             "POST",
             f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/validate-step",
-            {"step": "research"},
+            {"step": "real_week"},
         )
         assert status == 200
-        assert valid2["session"]["current_step"] == "pain"
+        assert valid2["session"]["current_step"] == "tools"
 
         status, report = request_json(
             "POST",
@@ -497,6 +507,8 @@ def test_audit_session_backend_drives_sector_questions_and_exports(tmp_path):
         assert status == 201
         assert report["audit"]["id"].startswith("audit-")
         assert "réponses WhatsApp" in "\n".join(report["report"]["diagnostic"] + report["report"]["opportunities"])
+        assert report["report"]["schema"] == "oa_audit_report.fable_v0"
+        assert report["onboarding_pack"]["schema"] == "onboarding_pack.v1"
         assert report["share"]["exports"]["markdown"].startswith("# ")
         assert report["share"]["exports"]["pdf_status"] == "pending_renderer"
         assert "share_url" in report["share"]
@@ -597,6 +609,8 @@ def test_rigorous_audit_persists_consents_sources_devis_source_and_delete(tmp_pa
         }
         status, created = request_json("POST", f"http://127.0.0.1:{port}/api/audits", payload)
         assert status == 201
+        assert created["onboarding_pack"]["schema"] == "onboarding_pack.v1"
+        assert created["onboarding_pack"]["dry_run_contract"]["schema"] == "omartop.provisioning-contract.v1"
         assert created["devis_source"]["schema"] == "oa_devis_source.v0"
         assert created["devis_source"]["governance"]["requires_user_validation_before_checkout"] is True
         assert created["consent_snapshot"]["permissions"]["public_web_search"] is True
