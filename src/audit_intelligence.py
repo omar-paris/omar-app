@@ -33,8 +33,8 @@ FIELD_LABELS = {
 }
 
 FIELD_PATTERNS = {
-    "business_activity": [r"\b(boulanger|boulangerie|restaurant|plombier|chauffagiste|rénovation|renovation|électricien|electricien|fleuriste|avocat|patrimoine|marketing|secr[ée]taire|traducteur|traductrice|traduction|freelance|consultant|consultante|coach|formateur|formatrice|commerce|boutique)\b", r"je suis", r"nous sommes", r"mon activité", r"mon métier"],
-    "location": [r"\b(à|a|sur|près de|pres de)\s+[A-ZÉÈÀÂÎÔÛa-zéèàâêîôûç-]{2,}", r"\b(lille|paris|lyon|marseille|bordeaux|nantes|toulouse|nice|clichy|roubaix)\b"],
+    "business_activity": [r"\b(boulanger|boulangerie|p[âa]tissier|p[âa]tissi[èe]re|p[âa]tisserie|restaurant|plombier|chauffagiste|rénovation|renovation|électricien|electricien|fleuriste|avocat|patrimoine|marketing|secr[ée]taire|traducteur|traductrice|traduction|freelance|consultant|consultante|coach|formateur|formatrice|commerce|boutique)\b", r"je suis", r"nous sommes", r"mon activité", r"mon métier"],
+    "location": [r"\b(à|a|près de|pres de)\s+[A-ZÉÈÀÂÎÔÛa-zéèàâêîôûç-]{2,}", r"\b\d{1,4}\s+(rue|avenue|av\.?|boulevard|bd|chemin|route|place|impasse)\b", r"\b\d{5}\s+[A-ZÉÈÀÂÎÔÛa-zéèàâêîôûç-]{2,}", r"\b(lille|paris|lyon|marseille|bordeaux|nantes|toulouse|nice|clichy|roubaix|orly)\b"],
     "company_size": [r"\b\d+\s*(personnes?|salari[ée]s?|collaborateurs?|associ[ée]s?|employ[ée]s?)\b", r"\bsolo\b", r"\bind[ée]pendant\b", r"\béquipe\b"],
     "company_age": [r"\b\d+\s*(ans?|ann[ée]es?)\b", r"cré[ée]e?\s+il y a", r"reprise", r"\blanc[ée]e?\b", r"\blancement\b", r"depuis\s+\d+", r"moins d.un an", r"plus de 10 ans"],
     "customer_type": [r"\b(particuliers?|pros?|professionnels?|entreprises?|b2b|b2c|clients? finaux|pme|ind[ée]pendants?)\b"],
@@ -208,7 +208,8 @@ def session_text(session: dict[str, Any]) -> str:
 def missing_fields(session: dict[str, Any], step: str) -> list[str]:
     step = normalize_step_id(step)
     found = extract_fields(session_text(session))
-    return [f for f in REQUIRED_BY_STEP.get(step, []) if not found.get(f)]
+    answers = session.get("answers") or {}
+    return [f for f in REQUIRED_BY_STEP.get(step, []) if not (found.get(f) or str(answers.get(f) or "").strip())]
 
 def completion_for_step(session: dict[str, Any], step: str) -> dict[str, Any]:
     step = normalize_step_id(step)
@@ -221,9 +222,9 @@ def completion_for_step(session: dict[str, Any], step: str) -> dict[str, Any]:
 
 
 def _context_field_status(session: dict[str, Any]) -> list[dict[str, Any]]:
-    found = extract_fields(session_text(session))
+    missing = set(missing_fields(session, "activity"))
     return [
-        {"field": field, "status": "present" if found.get(field) else "missing", "question": FALLBACK_QUESTIONS.get(field, "À préciser.")}
+        {"field": field, "status": "missing" if field in missing else "present", "question": FALLBACK_QUESTIONS.get(field, "À préciser.")}
         for field in REQUIRED_BY_STEP["activity"]
     ]
 
@@ -276,6 +277,16 @@ def _last_user_text(session: dict[str, Any], *, max_len: int = 220) -> str:
             text = re.sub(r"\s+", " ", str(msg.get("text"))).strip()
             return text[:max_len]
     return "À compléter avec vos réponses."
+
+
+def _last_client_messages(session: dict[str, Any], *, limit: int = 2) -> list[dict[str, Any]]:
+    out = []
+    for msg in reversed(session.get("messages", []) or []):
+        if msg.get("role") == "client":
+            out.append(msg)
+            if len(out) >= limit:
+                break
+    return out
 
 
 def build_synthesis_card(session: dict[str, Any]) -> dict[str, Any]:
@@ -361,6 +372,55 @@ HELP_PATTERNS = [
     r"\bpas compris\b",
 ]
 
+CLARIFY_PATTERNS = [
+    r"\bheu\b",
+    r"\bquoi\b",
+    r"\bcomment ça\b",
+    r"\bje ne comprends pas\b",
+    r"\bj.ai pas compris\b",
+    r"\bpas clair\b",
+]
+
+PRECISION_PLACEHOLDERS = {
+    "Je précise",
+    "Autre",
+    "Autre métier",
+    "Je ne sais pas encore",
+    "Montrez-moi des exemples",
+}
+
+FIELD_EXPLANATIONS = {
+    "business_activity": "Je cherche juste le métier réel, pas une catégorie parfaite. Exemple : pâtissier, salon de coiffure, traducteur freelance, restaurant italien, cabinet d’avocat.",
+    "company_size": "Je cherche l’ordre de grandeur de l’équipe qui fait tourner l’activité : solo, 2-5, 6-20, ou plus. Une estimation suffit.",
+    "company_age": "Je cherche l’ancienneté approximative, parce qu’une activité lancée cette année n’a pas les mêmes priorités qu’une maison installée depuis 10 ans.",
+    "customer_type": "Je veux savoir pour qui vous travaillez vraiment : particuliers, professionnels, ou les deux. Ça change les opportunités utiles.",
+    "sales_channel": "Je cherche le chemin d’arrivée des clients : boutique, téléphone, email, site, WhatsApp, recommandations, plateformes. Plusieurs réponses sont possibles.",
+    "location": "Je cherche votre zone réelle : adresse, ville, quartier, rayon d’intervention, région, France entière ou à distance. Une adresse complète marche aussi.",
+    "repetitive_tasks": "Je cherche ce qui vous mange du temps dans une vraie semaine : devis, relances, messages, planning, factures, recherche d’infos, suivi client.",
+    "time_spent": "Je cherche un ordre de grandeur : tous les jours, chaque semaine, 1-2 h, 3-5 h, ou plus. Pas besoin d’être exact.",
+}
+
+
+def classify_user_intent(text: str, expected_field: str | None = None) -> str:
+    raw = re.sub(r"\s+", " ", str(text or "")).strip()
+    if not raw:
+        return "empty"
+    if raw in PRECISION_PLACEHOLDERS:
+        return "precision"
+    hay = raw.casefold()
+    if any(re.search(pattern, hay, re.I) for pattern in HELP_PATTERNS):
+        return "help"
+    if any(re.search(pattern, hay, re.I) for pattern in CLARIFY_PATTERNS):
+        return "clarify"
+    if expected_field == "intro" and "en savoir plus" in hay:
+        return "more_info"
+    return "answer"
+
+
+def is_answer_like(text: str, expected_field: str | None = None) -> bool:
+    return classify_user_intent(text, expected_field) == "answer"
+
+
 FIELD_OPTIONS = {
     "business_activity": ["Traducteur freelance", "Artisan bâtiment", "Commerce / boutique", "Restaurant / food", "Conseil / formation", "Autre métier"],
     "company_size": ["Solo", "2-5", "6-20", "20+", "Je précise"],
@@ -424,6 +484,28 @@ def is_help_request(text: str) -> bool:
     return any(re.search(pattern, hay, re.I) for pattern in HELP_PATTERNS)
 
 
+
+def answer_matches_expected_field(raw_text: str, stored_text: str, expected_field: str | None) -> bool:
+    if not expected_field:
+        return False
+    raw = re.sub(r"\s+", " ", str(raw_text or "")).strip()
+    if not raw or classify_user_intent(raw, expected_field) != "answer":
+        return False
+    if raw in FIELD_OPTIONS.get(expected_field, []):
+        return True
+    if raw in CONTEXTUAL_ANSWERS and expected_field in {
+        "company_size", "company_age", "customer_type", "sales_channel", "location", "repetitive_tasks", "time_spent"
+    }:
+        # Contextual buttons only validate the field currently being asked.
+        return True
+    fields = extract_fields(stored_text)
+    if fields.get(expected_field):
+        return True
+    # Business activity is intentionally open: short profession labels are accepted in that context.
+    if expected_field == "business_activity" and len(raw) >= 3 and not re.search(r"\?", raw):
+        return True
+    return False
+
 def expand_contextual_answer(text: str, expected_field: str | None = None) -> str:
     raw = re.sub(r"\s+", " ", str(text or "")).strip()
     if not raw:
@@ -432,6 +514,8 @@ def expand_contextual_answer(text: str, expected_field: str | None = None) -> st
     if mapped:
         return mapped
     if expected_field == "business_activity" and raw in FIELD_OPTIONS["business_activity"] and raw != "Autre métier":
+        return f"Mon métier est {raw}."
+    if expected_field == "business_activity" and raw.casefold() in {"patissier", "pâtissier", "patisserie", "pâtisserie"}:
         return f"Mon métier est {raw}."
     if expected_field == "location" and raw in {"Paris", "Île-de-France", "France entière", "À distance"}:
         return CONTEXTUAL_ANSWERS.get(raw, f"J'interviens à {raw}.")
@@ -445,8 +529,14 @@ def expected_field_for_step(session: dict[str, Any], step: str) -> str | None:
 
 def question_for_field(field: str, session: dict[str, Any]) -> str:
     base = FALLBACK_QUESTIONS.get(field, "Pouvez-vous préciser ce point ?")
-    if is_help_request(_last_user_text(session, max_len=120)):
-        return HELP_QUESTIONS.get(field, base)
+    last = _last_user_text(session, max_len=160)
+    intent = classify_user_intent(last, field)
+    recent = _last_client_messages(session, limit=2)
+    repeated_precision = len(recent) == 2 and all(msg.get("expected_field") == field and msg.get("intent") == "precision" for msg in recent)
+    if repeated_precision or intent == "clarify":
+        return FIELD_EXPLANATIONS.get(field, HELP_QUESTIONS.get(field, base))
+    if intent in {"help", "precision"}:
+        return HELP_QUESTIONS.get(field, FIELD_EXPLANATIONS.get(field, base))
     return base
 
 
@@ -481,6 +571,8 @@ def next_question(session: dict[str, Any], step: str | None = None) -> dict[str,
         question = "Votre diagnostic est prêt. Il est à vous, quoi que vous décidiez ensuite."
     elif missing:
         question = question_for_field(missing[0], session)
+    elif step == "activity":
+        question = "J’ai assez d’éléments sur votre activité. Je passe à votre semaine réelle."
     elif auditbiz_payload and auditbiz_payload.get("interaction") == "open":
         question = str(auditbiz_payload.get("question") or FALLBACK_QUESTIONS.get(step, "Ajoutez un détail utile."))
     else:
@@ -538,11 +630,22 @@ def create_session(payload: dict[str, Any] | None = None) -> dict[str, Any]:
 def add_message(session: dict[str, Any], text: str) -> dict[str, Any]:
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     session["current_step"] = normalize_step_id(str(session.get("current_step") or "intro"))
-    expected = expected_field_for_step(session, str(session.get("current_step") or "intro"))
+    current_step = str(session.get("current_step") or "intro")
+    expected = expected_field_for_step(session, current_step)
+    intent = classify_user_intent(text, expected or current_step)
     stored_text = expand_contextual_answer(text, expected)
-    session.setdefault("messages", []).append({"role": "client", "text": stored_text, "raw_text": text, "expected_field": expected, "at": now})
+    session.setdefault("messages", []).append({"role": "client", "text": stored_text, "raw_text": text, "expected_field": expected, "intent": intent, "at": now})
+    session.setdefault("conversation_policy", {})["last_intent"] = intent
+    if expected and answer_matches_expected_field(text, stored_text, expected):
+        session.setdefault("answers", {})[expected] = stored_text
+    elif intent == "answer":
+        detected = extract_fields(stored_text)
+        for field, present in detected.items():
+            if present and field in REQUIRED_BY_STEP.get(current_step, []) and field not in (session.get("answers") or {}):
+                session.setdefault("answers", {})[field] = stored_text
+                break
     session["sector_id"] = detect_sector(session_text(session))
-    q = next_question(session, str(session.get("current_step") or "intro"))
+    q = next_question(session, current_step)
     session.setdefault("asked_questions", []).append({"step": q["step"], "question": q["question"], "auditbiz_question_id": (q.get("auditbiz_question") or {}).get("id")})
     return {"session": session, "omar": q}
 
