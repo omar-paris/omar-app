@@ -310,3 +310,54 @@ def test_help_request_does_not_repeat_same_real_week_question():
     assert q2["question"].startswith("Je vous propose des pistes")
     assert "Devis / propositions" in q2["options"]
     assert q2["question"] != q1["question"]
+
+
+def test_activity_policy_handles_alex_transcript_placeholders_address_and_clarify():
+    created = ai.create_session()
+    session = created["session"]
+    ai.validate_step(session, "intro")
+
+    q1 = ai.add_message(session, "Autre métier")["omar"]
+    assert "Je vous aide" in q1["question"]
+    assert "business_activity" in q1["missing_fields"]
+
+    q2 = ai.add_message(session, "Patissier")["omar"]
+    assert session["answers"]["business_activity"].startswith("Mon métier est")
+    assert q2["question"].startswith("Vous êtes combien")
+
+    q3 = ai.add_message(session, "2-5")["omar"]
+    assert session["answers"]["company_size"] == "Nous sommes 2 à 5 personnes."
+    assert q3["question"].startswith("Depuis combien")
+
+    ai.add_message(session, "4-10 ans")
+    ai.add_message(session, "Particuliers")
+    q6 = ai.add_message(session, "Boutique / lieu physique")["omar"]
+    assert q6["question"].startswith("Vous intervenez où")
+
+    q7 = ai.add_message(session, "Je précise")["omar"]
+    assert "location" in q7["missing_fields"]
+    assert q7["question"].startswith("Indiquez seulement votre zone")
+
+    q8 = ai.add_message(session, "32 Av. Adrien Raynal, 94310 Orly")["omar"]
+    assert session["answers"]["location"] == "32 Av. Adrien Raynal, 94310 Orly"
+    assert q8["missing_fields"] == []
+    result = ai.validate_step(session, "activity")
+    assert result["ok"] is True
+    assert session["current_step"] == "real_week"
+
+
+def test_activity_policy_does_not_store_off_field_repetition_as_wrong_answer():
+    created = ai.create_session()
+    session = created["session"]
+    ai.validate_step(session, "intro")
+    ai.add_message(session, "Patissier")
+    q = ai.add_message(session, "Je suis patissier")["omar"]
+    assert "company_size" not in session.get("answers", {})
+    assert "company_size" in q["missing_fields"]
+    assert q["question"].startswith("Vous êtes combien")
+
+
+def test_extract_fields_recognizes_address_and_does_not_treat_more_info_as_location():
+    assert ai.extract_fields("32 Av. Adrien Raynal, 94310 Orly")["location"] is True
+    assert ai.extract_fields("En savoir plus sur cet Audit.")["location"] is False
+    assert ai.extract_fields("Patissier")["business_activity"] is True
