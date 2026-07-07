@@ -60,45 +60,32 @@ def test_onboarding_page_collects_required_client_context():
         assert term in text
 
 
-def test_audit_page_is_conversation_cockpit_not_static_form():
+def test_audit_page_is_v4_minimal_conversation_not_cockpit_or_static_form():
     build_site()
-    text = html(PUBLIC / "audit" / "index.html").lower()
+    raw = html(PUBLIC / "audit" / "index.html")
+    text = raw.lower()
     for term in [
-        "cockpit conversationnel",
         "conversation avec omar",
-        "étapes",
-        "livrables",
-        "valider cette étape",
-        "préparer recherches",
-        "générer le rapport",
-        "audit_cockpit_conversationnel.v1_rigoureux",
-        "consentements audit rgpd",
-        "recherche web publique",
-        "données légales publiques",
-        "amélioration anonymisée",
-        "propositions de solutions justifiées",
+        "une conversation. huit repères.",
+        "audit_conversation_v4_minimal.v1",
+        "moteur auditbiz actif",
+        "style v4",
+        "encre #16140f",
+        "corail #a8553a",
         "/api/audit-sessions",
-        "télécharger md",
-        "copier texte linkedin",
-        "envoyer par email",
-        "rapport_audit.md",
-        "recommandations_source.json",
-        "sources publiques",
-        "réponses rapides",
-        "oui c’est moi",
-        "ce n’est pas moi",
-        "mode guidé",
-        "prioriser l’activité",
-        "rang #1",
-        "hypercentre",
-        "périurbain",
-        "enregistrer et reprendre plus tard",
-        "passer cette question",
-        "pourquoi cette question",
-        "auditbizia",
+        "aucun mot de passe",
+        "aucune carte bancaire",
     ]:
         assert term in text
-    assert "question métier" not in text
+    for step in ["activité", "sources", "blocages", "outils", "risques", "opportunités", "autonomie", "validation"]:
+        assert step in text
+    assert text.count("<button") <= 1
+    assert "linear-gradient" not in text
+    assert "radial-gradient" not in text
+    assert "cockpit conversationnel" not in text
+    assert "réponses rapides" not in text
+    assert "valider cette étape" not in text
+    assert "préparer recherches" not in text
     assert "<form id=\"audit-form\"" not in text
 
 
