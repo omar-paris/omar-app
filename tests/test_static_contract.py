@@ -66,9 +66,14 @@ def test_audit_page_is_v4_minimal_conversation_not_cockpit_or_static_form():
     text = raw.lower()
     for term in [
         "conversation avec omar",
-        "une conversation. huit repères.",
-        "audit_conversation_v4_minimal.v1",
-        "moteur auditbiz actif",
+        "rencontre. plongée. livraison.",
+        "audit_fable_tree_v0",
+        "audit fable v0 actif",
+        "bonjour, je suis omar, un agent formé par alexandre willemetz",
+        "en savoir plus sur cet audit.",
+        "on commence !",
+        "ce qu’omar a compris",
+        "ce qu’il ne faut pas automatiser",
         "style v4",
         "encre #16140f",
         "corail #a8553a",
@@ -77,13 +82,13 @@ def test_audit_page_is_v4_minimal_conversation_not_cockpit_or_static_form():
         "aucune carte bancaire",
     ]:
         assert term in text
-    for step in ["activité", "sources", "blocages", "outils", "risques", "opportunités", "autonomie", "validation"]:
+    for step in ["pacte", "activité", "semaine réelle", "outils", "lignes rouges", "opportunités", "synthèse", "rapport"]:
         assert step in text
-    assert text.count("<button") <= 1
+    for act in ["rencontre", "plongée", "livraison"]:
+        assert act in text
     assert "linear-gradient" not in text
     assert "radial-gradient" not in text
     assert "cockpit conversationnel" not in text
-    assert "réponses rapides" not in text
     assert "valider cette étape" not in text
     assert "préparer recherches" not in text
     assert "<form id=\"audit-form\"" not in text

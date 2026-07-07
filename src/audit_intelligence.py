@@ -14,123 +14,155 @@ SECTORS_DIR = ROOT / "data" / "audit_sectors"
 REQUIRED_SECTOR_FIELDS = {"sector_id", "labels", "important_dimensions", "question_blocks", "risk_flags", "benchmarks"}
 
 FIELD_LABELS = {
-    "communication_preferences": "façon de parler souhaitée",
-    "business_activity": "métier exact",
+        "business_activity": "métier exact",
     "location": "localisation / zone servie",
     "company_size": "taille d’équipe",
     "company_age": "ancienneté",
-    "revenue_range": "ordre de grandeur financier ou refus de le partager",
-    "client_types": "types de clients",
     "public_research_scope": "sources publiques autorisées ou refusées",
-    "repetitive_tasks": "sujets chronophages / blocages concrets",
+    "repetitive_tasks": "semaine réelle / irritants",
     "time_spent": "fréquence ou volume concerné",
     "tools": "outils et canaux actuels",
+    "flow_breaks": "ruptures de flux / double saisie",
     "sensitive_data": "données ou décisions sensibles",
     "human_validation": "validations humaines obligatoires",
+    "opportunity_choice": "opportunités validées",
+    "autonomy_profile": "profil d’autonomie",
+    "synthesis_validation": "synthèse validée ou corrigée",
 }
 
 FIELD_PATTERNS = {
-    "communication_preferences": [r"\b(tu|toi|tutoyer|tutoie|vous|vouvoyer|vouvoie|formel|direct|guid[ée]|libre|questions? courtes?)\b", r"\b(mode|ton|style)\b"],
-    "business_activity": [r"\b(boulanger|restaurant|plombier|fleuriste|avocat|patrimoine|marketing|secr[ée]taire)\b", r"je suis", r"nous sommes"],
-    "location": [r"\b(à|a|sur|près de|pres de)\s+[A-ZÉÈÀÂÎÔÛa-zéèàâêîôûç-]{2,}", r"\b(lille|paris|lyon|marseille|bordeaux|nantes|toulouse|nice)\b"],
-    "company_size": [r"\b\d+\s*(personnes?|salari[ée]s?|collaborateurs?|associ[ée]s?)\b", r"\bsolo\b", r"\bind[ée]pendant\b"],
-    "company_age": [r"\b\d+\s*(ans?|ann[ée]es?)\b", r"cré[ée]e?\s+il y a"],
-    "revenue_range": [r"\b\d+\s*(k€|ke|€|euros|m€)\b", r"chiffre d.?affaires", r"\bca\b"],
-    "client_types": [r"\b(clients?|particuliers?|pros?|professionnels?|entreprises?|collectivit[ée]s?|artisans?)\b"],
-    "public_research_scope": [r"\b(site|www\.|https?://|siret|sirene|google business|fiche google|linkedin|instagram|facebook)\b", r"\b(nom de l.?entreprise|s.?appelle|enseigne)\b", r"\b(autorise|refuse|pas de recherche|recherche web|sources? publiques?)\b"],
-    "repetitive_tasks": [r"\b(relances?|devis|emails?|r[ée]ponses?|planning|rendez-vous|factures?|posts?)\b"],
-    "time_spent": [r"\b\d+\s*(h|heures?|jours?)\b", r"par semaine", r"par jour"],
-    "tools": [r"\b(email|excel|whatsapp|agenda|google|drive|crm|notion|facturation|t[ée]l[ée]phone)\b"],
-    "sensitive_data": [r"\b(donn[ée]es?|confidentiel|secret|prix|factures?|paiement|allerg[èe]nes?|juridique|financi[èe]res?)\b"],
-    "human_validation": [r"validation humaine", r"valider", r"jamais automatiquement", r"avant publication"],
+    "business_activity": [r"\b(boulanger|boulangerie|restaurant|plombier|chauffagiste|rénovation|renovation|électricien|electricien|fleuriste|avocat|patrimoine|marketing|secr[ée]taire)\b", r"je suis", r"nous sommes", r"mon activité"],
+    "location": [r"\b(à|a|sur|près de|pres de)\s+[A-ZÉÈÀÂÎÔÛa-zéèàâêîôûç-]{2,}", r"\b(lille|paris|lyon|marseille|bordeaux|nantes|toulouse|nice|clichy|roubaix)\b"],
+    "company_size": [r"\b\d+\s*(personnes?|salari[ée]s?|collaborateurs?|associ[ée]s?|employ[ée]s?)\b", r"\bsolo\b", r"\bind[ée]pendant\b", r"\béquipe\b"],
+    "company_age": [r"\b\d+\s*(ans?|ann[ée]es?)\b", r"cré[ée]e?\s+il y a", r"reprise", r"lance"],
+    "public_research_scope": [r"\b(site|www\.|https?://|siret|sirene|google business|fiche google|linkedin|instagram|facebook|avis|autorise|refuse|sources? publiques?)\b"],
+    "repetitive_tasks": [r"\b(semaine|relances?|devis|emails?|r[ée]ponses?|planning|rendez-vous|factures?|posts?|commandes?|appels?|whatsapp|paperasse|temps|soir[ée]es?)\b"],
+    "time_spent": [r"\b\d+\s*(h|heures?|jours?|soir[ée]es?)\b", r"par semaine", r"par jour", r"souvent", r"toujours"],
+    "tools": [r"\b(email|excel|whatsapp|agenda|google|drive|crm|notion|facturation|t[ée]l[ée]phone|cahier|tableur)\b"],
+    "flow_breaks": [r"\b(double saisie|ressais|copie|coll[eé]|perd|oubli|manuel|entre deux outils|rupture)\b"],
+    "sensitive_data": [r"\b(donn[ée]es?|confidentiel|secret|prix|factures?|paiement|allerg[èe]nes?|juridique|financi[èe]res?|sant[ée]|mineurs?)\b"],
+    "human_validation": [r"validation humaine", r"valider", r"je valide", r"jamais automatiquement", r"avant publication", r"avant envoi", r"tout valider"],
+    "opportunity_choice": [r"\b(oui|corriger|pas intéressé|priorit|urgent|opportunit|première boucle|premiere boucle|rêve|reve)\b"],
+    "autonomy_profile": [r"\b(apprendre|d[ée]l[ée]guer|mixte|telegram|whatsapp|sms|mail|valide tout|supervise)\b"],
+    "synthesis_validation": [r"\b(c'est ça|c’est ça|valid|corrige|corriger|retirer|ok pour le rapport|rapport)\b"],
+}
+
+FABLE_ACTS = {
+    "rencontre": {"label": "Rencontre", "steps": ["intro", "activity"]},
+    "plongee": {"label": "Plongée", "steps": ["real_week", "tools", "data_limits", "opportunities"]},
+    "livraison": {"label": "Livraison", "steps": ["synthesis_card", "report"]},
+}
+
+STEP_ALIASES = {
+    "welcome_pact": "intro",
+    "research": "activity",  # V0 : sources simplifiées dans Rencontre, pas acte séparé.
+    "pain": "real_week",
+    "risk": "data_limits",
+    "autonomy": "opportunities",  # V0 : autonomie intégrée à opportunités/synthèse.
+    "validation": "synthesis_card",
 }
 
 REQUIRED_BY_STEP = {
-    "intro": ["communication_preferences"],
-    "activity": ["business_activity", "location", "company_size", "company_age", "revenue_range", "client_types"],
-    "research": ["public_research_scope"],
-    "pain": ["repetitive_tasks", "time_spent"],
+    "intro": [],
+    "activity": ["business_activity", "location", "company_size"],
+    "real_week": ["repetitive_tasks", "time_spent"],
     "tools": ["tools"],
-    "risk": ["sensitive_data", "human_validation"],
-    "opportunities": ["repetitive_tasks"],
-    "autonomy": ["human_validation"],
-    "validation": [],
+    "data_limits": ["sensitive_data", "human_validation"],
+    "opportunities": ["opportunity_choice"],
+    "synthesis_card": ["synthesis_validation"],
+    "report": [],
 }
 
 FALLBACK_QUESTIONS = {
-    "communication_preferences": "Avant de parler métier : préférez-vous que je vous tutoie ou que je vous vouvoie ? Plutôt mode guidé avec questions courtes, conversation libre, ou synthèses régulières à valider ?",
-    "business_activity": "Quel est votre métier exact et votre secteur principal ?",
-    "location": "Où est située l’entreprise et quelle zone servez-vous ?",
-    "company_size": "Quelle est la taille de l’entreprise : solo, associés, salariés, prestataires ?",
-    "company_age": "Depuis combien de temps l’entreprise existe-t-elle ?",
-    "revenue_range": "Quel est l’ordre de grandeur du chiffre d’affaires annuel ?",
-    "client_types": "Quels types de clients servez-vous principalement ?",
-    "public_research_scope": "Donnez le nom public de l’entreprise, son site/fiche Google/SIRET si vous les avez, et dites si Omar peut utiliser les sources publiques pour compléter l’audit. Vous pouvez aussi refuser explicitement.",
-    "repetitive_tasks": "Quelles tâches reviennent le plus souvent ?",
-    "time_spent": "Combien de temps ces tâches prennent-elles par semaine ?",
-    "tools": "Quels outils utilisez-vous aujourd’hui ?",
-    "sensitive_data": "Quelles données ou décisions sont sensibles ?",
-    "human_validation": "Quelles actions doivent toujours rester validées par un humain ?",
+    "communication_preferences": "Bonjour, je suis Omar, un agent formé par Alexandre Willemetz et biberonné sur les meilleurs standard en gestion et en informatique. Je vais vous poser des questions. Vous me répondez à votre rythme et selon vos objectifs. A la fin vous pourriez télécharger votre Audit Business & Tech.",
+    "business_activity": "Racontez-moi votre activité simplement : vous faites quoi, où, avec qui ?",
+    "location": "Vous intervenez où, concrètement ? Ville, quartier, zone ou rayon suffisent.",
+    "company_size": "Vous êtes combien à bosser, en vrai ? Solo, petite équipe, ou plus structuré ?",
+    "public_research_scope": "Si vous avez un site ou une fiche Google, donnez-moi le lien ou refusez simplement. Je n’utilise que ce que vous autorisez.",
+    "repetitive_tasks": "Racontez-moi votre semaine dernière — la vraie. Qu’est-ce qui vous a pris du temps inutilement ?",
+    "time_spent": "Ce caillou revient combien de fois ou vous prend combien de temps par semaine ?",
+    "tools": "Qu’utilisez-vous aujourd’hui — même si c’est juste téléphone, WhatsApp, cahier ou Excel ?",
+    "flow_breaks": "Ce que vous ressaisissez deux fois, ou recopiez d’un outil à l’autre, c’est quoi ?",
+    "sensitive_data": "Qu’est-ce qui ne doit jamais sortir ou être automatisé : données clients, santé, prix, paiements, juridique ?",
+    "human_validation": "Un message vers un client : l’agent peut envoyer seul, ou vous voulez tout valider au début ?",
+    "opportunity_choice": "Voilà ce que je vois pour vous. Dites-moi si je vise juste, ou corrigez-moi.",
+    "autonomy_profile": "Vous voulez plutôt apprendre, déléguer, ou un peu des deux ?",
+    "synthesis_validation": "Avant votre rapport, vérifiez-moi. Corrigez tout ce qui cloche — c’est votre réalité qui compte.",
 }
 
 STEP_CONTRACTS = {
     "intro": {
-        "goal": "Installer le bon ton et le bon mode de conversation avant de poser les questions métier.",
-        "validation_criteria": [
-            "Préférence tutoiement/vouvoiement clarifiée.",
-            "Mode de conversation choisi : guidé, libre, ou synthèses régulières.",
-            "Accord sur le principe : Omar reformule humblement puis demande validation/correction.",
-        ],
+        "act": "rencontre",
+        "interaction": "quick_replies",
+        "options": ["En savoir plus sur cet Audit.", "On commence !"],
+        "goal": "Poser le pacte : audit gratuit, rythme client, rapport téléchargeable, vouvoiement par défaut.",
+        "validation_criteria": ["Pacte présenté", "Vouvoiement imposé", "Aucun engagement ni action payante"],
     },
     "activity": {
-        "goal": "Identifier précisément l’entreprise avant toute recommandation.",
-        "validation_criteria": [
-            "Métier exact et secteur compris.",
-            "Localisation et zone servie explicites.",
-            "Taille de l’équipe connue.",
-            "Âge de l’entreprise connu.",
-            "Ordre de grandeur du chiffre d’affaires connu ou refus explicite.",
-            "Typologie de clients connue.",
-        ],
+        "act": "rencontre",
+        "interaction": "quick_replies",
+        "options": ["Solo", "2-5", "6-20", "20+", "Je précise"],
+        "goal": "Comprendre le vrai métier, la zone et le contexte sans transformer la page en formulaire.",
+        "validation_criteria": ["Métier compris", "Zone comprise", "Taille approximative comprise"],
     },
-    "research": {
-        "goal": "Définir quelles sources publiques Omar peut utiliser pour éviter au client de tout répéter.",
-        "validation_criteria": [
-            "Nom public, site, SIRET/SIRENE, fiche Google ou réseaux renseignés quand disponibles.",
-            "Consentement ou refus explicite par type de source.",
-            "Plan de recherche localisé préparé avant toute recherche externe.",
-            "Sources, hypothèses et réponses client resteront séparées dans le rapport.",
-        ],
-    },
-    "pain": {
-        "goal": "Comprendre les points de blocage, limites et charges qui pèsent réellement sur l’activité.",
-        "validation_criteria": ["Sujets chronophages ou complexes nommés.", "Fréquence, volume ou niveau de confiance estimé.", "Exemples concrets fournis sans vocabulaire culpabilisant."],
+    "real_week": {
+        "act": "plongee",
+        "interaction": "free_text",
+        "options": [],
+        "goal": "Faire émerger les irritants réels, leur poids temporel et émotionnel.",
+        "validation_criteria": ["Deux irritants ou un irritant fort", "Volume ou fréquence estimé", "Priorité client détectée"],
     },
     "tools": {
-        "goal": "Cartographier les outils et flux actuels.",
-        "validation_criteria": ["Outils principaux listés.", "Canaux entrants identifiés.", "Ruptures ou doubles saisies repérées."],
+        "act": "plongee",
+        "interaction": "quick_replies",
+        "options": ["WhatsApp", "Email", "Téléphone", "Excel", "Agenda", "Cahier", "Autre"],
+        "goal": "Cartographier les outils et les ruptures entre eux.",
+        "validation_criteria": ["Au moins un outil", "Rupture ou absence de rupture explicitée"],
     },
-    "risk": {
-        "goal": "Identifier les données sensibles et les actions interdites à l’automatisation.",
-        "validation_criteria": ["Données sensibles listées.", "Actions nécessitant validation humaine explicites.", "Limites métier acceptées."],
+    "data_limits": {
+        "act": "plongee",
+        "interaction": "quick_replies",
+        "options": ["Je valide tout au début", "Il prépare, j’envoie", "Rien de sensible", "Prix/paiement", "Données clients", "Allergènes/santé"],
+        "goal": "Fixer les lignes rouges et les validations humaines.",
+        "validation_criteria": ["Données sensibles identifiées", "Gates humaines définies"],
     },
     "opportunities": {
-        "goal": "Choisir les premières boucles IA utiles et réalistes.",
-        "validation_criteria": ["Une première boucle utile identifiée.", "Bénéfice attendu formulé.", "Risque acceptable ou garde-fou associé."],
+        "act": "plongee",
+        "interaction": "validation_card",
+        "options": ["Oui", "À corriger", "Pas maintenant", "Autre priorité"],
+        "goal": "Proposer 3 opportunités en mots client, puis prioriser sans forcing.",
+        "validation_criteria": ["Une opportunité validée ou corrigée", "Priorité client claire"],
     },
-    "autonomy": {
-        "goal": "Déterminer le niveau d’accompagnement souhaité.",
-        "validation_criteria": ["Mode apprendre/déléguer/mixte choisi.", "Rythme réaliste défini.", "Validation humaine confirmée."],
+    "synthesis_card": {
+        "act": "livraison",
+        "interaction": "validation_card",
+        "options": ["C’est ça", "À corriger", "Retirer", "OK pour le rapport"],
+        "goal": "Faire valider la carte “Ce qu’Omar a compris”, source canonique du rapport et de l’agent.",
+        "validation_criteria": ["Carte validée ou corrigée", "Rapport autorisé"],
     },
-    "validation": {
-        "goal": "Figer ce qui est vrai, hypothétique ou manquant avant rapport.",
-        "validation_criteria": ["Client a relu la synthèse.", "Manques connus listés.", "Accord pour produire le rapport."],
+    "report": {
+        "act": "livraison",
+        "interaction": "quick_replies",
+        "options": ["Chiffrer ça", "Parler à Alex", "Digérer d’abord", "Démarrer l’agent en dry-run"],
+        "goal": "Livrer le rapport et proposer les suites sans pression.",
+        "validation_criteria": ["Rapport généré", "Aucune action payante sans GO humain"],
     },
 }
 
 
+def normalize_step_id(step: str | None) -> str:
+    raw = str(step or "intro").strip()
+    return STEP_ALIASES.get(raw, raw if raw in REQUIRED_BY_STEP else "intro")
+
+
+def fable_step_order() -> list[str]:
+    return list(REQUIRED_BY_STEP.keys())
+
+
 def step_contract(step: str) -> dict[str, Any]:
-    return STEP_CONTRACTS.get(step, {"goal": "Clarifier cette étape.", "validation_criteria": ["Réponse concrète fournie."]})
+    normalized = normalize_step_id(step)
+    base = STEP_CONTRACTS.get(normalized, {"goal": "Clarifier cette étape.", "validation_criteria": ["Réponse concrète fournie."], "act": "rencontre", "interaction": "free_text", "options": []})
+    return {**base, "step": normalized, "act_label": FABLE_ACTS.get(base.get("act", "rencontre"), {}).get("label", "Rencontre")}
 
 def load_sector_references(sectors_dir: Path = SECTORS_DIR) -> dict[str, dict[str, Any]]:
     refs: dict[str, dict[str, Any]] = {}
@@ -167,16 +199,18 @@ def session_text(session: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 def missing_fields(session: dict[str, Any], step: str) -> list[str]:
+    step = normalize_step_id(step)
     found = extract_fields(session_text(session))
     return [f for f in REQUIRED_BY_STEP.get(step, []) if not found.get(f)]
 
 def completion_for_step(session: dict[str, Any], step: str) -> dict[str, Any]:
+    step = normalize_step_id(step)
     required = REQUIRED_BY_STEP.get(step, [])
     missing = missing_fields(session, step)
     done = len(required) - len(missing)
     pct = 100 if not required else round(done * 100 / len(required))
     contract = step_contract(step)
-    return {"step": step, "goal": contract["goal"], "required_fields": required, "missing_fields": missing, "completion_pct": pct, "ready": not missing, "validation_criteria": contract["validation_criteria"]}
+    return {"step": step, "act": contract.get("act"), "act_label": contract.get("act_label"), "goal": contract["goal"], "required_fields": required, "missing_fields": missing, "completion_pct": pct, "ready": not missing, "validation_criteria": contract["validation_criteria"]}
 
 
 def _context_field_status(session: dict[str, Any]) -> list[dict[str, Any]]:
@@ -203,16 +237,123 @@ def build_client_understanding(session: dict[str, Any]) -> dict[str, Any]:
     return {"schema": "oa_client_understanding.v1", "sector_id": sector_id, "summary": summary, "context_fields": context_fields, "next_step": next_step}
 
 
+
+def current_act_for_step(step: str) -> str:
+    step = normalize_step_id(step)
+    for act_id, act in FABLE_ACTS.items():
+        if step in act["steps"]:
+            return act_id
+    return "rencontre"
+
+
+def act_metrics(session: dict[str, Any]) -> dict[str, Any]:
+    validated = set(session.get("validated_steps", []) or [])
+    metrics = {}
+    for act_id, act in FABLE_ACTS.items():
+        steps = act["steps"]
+        done = len([s for s in steps if s in validated])
+        metrics[act_id] = {
+            "label": act["label"],
+            "steps": steps,
+            "completed_steps": done,
+            "total_steps": len(steps),
+            "completion_pct": round(done * 100 / max(1, len(steps))),
+            "current": normalize_step_id(session.get("current_step")) in steps,
+        }
+    return metrics
+
+
+def _last_user_text(session: dict[str, Any], *, max_len: int = 220) -> str:
+    for msg in reversed(session.get("messages", []) or []):
+        if msg.get("role") == "client" and str(msg.get("text") or "").strip():
+            text = re.sub(r"\s+", " ", str(msg.get("text"))).strip()
+            return text[:max_len]
+    return "À compléter avec vos réponses."
+
+
+def build_synthesis_card(session: dict[str, Any]) -> dict[str, Any]:
+    text = session_text(session)
+    sector_id = str(session.get("sector_id") or detect_sector(text))
+    fields = extract_fields(text)
+    source_status = "Sources publiques autorisées/refusées à confirmer en V0" if fields.get("public_research_scope") else "Aucune source publique utilisée sans accord explicite."
+    sections = [
+        {"id": "activity", "label": "Activité", "kind": "declared", "summary": _last_user_text(session) if fields.get("business_activity") else "Métier, zone et taille à confirmer."},
+        {"id": "sources", "label": "Sources", "kind": "verified", "summary": source_status},
+        {"id": "pain", "label": "Irritants", "kind": "declared", "summary": "Irritants et charge réelle repérés dans la conversation." if fields.get("repetitive_tasks") else "Semaine réelle encore à préciser."},
+        {"id": "tools", "label": "Outils", "kind": "declared", "summary": "Outils/canaux actuels mentionnés." if fields.get("tools") else "Outils actuels à confirmer."},
+        {"id": "limits", "label": "Lignes rouges", "kind": "declared", "summary": "Validation humaine et données sensibles cadrées." if (fields.get("sensitive_data") or fields.get("human_validation")) else "Lignes rouges à poser avant toute automatisation."},
+        {"id": "opportunities", "label": "Opportunités", "kind": "hypothesis", "summary": "Première boucle IA candidate à valider." if fields.get("opportunity_choice") else "Opportunités encore hypothétiques."},
+    ]
+    return {"schema": "oa_fable_synthesis_card.v0", "title": "Ce qu’Omar a compris", "sector_id": sector_id, "sections": sections, "actions": ["C’est ça", "À corriger", "Retirer", "OK pour le rapport"]}
+
+
+
+def _short_list(value: str, *, fallback: str) -> list[str]:
+    items = [re.sub(r"\s+", " ", part).strip(" -•\t") for part in re.split(r"[\n;,]+", value or "")]
+    items = [item for item in items if item]
+    return items or [fallback]
+
+def build_onboarding_pack_v1(payload: dict[str, Any], report: dict[str, Any], session: dict[str, Any] | None = None) -> dict[str, Any]:
+    text = "\n".join(str(payload.get(k) or "") for k in ["activity", "repetitive_tasks", "current_tools", "constraints", "opportunities", "autonomy", "validation"])
+    sector_id = str(payload.get("sector_id") or (session or {}).get("sector_id") or detect_sector(text))
+    forbidden = _short_list(str(payload.get("constraints") or ""), fallback="Validation humaine avant toute action externe sensible.")[:5]
+    missions = (report.get("opportunities") or [])[:3]
+    return {
+        "schema": "onboarding_pack.v1",
+        "status": "draft_from_audit",
+        "source": "appomar.audit.fable_v0",
+        "sector_id": sector_id,
+        "persona": {"name": f"Agent Omar — {sector_id.replace('_', ' ')}", "tone": "vouvoiement, direct, clair, prudent"},
+        "mission": missions,
+        "channels": [c for c in ["Telegram" if "telegram" in text.casefold() else None, "WhatsApp" if "whatsapp" in text.casefold() else None, "Email" if "email" in text.casefold() or "mail" in text.casefold() else None] if c] or ["à choisir"],
+        "connectors_candidates": _short_list(str(payload.get("current_tools") or ""), fallback="À confirmer")[:6],
+        "forbidden_data": forbidden,
+        "human_gates": ["GO humain avant paiement/provisioning", "Validation client avant envoi externe", *forbidden[:3]],
+        "initial_routines": missions[:3],
+        "prompts": report.get("prompts", [])[:5],
+        "dry_run_contract": {"schema": "omartop.provisioning-contract.v1", "mode": "dry-run", "status": "pending_go", "paid_actions": "none", "go_humain": {"required": True, "provided": False}},
+    }
+
+
+def enforce_vouvoiement_text(text: str) -> str:
+    """Best-effort guardrail: audit public uses vouvoiement only."""
+    replacements = [
+        ("Raconte-moi ton ", "Racontez-moi votre "),
+        ("Raconte-moi ta ", "Racontez-moi votre "),
+        ("raconte-moi ton ", "racontez-moi votre "),
+        ("raconte-moi ta ", "racontez-moi votre "),
+        ("Tu ", "Vous "),
+        ("tu ", "vous "),
+        (" t’", " vous "),
+        (" t'", " vous "),
+        (" te ", " vous "),
+        (" ton ", " votre "),
+        (" ta ", " votre "),
+        (" tes ", " vos "),
+        (" toi", " vous"),
+        ("Toi", "Vous"),
+        ("Ton ", "Votre "),
+        ("Ta ", "Votre "),
+        ("Tes ", "Vos "),
+        ("c’est ta réalité", "c’est votre réalité"),
+        ("C’est ta réalité", "C’est votre réalité"),
+    ]
+    out = str(text or "")
+    for old, new in replacements:
+        out = out.replace(old, new)
+    return out
+
 def next_question(session: dict[str, Any], step: str | None = None) -> dict[str, Any]:
-    step = step or str(session.get("current_step") or "activity")
+    step = normalize_step_id(step or str(session.get("current_step") or "intro"))
     refs = load_sector_references()
     sector_id = str(session.get("sector_id") or detect_sector(session_text(session), refs))
     ref = refs.get(sector_id) or refs["generic_tpe"]
     missing = missing_fields(session, step)
     auditbiz_payload: dict[str, Any] | None = None
-    if sector_id == "bakery":
+    if sector_id == "bakery" and step not in {"intro", "synthesis_card", "report"}:
         try:
             enriched_session = dict(session)
+            enriched_session["current_step"] = step
             enriched_session["questions_asked"] = [
                 {"question_id": item.get("auditbiz_question_id") or item.get("question_id") or item.get("id") or "", "question": item.get("question", "")}
                 for item in session.get("asked_questions", [])
@@ -221,21 +362,49 @@ def next_question(session: dict[str, Any], step: str | None = None) -> dict[str,
             auditbiz_payload = auditbiz_choose_next_question(enriched_session, step, sector_id="bakery")
         except Exception:
             auditbiz_payload = None
-    if missing:
-        question = FALLBACK_QUESTIONS.get(missing[0], "Pouvez-vous préciser ce point ?")
-    elif auditbiz_payload:
-        question = str(auditbiz_payload.get("question") or "Pouvez-vous préciser ce point métier ?")
-    else:
-        block = ref.get("question_blocks", {}).get(step) or []
-        asked = {m.get("question") for m in session.get("asked_questions", [])}
-        question = next((q for q in block if q not in asked), f"Pour l’étape {step}, souhaitez-vous ajouter une précision métier avant validation ?")
-    sector_hint = ", ".join(ref.get("important_dimensions", [])[:4])
     contract = step_contract(step)
-    result = {"step": step, "sector_id": sector_id, "sector_label": sector_id.replace("_", " "), "goal": contract["goal"], "question": question, "missing_fields": missing, "completion": completion_for_step(session, step), "validation_criteria": contract["validation_criteria"], "understanding": build_client_understanding(session), "sector_hint": sector_hint}
+    if step == "intro":
+        question = FALLBACK_QUESTIONS["communication_preferences"]
+    elif step == "synthesis_card":
+        question = "Avant votre rapport, vérifiez-moi. Corrigez tout ce qui cloche — c’est votre réalité qui compte."
+    elif step == "report":
+        question = "Votre diagnostic est prêt. Il est à vous, quoi que vous décidiez ensuite."
+    elif missing:
+        question = FALLBACK_QUESTIONS.get(missing[0], "Pouvez-vous préciser ce point ?")
+    elif auditbiz_payload and auditbiz_payload.get("interaction") == "open":
+        question = str(auditbiz_payload.get("question") or FALLBACK_QUESTIONS.get(step, "Ajoutez un détail utile."))
+    else:
+        block = ref.get("question_blocks", {}).get(step) or ref.get("question_blocks", {}).get(STEP_ALIASES.get(step, step)) or []
+        asked = {m.get("question") for m in session.get("asked_questions", [])}
+        question = next((q for q in block if q not in asked), FALLBACK_QUESTIONS.get(step, "Ajoutez une précision utile."))
+    question = enforce_vouvoiement_text(question)
+    # V0 Fable: les boutons confirment ce qu'Omar a compris ; ils ne remplacent jamais le champ libre.
+    interaction = contract.get("interaction", "free_text")
+    options = [enforce_vouvoiement_text(str(x)) for x in list(contract.get("options", []))]
+    if auditbiz_payload and auditbiz_payload.get("interaction") in {"rank", "confirm"} and step not in {"intro", "synthesis_card", "report"}:
+        options = [enforce_vouvoiement_text(str(x)) for x in list(auditbiz_payload.get("options") or options)]
+    sector_hint = ", ".join(ref.get("important_dimensions", [])[:4])
+    result = {
+        "step": step,
+        "act": contract.get("act"),
+        "act_label": contract.get("act_label"),
+        "acts": act_metrics(session),
+        "sector_id": sector_id,
+        "sector_label": sector_id.replace("_", " "),
+        "goal": contract["goal"],
+        "question": question,
+        "missing_fields": missing,
+        "completion": completion_for_step(session, step),
+        "validation_criteria": contract["validation_criteria"],
+        "understanding": build_client_understanding(session),
+        "synthesis_card": build_synthesis_card(session) if step in {"opportunities", "synthesis_card", "report"} else None,
+        "sector_hint": sector_hint,
+        "interaction": interaction,
+        "options": options,
+        "ui": {"free_text_always_available": True, "rule": "70_30_open_questions_buttons_confirm"},
+    }
     if auditbiz_payload and not missing:
         result["auditbiz_question"] = auditbiz_payload
-        result["interaction"] = auditbiz_payload.get("interaction")
-        result["options"] = auditbiz_payload.get("options", [])
         result["why"] = auditbiz_payload.get("why", "")
         result["skip_allowed"] = auditbiz_payload.get("skip_allowed", True)
         result["save_resume_allowed"] = auditbiz_payload.get("save_resume_allowed", True)
@@ -247,7 +416,7 @@ def create_session(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     initial = str(payload.get("message") or payload.get("activity") or "")
     refs = load_sector_references()
     sid = f"audit-session-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
-    session = {"id": sid, "schema": "oa_audit_session.v0", "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "current_step": "intro", "sector_id": detect_sector(initial, refs), "messages": [], "answers": {}, "asked_questions": [], "validated_steps": [], "safety": {"paid_actions": "none", "provisioning": "none"}}
+    session = {"id": sid, "schema": "oa_audit_session.fable_v0", "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "current_step": "intro", "sector_id": detect_sector(initial, refs), "messages": [], "answers": {}, "asked_questions": [], "validated_steps": [], "metrics": {"act_events": []}, "safety": {"paid_actions": "none", "provisioning": "none"}}
     if initial:
         session["messages"].append({"role": "client", "text": initial, "at": session["created_at"]})
     q = next_question(session, "intro")
@@ -258,22 +427,27 @@ def add_message(session: dict[str, Any], text: str) -> dict[str, Any]:
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     session.setdefault("messages", []).append({"role": "client", "text": text, "at": now})
     session["sector_id"] = detect_sector(session_text(session))
-    q = next_question(session, str(session.get("current_step") or "activity"))
+    session["current_step"] = normalize_step_id(str(session.get("current_step") or "intro"))
+    q = next_question(session, str(session.get("current_step") or "intro"))
     session.setdefault("asked_questions", []).append({"step": q["step"], "question": q["question"], "auditbiz_question_id": (q.get("auditbiz_question") or {}).get("id")})
     return {"session": session, "omar": q}
 
 def validate_step(session: dict[str, Any], step: str | None = None) -> dict[str, Any]:
-    step = step or str(session.get("current_step") or "activity")
+    step = normalize_step_id(step or str(session.get("current_step") or "intro"))
     c = completion_for_step(session, step)
     if not c["ready"]:
         return {"ok": False, "error": "step_incomplete", "completion": c, "omar": next_question(session, step)}
     validated = session.setdefault("validated_steps", [])
     if step not in validated:
         validated.append(step)
-    steps = list(REQUIRED_BY_STEP)
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    act_id = current_act_for_step(step)
+    session.setdefault("metrics", {}).setdefault("act_events", []).append({"at": now, "event": "step_validated", "step": step, "act": act_id})
+    steps = fable_step_order()
     idx = steps.index(step) if step in steps else 0
     if idx < len(steps)-1:
         session["current_step"] = steps[idx+1]
+    session["acts"] = act_metrics(session)
     return {"ok": True, "session": session, "completion": c, "next": next_question(session, str(session.get("current_step")))}
 
 CONSENT_KEYS = [
