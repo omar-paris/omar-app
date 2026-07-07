@@ -1071,11 +1071,18 @@ class ProposalHandler(BaseHTTPRequestHandler):
             if fp.exists():
                 self._serve_file(fp, "text/html; charset=utf-8")
                 return
-        # assets du portail (_portal.js)
+        # assets du portail (_portal.js + images locales audit)
         if path.startswith("/pages-app/") and path.endswith(".js"):
             fp = ROOT / "pages-app" / Path(path).name
             if fp.exists():
                 self._serve_file(fp, "application/javascript; charset=utf-8")
+                return
+        if path.startswith("/pages-app/assets/"):
+            name = Path(path).name
+            fp = ROOT / "pages-app" / "assets" / name
+            content_type = "image/png" if name.endswith(".png") else ("image/webp" if name.endswith(".webp") else "application/octet-stream")
+            if fp.exists():
+                self._serve_file(fp, content_type)
                 return
         # Contrats publics générés par scripts/build.py.
         # Ces endpoints alimentent le wizard prospect et ne portent ni PII ni secret.
