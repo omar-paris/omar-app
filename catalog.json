@@ -37,11 +37,20 @@
       "catalogue_refs": [
         "secretaire-connexions-surveillance"
       ],
-      "capability_status": "configured",
+      "capability_status": "potential",
       "runtime_status": "unknown",
       "cost_status": "known",
       "human_approval_required": true,
-      "commercial_scope": "appomar_v1_mapping"
+      "commercial_scope": "appomar_v1_mapping",
+      "runtime_client_proven": false,
+      "connector_manifest_required": true,
+      "connector_guard_refs": [
+        "t_3c8942df",
+        "t_911dc1e5",
+        "t_b7f1552c",
+        "t_50fd4fd7"
+      ],
+      "connector_guard_note": "Client connector claims stay potential/unknown until a checked tenant-local manifest proves configured/proven runtime."
     },
     {
       "id": "formule-sur-mesure",
@@ -71,7 +80,16 @@
       "runtime_status": "unknown",
       "cost_status": "known",
       "human_approval_required": true,
-      "commercial_scope": "appomar_v1_mapping"
+      "commercial_scope": "appomar_v1_mapping",
+      "runtime_client_proven": false,
+      "connector_manifest_required": true,
+      "connector_guard_refs": [
+        "t_3c8942df",
+        "t_911dc1e5",
+        "t_b7f1552c",
+        "t_50fd4fd7"
+      ],
+      "connector_guard_note": "Client connector claims stay potential/unknown until a checked tenant-local manifest proves configured/proven runtime."
     },
     {
       "id": "mod-presence",
@@ -87,7 +105,16 @@
       "runtime_status": "unknown",
       "cost_status": "known",
       "human_approval_required": true,
-      "commercial_scope": "appomar_v1_mapping"
+      "commercial_scope": "appomar_v1_mapping",
+      "runtime_client_proven": false,
+      "connector_manifest_required": true,
+      "connector_guard_refs": [
+        "t_3c8942df",
+        "t_911dc1e5",
+        "t_b7f1552c",
+        "t_50fd4fd7"
+      ],
+      "connector_guard_note": "Client connector claims stay potential/unknown until a checked tenant-local manifest proves configured/proven runtime."
     },
     {
       "id": "mod-paperasse",
@@ -155,7 +182,15 @@
       "human_approval_required": true,
       "ram_mb": "unknown",
       "disk_mb": "unknown",
-      "runtime_client_proven": false
+      "runtime_client_proven": false,
+      "connector_manifest_required": true,
+      "connector_guard_refs": [
+        "t_3c8942df",
+        "t_911dc1e5",
+        "t_b7f1552c",
+        "t_50fd4fd7"
+      ],
+      "connector_guard_note": "Client connector claims stay potential/unknown until a checked tenant-local manifest proves configured/proven runtime."
     },
     {
       "id": "recrutement-annonces-candidats",
