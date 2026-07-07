@@ -114,9 +114,7 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     if(!omar || !omar.question) return currentStep().fallback;
     const raw=String(omar.question||'').trim().replace(/\s+/g,' ');
     const q=omar.step==='intro' ? raw : compact(raw, currentStep().fallback, 210);
-    const missing=(omar.missing_fields||[]).slice(0,1);
-    const hint=(omar.step==='intro'||!missing.length) ? '' : ` Il me manque : ${missing.join(', ')}.`;
-    return `${q}${hint}`;
+    return q;
   }
   function ask(omar){window.setTimeout(()=>{setBusy(false); state.lastOmar=omar||{}; addBubble('omar', formatOmar(omar)); if(omar&&omar.synthesis_card&&['opportunities','synthesis_card','report'].includes(omar.step)){addUnderstandingCard(omar.synthesis_card)} render()},180)}
   async function startSession(){

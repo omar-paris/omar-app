@@ -18,6 +18,8 @@ FIELD_LABELS = {
     "location": "localisation / zone servie",
     "company_size": "taille d’équipe",
     "company_age": "ancienneté",
+    "customer_type": "type de clients",
+    "sales_channel": "façon de vendre",
     "public_research_scope": "sources publiques autorisées ou refusées",
     "repetitive_tasks": "semaine réelle / irritants",
     "time_spent": "fréquence ou volume concerné",
@@ -31,10 +33,12 @@ FIELD_LABELS = {
 }
 
 FIELD_PATTERNS = {
-    "business_activity": [r"\b(boulanger|boulangerie|restaurant|plombier|chauffagiste|rénovation|renovation|électricien|electricien|fleuriste|avocat|patrimoine|marketing|secr[ée]taire)\b", r"je suis", r"nous sommes", r"mon activité"],
+    "business_activity": [r"\b(boulanger|boulangerie|restaurant|plombier|chauffagiste|rénovation|renovation|électricien|electricien|fleuriste|avocat|patrimoine|marketing|secr[ée]taire|traducteur|traductrice|traduction|freelance|consultant|consultante|coach|formateur|formatrice|commerce|boutique)\b", r"je suis", r"nous sommes", r"mon activité", r"mon métier"],
     "location": [r"\b(à|a|sur|près de|pres de)\s+[A-ZÉÈÀÂÎÔÛa-zéèàâêîôûç-]{2,}", r"\b(lille|paris|lyon|marseille|bordeaux|nantes|toulouse|nice|clichy|roubaix)\b"],
     "company_size": [r"\b\d+\s*(personnes?|salari[ée]s?|collaborateurs?|associ[ée]s?|employ[ée]s?)\b", r"\bsolo\b", r"\bind[ée]pendant\b", r"\béquipe\b"],
-    "company_age": [r"\b\d+\s*(ans?|ann[ée]es?)\b", r"cré[ée]e?\s+il y a", r"reprise", r"lance"],
+    "company_age": [r"\b\d+\s*(ans?|ann[ée]es?)\b", r"cré[ée]e?\s+il y a", r"reprise", r"\blanc[ée]e?\b", r"\blancement\b", r"depuis\s+\d+", r"moins d.un an", r"plus de 10 ans"],
+    "customer_type": [r"\b(particuliers?|pros?|professionnels?|entreprises?|b2b|b2c|clients? finaux|pme|ind[ée]pendants?)\b"],
+    "sales_channel": [r"\b(boutique|magasin|atelier|en ligne|site|e-commerce|marketplace|t[ée]l[ée]phone|email|mail|whatsapp|réseau|reseau|recommandations?|bouche[- ]à[- ]oreille|devis|appel d.offres|plateformes?)\b"],
     "public_research_scope": [r"\b(site|www\.|https?://|siret|sirene|google business|fiche google|linkedin|instagram|facebook|avis|autorise|refuse|sources? publiques?)\b"],
     "repetitive_tasks": [r"\b(semaine|relances?|devis|emails?|r[ée]ponses?|planning|rendez-vous|factures?|posts?|commandes?|appels?|whatsapp|paperasse|temps|soir[ée]es?)\b"],
     "time_spent": [r"\b\d+\s*(h|heures?|jours?|soir[ée]es?)\b", r"par semaine", r"par jour", r"souvent", r"toujours"],
@@ -64,7 +68,7 @@ STEP_ALIASES = {
 
 REQUIRED_BY_STEP = {
     "intro": [],
-    "activity": ["business_activity", "location", "company_size"],
+    "activity": ["business_activity", "company_size", "company_age", "customer_type", "sales_channel", "location"],
     "real_week": ["repetitive_tasks", "time_spent"],
     "tools": ["tools"],
     "data_limits": ["sensitive_data", "human_validation"],
@@ -75,9 +79,12 @@ REQUIRED_BY_STEP = {
 
 FALLBACK_QUESTIONS = {
     "communication_preferences": "Bonjour, je suis Omar, un agent formé par Alexandre Willemetz et biberonné sur les meilleurs standard en gestion et en informatique. Je vais vous poser des questions. Vous me répondez à votre rythme et selon vos objectifs. A la fin vous pourriez télécharger votre Audit Business & Tech.",
-    "business_activity": "Racontez-moi votre activité simplement : vous faites quoi, où, avec qui ?",
+    "business_activity": "Pour commencer, quel est votre métier exact ? Si vous hésitez, choisissez le plus proche puis corrigez en une phrase.",
     "location": "Vous intervenez où, concrètement ? Ville, quartier, zone ou rayon suffisent.",
-    "company_size": "Vous êtes combien à bosser, en vrai ? Solo, petite équipe, ou plus structuré ?",
+    "company_size": "Vous êtes combien à travailler dans l’activité aujourd’hui ?",
+    "company_age": "Depuis combien de temps l’activité existe ? Une approximation suffit.",
+    "customer_type": "Vos clients sont plutôt des particuliers, des professionnels, ou un mélange des deux ?",
+    "sales_channel": "Comment les clients arrivent et achètent aujourd’hui : boutique, site, téléphone, email, recommandations, plateformes ?",
     "public_research_scope": "Si vous avez un site ou une fiche Google, donnez-moi le lien ou refusez simplement. Je n’utilise que ce que vous autorisez.",
     "repetitive_tasks": "Racontez-moi votre semaine dernière — la vraie. Qu’est-ce qui vous a pris du temps inutilement ?",
     "time_spent": "Ce caillou revient combien de fois ou vous prend combien de temps par semaine ?",
@@ -101,9 +108,9 @@ STEP_CONTRACTS = {
     "activity": {
         "act": "rencontre",
         "interaction": "quick_replies",
-        "options": ["Solo", "2-5", "6-20", "20+", "Je précise"],
-        "goal": "Comprendre le vrai métier, la zone et le contexte sans transformer la page en formulaire.",
-        "validation_criteria": ["Métier compris", "Zone comprise", "Taille approximative comprise"],
+        "options": [],
+        "goal": "Comprendre le vrai métier, la taille, l'ancienneté, les clients, les canaux de vente et la zone sans formulaire rigide.",
+        "validation_criteria": ["Métier compris", "Taille approximative comprise", "Ancienneté comprise", "Type de clients compris", "Canal de vente compris", "Localisation / zone comprise"],
     },
     "real_week": {
         "act": "plongee",
@@ -343,6 +350,109 @@ def enforce_vouvoiement_text(text: str) -> str:
         out = out.replace(old, new)
     return out
 
+
+HELP_PATTERNS = [
+    r"\bje ne sais pas\b",
+    r"\bje sais pas\b",
+    r"\baucune id[ée]e\b",
+    r"\baidez[- ]?moi\b",
+    r"\btu peux m.aider\b",
+    r"\bvous pouvez m.aider\b",
+    r"\bpas compris\b",
+]
+
+FIELD_OPTIONS = {
+    "business_activity": ["Traducteur freelance", "Artisan bâtiment", "Commerce / boutique", "Restaurant / food", "Conseil / formation", "Autre métier"],
+    "company_size": ["Solo", "2-5", "6-20", "20+", "Je précise"],
+    "company_age": ["Moins d’un an", "1-3 ans", "4-10 ans", "Plus de 10 ans", "Reprise / transmission"],
+    "customer_type": ["Particuliers", "Professionnels", "Les deux", "Je ne sais pas encore"],
+    "sales_channel": ["Boutique / lieu physique", "Site ou formulaire", "Téléphone", "Email", "WhatsApp / SMS", "Recommandations", "Plateformes"],
+    "location": ["Paris", "Île-de-France", "France entière", "À distance", "Je précise"],
+    "repetitive_tasks": ["Devis / propositions", "Relances clients", "Emails / messages", "Factures / administratif", "Planning / rendez-vous", "Recherche d'infos", "Montrez-moi des exemples"],
+    "time_spent": ["Tous les jours", "Chaque semaine", "1-2 h/semaine", "3-5 h/semaine", "Plus de 5 h/semaine", "Je ne sais pas"],
+}
+
+HELP_QUESTIONS = {
+    "business_activity": "Je vous aide. Dites simplement votre métier comme sur une carte de visite. Exemples : traducteur freelance, plombier, boulangerie, cabinet de conseil, boutique en ligne.",
+    "company_size": "Pas besoin d'être précis : êtes-vous solo, 2 à 5, 6 à 20, ou plus ?",
+    "company_age": "Une approximation suffit : activité lancée récemment, 1-3 ans, 4-10 ans, plus ancien, ou reprise ?",
+    "customer_type": "Pensez à vos derniers clients : plutôt particuliers, professionnels, ou les deux ?",
+    "sales_channel": "Pensez au dernier client signé : il est venu par recommandation, téléphone, email, boutique, site, plateforme, réseau ?",
+    "location": "Indiquez seulement votre zone utile : ville, région, France entière, ou à distance.",
+    "repetitive_tasks": "Je vous propose des pistes. La semaine dernière, est-ce que vous avez perdu du temps sur devis/propositions, relances, emails, factures, planning, recherche d'informations, ou suivi client ?",
+    "time_spent": "Même à la louche : tous les jours, chaque semaine, 1-2 h, 3-5 h, ou plus de 5 h par semaine ?",
+}
+
+CONTEXTUAL_ANSWERS = {
+    "Solo": "Je travaille solo.",
+    "2-5": "Nous sommes 2 à 5 personnes.",
+    "6-20": "Nous sommes 6 à 20 personnes.",
+    "20+": "Nous sommes plus de 20 personnes.",
+    "Moins d’un an": "L'activité existe depuis moins d'un an.",
+    "1-3 ans": "L'activité existe depuis 1 à 3 ans.",
+    "4-10 ans": "L'activité existe depuis 4 à 10 ans.",
+    "Plus de 10 ans": "L'activité existe depuis plus de 10 ans.",
+    "Reprise / transmission": "L'activité est une reprise ou une transmission.",
+    "Particuliers": "Mes clients sont surtout des particuliers.",
+    "Professionnels": "Mes clients sont surtout des professionnels.",
+    "Les deux": "Mes clients sont à la fois des particuliers et des professionnels.",
+    "Boutique / lieu physique": "Les clients achètent en boutique ou dans un lieu physique.",
+    "Site ou formulaire": "Les clients arrivent par le site ou un formulaire.",
+    "Téléphone": "Les clients arrivent surtout par téléphone.",
+    "Email": "Les clients arrivent surtout par email.",
+    "WhatsApp / SMS": "Les clients arrivent surtout par WhatsApp ou SMS.",
+    "Recommandations": "Les clients arrivent surtout par recommandation ou bouche-à-oreille.",
+    "Plateformes": "Les clients arrivent via des plateformes.",
+    "À distance": "Je travaille principalement à distance.",
+    "France entière": "J'interviens sur toute la France.",
+    "Île-de-France": "J'interviens en Île-de-France.",
+    "Devis / propositions": "Je perds du temps sur les devis ou propositions.",
+    "Relances clients": "Je perds du temps sur les relances clients.",
+    "Emails / messages": "Je perds du temps sur les emails ou messages.",
+    "Factures / administratif": "Je perds du temps sur les factures ou l'administratif.",
+    "Planning / rendez-vous": "Je perds du temps sur le planning ou les rendez-vous.",
+    "Recherche d'infos": "Je perds du temps à chercher des informations.",
+    "Tous les jours": "Cela revient tous les jours.",
+    "Chaque semaine": "Cela revient chaque semaine.",
+    "1-2 h/semaine": "Cela prend environ 1 à 2 heures par semaine.",
+    "3-5 h/semaine": "Cela prend environ 3 à 5 heures par semaine.",
+    "Plus de 5 h/semaine": "Cela prend plus de 5 heures par semaine.",
+}
+
+def is_help_request(text: str) -> bool:
+    hay = str(text or "").casefold()
+    return any(re.search(pattern, hay, re.I) for pattern in HELP_PATTERNS)
+
+
+def expand_contextual_answer(text: str, expected_field: str | None = None) -> str:
+    raw = re.sub(r"\s+", " ", str(text or "")).strip()
+    if not raw:
+        return raw
+    mapped = CONTEXTUAL_ANSWERS.get(raw)
+    if mapped:
+        return mapped
+    if expected_field == "business_activity" and raw in FIELD_OPTIONS["business_activity"] and raw != "Autre métier":
+        return f"Mon métier est {raw}."
+    if expected_field == "location" and raw in {"Paris", "Île-de-France", "France entière", "À distance"}:
+        return CONTEXTUAL_ANSWERS.get(raw, f"J'interviens à {raw}.")
+    return raw
+
+
+def expected_field_for_step(session: dict[str, Any], step: str) -> str | None:
+    missing = missing_fields(session, step)
+    return missing[0] if missing else None
+
+
+def question_for_field(field: str, session: dict[str, Any]) -> str:
+    base = FALLBACK_QUESTIONS.get(field, "Pouvez-vous préciser ce point ?")
+    if is_help_request(_last_user_text(session, max_len=120)):
+        return HELP_QUESTIONS.get(field, base)
+    return base
+
+
+def options_for_field(field: str | None) -> list[str]:
+    return list(FIELD_OPTIONS.get(str(field or ""), []))
+
 def next_question(session: dict[str, Any], step: str | None = None) -> dict[str, Any]:
     step = normalize_step_id(step or str(session.get("current_step") or "intro"))
     refs = load_sector_references()
@@ -370,7 +480,7 @@ def next_question(session: dict[str, Any], step: str | None = None) -> dict[str,
     elif step == "report":
         question = "Votre diagnostic est prêt. Il est à vous, quoi que vous décidiez ensuite."
     elif missing:
-        question = FALLBACK_QUESTIONS.get(missing[0], "Pouvez-vous préciser ce point ?")
+        question = question_for_field(missing[0], session)
     elif auditbiz_payload and auditbiz_payload.get("interaction") == "open":
         question = str(auditbiz_payload.get("question") or FALLBACK_QUESTIONS.get(step, "Ajoutez un détail utile."))
     else:
@@ -381,7 +491,9 @@ def next_question(session: dict[str, Any], step: str | None = None) -> dict[str,
     # V0 Fable: les boutons confirment ce qu'Omar a compris ; ils ne remplacent jamais le champ libre.
     interaction = contract.get("interaction", "free_text")
     options = [enforce_vouvoiement_text(str(x)) for x in list(contract.get("options", []))]
-    if auditbiz_payload and auditbiz_payload.get("interaction") in {"rank", "confirm"} and step not in {"intro", "synthesis_card", "report"}:
+    if missing:
+        options = [enforce_vouvoiement_text(str(x)) for x in options_for_field(missing[0])]
+    if auditbiz_payload and auditbiz_payload.get("interaction") in {"rank", "confirm"} and step not in {"intro", "synthesis_card", "report"} and not missing:
         options = [enforce_vouvoiement_text(str(x)) for x in list(auditbiz_payload.get("options") or options)]
     sector_hint = ", ".join(ref.get("important_dimensions", [])[:4])
     result = {
@@ -425,9 +537,11 @@ def create_session(payload: dict[str, Any] | None = None) -> dict[str, Any]:
 
 def add_message(session: dict[str, Any], text: str) -> dict[str, Any]:
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    session.setdefault("messages", []).append({"role": "client", "text": text, "at": now})
-    session["sector_id"] = detect_sector(session_text(session))
     session["current_step"] = normalize_step_id(str(session.get("current_step") or "intro"))
+    expected = expected_field_for_step(session, str(session.get("current_step") or "intro"))
+    stored_text = expand_contextual_answer(text, expected)
+    session.setdefault("messages", []).append({"role": "client", "text": stored_text, "raw_text": text, "expected_field": expected, "at": now})
+    session["sector_id"] = detect_sector(session_text(session))
     q = next_question(session, str(session.get("current_step") or "intro"))
     session.setdefault("asked_questions", []).append({"step": q["step"], "question": q["question"], "auditbiz_question_id": (q.get("auditbiz_question") or {}).get("id")})
     return {"session": session, "omar": q}
