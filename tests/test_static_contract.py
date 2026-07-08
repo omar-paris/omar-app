@@ -74,6 +74,12 @@ def test_audit_page_is_v4_minimal_conversation_not_cockpit_or_static_form():
         "on commence !",
         "ce qu’omar a compris",
         "ce qu’il ne faut pas automatiser",
+        "sauvegarde optionnelle",
+        "continuer sans compte",
+        "se connecter pour sauvegarder",
+        "recevoir le rapport par email",
+        "obligatoire seulement pour accéder au devis",
+        "le devis est volontairement réservé aux personnes enregistrées",
         "style v4",
         "encre #16140f",
         "corail #a8553a",
@@ -92,6 +98,19 @@ def test_audit_page_is_v4_minimal_conversation_not_cockpit_or_static_form():
     assert "valider cette étape" not in text
     assert "préparer recherches" not in text
     assert "<form id=\"audit-form\"" not in text
+
+
+def test_devis_page_declares_registered_paypal_target():
+    build_site()
+    text = html(PUBLIC / "devis" / "index.html").lower()
+    for term in [
+        "accès devis réservé aux personnes enregistrées",
+        "paiement sécurisé cible paypal",
+        "continuer vers paypal",
+        "aucun provisioning sans validation humaine",
+        "paiement sécurisé paypal en attente de configuration",
+    ]:
+        assert term in text
 
 
 def test_config_page_defines_actionable_oa_start_wizard():
@@ -265,10 +284,16 @@ def test_onboarding_frontend_exposes_resume_autosave_and_simulation_console():
         assert term in text
 
 
-def test_changelog_exists_and_no_secret_like_literals_are_exposed():
+def test_changelog_contract_is_internal_not_public_for_now():
     build_site()
-    changelog = html(PUBLIC / "changelog" / "index.html")
-    assert "V0.1.0" in changelog
+    contract = (ROOT / "APP_CONTRACT.md").read_text(encoding="utf-8").lower()
+    assert "changelog" in contract
+    assert "non public" in contract
+    assert "accès interne/authentifié" in contract
+
+
+def test_no_secret_like_literals_are_exposed():
+    build_site()
     all_text = "\n".join(path.read_text(encoding="utf-8") for path in PUBLIC.rglob("*.html"))
     forbidden = [r"sk-[A-Za-z0-9]", r"plane_api_[a-f0-9]", r"BEGIN (RSA|OPENSSH) PRIVATE KEY", r"POSTGRES_PASSWORD="]
     for pattern in forbidden:
@@ -287,3 +312,13 @@ def test_caddy_protects_multitenant_api_before_generic_api_bypass():
         block = caddy[block_start:generic_pos]
         assert "forward_auth 127.0.0.1:4180" in block
         assert "copy_headers X-Auth-Request-User X-Auth-Request-Email" in block
+
+
+def test_caddy_keeps_audit_public_but_devis_and_changelog_authenticated():
+    caddy = (ROOT / "deploy" / "app.omar.paris.caddy").read_text(encoding="utf-8")
+    assert "handle /audit*" in caddy
+    audit_block = caddy[caddy.index("handle /audit*"):caddy.index("handle /onboarding*")]
+    assert "forward_auth" not in audit_block
+    assert "Tout le portail (/, /devis/, /onboarding/, /sav/, /compte/, /aide/, /changelog/, /admin/…)" in caddy
+    assert "handle /devis*" not in caddy
+    assert "handle /changelog*" not in caddy

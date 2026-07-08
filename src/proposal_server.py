@@ -1853,8 +1853,9 @@ class ProposalHandler(BaseHTTPRequestHandler):
 
 
     def handle_checkout(self) -> None:
-        """Lance le paiement Stripe d'un devis. Stub tant que la clef Stripe n'est
-        pas fournie (app#32) — renvoie 503 explicite, jamais de faux paiement."""
+        """Lance le paiement sécurisé d'un devis. Cible produit: PayPal.
+        Tant que PayPal n'est pas configuré, renvoie un 503 explicite et ne simule
+        jamais un faux paiement."""
         try:
             length = int(self.headers.get("content-length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
@@ -1869,58 +1870,14 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if devis.get("statut") != "user_validated":
             self.send_json(409, {"ok": False, "error": "devis_not_validated", "message": "Le devis doit être lu et validé explicitement par le client avant checkout.", "devis_id": did, "statut": devis.get("statut")})
             return
-        mode = "live" if os.environ.get("OA_STRIPE_MODE") == "live" else "test"
-        key = _stripe_key(mode)
-        if not key:
-            self.send_json(503, {"ok": False, "error": "stripe_non_configure",
-                                 "message": f"Paiement bientôt disponible — clef Stripe {mode} en attente.",
-                                 "devis_id": did,
-                                 "total_mensuel_eur": devis["total_mensuel_eur"],
-                                 "total_unique_eur": devis.get("total_unique_eur", 0)})
-            return
-        base = "https://app.omar.paris"
-        params: dict = {
-            "success_url": f"{base}/devis/?paid={did}",
-            "cancel_url": f"{base}/devis/?cancel={did}",
-            "client_reference_id": did,
-            "metadata": {"devis_id": did},
-        }
-        mensuel = [l for l in devis["lignes"] if l.get("prix_mensuel")]
-        unique = [l for l in devis["lignes"] if l.get("prix_unique")]
-        line_items = []
-        if mensuel:
-            params["mode"] = "subscription"
-            for l in mensuel:
-                line_items.append({"price_data": {"currency": "eur",
-                    "product_data": {"name": l["label"]},
-                    "unit_amount": int(l["prix_mensuel"]) * 100,
-                    "recurring": {"interval": "month"}}, "quantity": int(l.get("qty", 1))})
-            # prestations one-shot ajoutées sur la 1re facture de l'abonnement
-            if unique:
-                params["subscription_data"] = {"metadata": {"devis_id": did}}
-        else:
-            params["mode"] = "payment"
-        for l in unique:
-            li = {"price_data": {"currency": "eur",
-                  "product_data": {"name": l["label"]},
-                  "unit_amount": int(l["prix_unique"]) * 100}, "quantity": int(l.get("qty", 1))}
-            if mensuel:
-                # en mode subscription, les one-shot passent en add_invoice_items
-                params.setdefault("subscription_data", {})
-                params["line_items"] = line_items  # set below anyway
-            line_items.append(li)
-        params["line_items"] = line_items
-        session = stripe_post("checkout/sessions", params, key)
-        if session.get("error"):
-            self.send_json(502, {"ok": False, "error": "stripe_error",
-                                 "message": session["error"].get("message", "?")})
-            return
-        # marque le devis 'en_paiement'
-        devis["statut"] = "en_paiement"
-        devis["stripe_session"] = session.get("id")
-        devis["stripe_mode"] = mode
-        (self.data_dir / "devis" / f"{did}.json").write_bytes(json_bytes(devis))
-        self.send_json(200, {"ok": True, "checkout_url": session.get("url"), "mode": mode})
+        self.send_json(503, {"ok": False, "error": "paypal_non_configure",
+                             "message": "Paiement sécurisé PayPal en attente de configuration.",
+                             "devis_id": did,
+                             "payment_provider_target": "paypal",
+                             "legacy_provider_disabled": "stripe",
+                             "total_mensuel_eur": devis["total_mensuel_eur"],
+                             "total_unique_eur": devis.get("total_unique_eur", 0)})
+        return
 
     def handle_stripe_webhook(self) -> None:
         """Reçoit les events Stripe. Marque le devis 'acheté' à la complétion du

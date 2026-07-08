@@ -117,7 +117,7 @@ PAGES = {
     "/": {
         "title": "Omar App — portail client OA",
         "eyebrow": "CORE OA · Portail client/prospect",
-        "summary": "Transformer un prospect en configuration OA exploitable : onboarding, devis, paiement test, SAV et compte Omar.",
+        "summary": "Transformer un prospect en diagnostic utile : audit conversationnel public, sauvegarde/email optionnels, puis devis authentifié et paiement sécurisé PayPal avant activation réelle.",
         "sections": [
             ("Parcours V0", ["1. Comprendre le besoin", "2. Proposer une configuration OA Start", "3. Préparer installation et support", "4. Suivre le client dans QG/Lab"]),
             ("Statut", ["Skeleton V0 local-first", "Pas encore de paiement réel", "Pas encore d’OAuth réel", "Nango reste L2 pour le moment"]),
@@ -155,10 +155,10 @@ PAGES = {
     },
     "/devis/": {
         "title": "Devis — composer l'offre OA",
-        "eyebrow": "Pré-commande / paiement test",
-        "summary": "Le devis transforme l'onboarding en sélection de formules et options. Paiement réel désactivé tant que Stripe n'est pas configuré ; le 1er mois devra être payé avant activation réelle.",
+        "eyebrow": "Devis authentifié / PayPal cible",
+        "summary": "Le devis est réservé aux personnes enregistrées. Il transforme l'audit/onboarding en sélection de formules et options ; paiement sécurisé cible PayPal, aucun provisioning sans validation humaine.",
         "sections": [
-            ("Flux", ["Sélection produits catalogue", "Création devis JSON", "Checkout Stripe test ou message explicite", "paid_actions=none tant que non configuré"]),
+            ("Flux", ["Audit public possible sans compte", "Sauvegarde/email via inscription", "Accès devis réservé aux personnes enregistrées", "Continuer vers PayPal quand le provider est configuré", "paid_actions=none tant que PayPal n'est pas configuré"]),
             ("Offre", ["Prix à partir de", "Coupons/bons/remises pilotes", "Option PC accompagnée", "VPS ou hybride selon profil"]),
         ],
     },
@@ -194,8 +194,8 @@ PAGES = {
     },
     "/changelog/": {
         "title": "Changelog",
-        "eyebrow": "Historique Omar App",
-        "summary": "V0.5.0 · 26 juin 2026 · Tunnel A→Z onboarding → devis → agent + option PC smoke.",
+        "eyebrow": "Historique Omar App · interne",
+        "summary": "Changelog non public pour le moment : l'historique reste disponible derrière authentification, pas comme page marketing publique.",
         "sections": [
             ("V0.5.1 — P7 onboarding reprise/simulation", ["Onboarding persistant avec record_id et resume_url", "Rechargement des sections validées et current_step", "Console Simuler la configuration", "Simulation agent_spec + provisioning_preview dry-run", "paid_actions=none"]),
             ("V0.5.0", ["Onboarding conversationnel 6 étapes", "Routes canoniques /onboarding/, /devis/, /sav/, /compte/", "Agent profile exploitable par Hermes", "Option PC alignée OmarTop pc-smoke-check", "paid_actions=none tant que non configuré"]),

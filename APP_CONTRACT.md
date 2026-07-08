@@ -1,6 +1,6 @@
 # OA App Contract — app.omar.paris
 
-> Date : 2026-06-26. Statut : V0.5.0. Source : A2Z tunnel build (issue omar-app#46).
+> Date : 2026-07-08. Statut : V0.5.1-draft. Source : A2Z tunnel + décision Alex audit sauvegardable / devis authentifié.
 
 ## Identity
 
@@ -13,14 +13,14 @@
 - QG remains distinct: internal CORE OA registry/backoffice, not the customer portal.
 - Stack: CORE OA
 - Tenant/client: multi-tenant
-- Public/private/tailnet-only: public avec authentification obligatoire pour le portail client et `/api/proposals*` (OAuth Google via Caddy `forward_auth` côté vhost public ; token opérateur >=32 chars uniquement pour accès interne direct au serveur).
+- Public/private/tailnet-only: audit public sans compte obligatoire ; sauvegarde/reprise/email optionnels via authentification ; devis, compte, client portal, admin et `/api/proposals*` authentifiés (OAuth Google via Caddy `forward_auth` côté vhost public ; token opérateur >=32 chars uniquement pour accès interne direct au serveur).
 - Repo/path: `/home/omar/23-Offre/actifs/omar-app`
 
 ## Objective
 
 Primary job-to-be-done:
 
-> Transformer un prospect/client en configuration OA exploitable via le tunnel A→Z : onboarding conversationnel → devis → Stripe test/simulation → provisioning timeline → agent_spec.
+> Transformer un prospect en diagnostic utile via audit conversationnel public, puis en client enregistré pour sauvegarde/email, devis sécurisé, paiement PayPal cible, onboarding et agent_spec. Le devis est aval de l’audit, jamais le centre de l’audit.
 
 ## Audience
 
@@ -51,7 +51,7 @@ Primary job-to-be-done:
 
 /devis/
   Composez votre solution : formule + modules + prestations.
-  Autosave continu, lien repreneur, checkout Stripe test.
+  Accès obligatoire après enregistrement/authentification. Autosave continu, lien repreneur, paiement sécurisé cible PayPal. Le chemin Stripe existant est legacy technique à remplacer, pas la cible produit.
 
 /sav/
   Support, bugs, incidents, demandes, feedback. Diagnostic VPS read-only.
@@ -63,7 +63,7 @@ Primary job-to-be-done:
   Aide contextuelle : quoi faire selon l'état du client.
 
 /changelog/
-  Historique des versions Omar App.
+  Historique des versions Omar App. Non public pour le moment : accès interne/authentifié uniquement.
 
 /admin/catalog/
   Édition catalogue (admin only).
@@ -108,14 +108,22 @@ Persistance/reprise (issue #35) :
   `appomar.onboarding_simulation.v1`, `agent_spec`, `provisioning_preview.mode=dry-run`,
   `provisioning_preview.paid_actions=none`, et prochains pas vers devis / dry-run / GO humain.
 
+### Audit, sauvegarde et devis (V0.5.1-draft)
+
+- L’audit peut démarrer sans compte pour réduire la friction.
+- Dès le début, proposer une inscription optionnelle pour suivre, sauvegarder et reprendre l’audit.
+- À la fin, si la personne n’est pas enregistrée, proposer de sauvegarder/envoyer le rapport par email.
+- L’accès au devis nécessite une personne enregistrée/authentifiée.
+- Les documents Fable/Deep Search ne sont ni jetés ni publiés bruts : ils deviennent matière digérée pour nouveaux tests, arbre audit, prompts, backlog et améliorations.
+
 ### Devis (V0.6.0)
 
-Devis = sélection catalogue → devis JSON/PDF → checkout Stripe test/simulation.
+Devis = sélection catalogue → devis JSON/PDF → paiement sécurisé cible PayPal. Le code Stripe présent est legacy et doit être remplacé par PayPal avant promesse live.
 
 - Produits du `catalog.json` : formules (Starter 49€, Pro 99€, Sur-mesure), modules, prestations.
 - API accepte les items simples (`"formule-starter"`) et quantifiés (`{"id":"formule-starter","qty":2}`).
 - Export DIY minimal : `GET /api/devis/<id>.pdf` renvoie un PDF téléchargeable sans dépendance externe.
-- Aucun coût réel : `paid_actions=none`, Stripe test uniquement tant que la clef n'est pas configurée.
+- Aucun coût réel : `paid_actions=none`; PayPal doit valider/sécuriser le paiement avant activation réelle. Tant que PayPal n’est pas configuré, le checkout doit renvoyer un blocage explicite, pas un faux paiement.
 - Statut `paid_test` pour simulation de paiement réussi.
 
 ### Provisioning dry-run (V0.6.0)

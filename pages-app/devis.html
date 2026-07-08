@@ -30,14 +30,14 @@
 </style></head><body>
 <main>
 <h1 class="h1" style="margin-bottom:4px">Composez votre solution</h1>
-<p class="sub" style="margin-bottom:8px">Votre sélection est sauvegardée automatiquement — vous pouvez fermer et reprendre via votre lien. Rien n'est payé sans votre accord.</p>
-<div class="safe">🔒 Mode test — aucun coût réel. Stripe test uniquement.</div>
+<p class="sub" style="margin-bottom:8px">Le devis est l’étape sécurisée après l’audit : vous devez être enregistré pour sauvegarder, recevoir le devis et déclencher le paiement.</p>
+<div class="safe">🔒 Accès devis réservé aux personnes enregistrées · Paiement sécurisé cible PayPal · aucun provisioning sans validation humaine.</div>
 <div class="grid"><div id="cat"></div>
 <aside class="cart"><h2>Votre devis</h2><div id="lines"><div style="font-size:13px;color:#9ca3af">Aucune sélection</div></div>
 <div class="tot"><span>Mensuel</span><span id="tm">0 &euro;</span></div>
 <div class="tot" style="font-weight:500;font-size:13px"><span>Installation</span><span id="tu">0 &euro;</span></div>
 <button class="save" onclick="saveDevis(true)">Sauvegarder &amp; copier mon lien</button>
-<button class="buy" onclick="buy()">Acheter (test)</button>
+<button class="buy" onclick="buy()">Continuer vers PayPal</button>
 <div class="saved" id="saved"></div><div id="msg"></div>
 <div class="tl" id="prov-tl" style="display:none">
   <h3>Provisioning après paiement</h3>
@@ -104,10 +104,10 @@ async function buy(){ const id=await saveDevis(false); if(!id){msg("Choisissez a
   const d=await r.json();
   if(r.status===503){
     const tu=Number(d.total_unique_eur||0); const one=tu?` + ${tu} € d'installation`:'';
-    msg("💳 "+(d.message||"Paiement test simulé — Stripe non configuré.")+" Votre devis ("+d.total_mensuel_eur+" €/mois"+one+") est sauvegardé et partageable via son lien.",true);
+    msg("💳 "+(d.message||"Paiement sécurisé PayPal en attente de configuration.")+" Votre devis ("+d.total_mensuel_eur+" €/mois"+one+") est sauvegardé pour validation.",true);
     showProvisioningTimeline();
   } else if(r.ok&&d.checkout_url){ location.href=d.checkout_url; }
   else { msg("Paiement indisponible ("+(d.error||r.status)+")",false); }
 }
 load();
-</script></body></html>
+</script><footer class="sr-only">Omar App · app.omar.paris · V0.5.0 · Devis authentifié · PayPal cible · paid_actions=none</footer></body></html>
