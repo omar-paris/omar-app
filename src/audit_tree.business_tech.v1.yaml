@@ -191,7 +191,7 @@ steps:
          source: sector_pack.question_blocks, profondeur_max: 1}
       - {id: top_caillou, type: quick_replies, required: true,
          question: "Si je ne t'enlève QU'UNE épine du pied, c'est…",
-         options: from_detected_irritants + ["Autre chose"]}
+         options: 'from_detected_irritants + ["Autre chose"]'}
     completion: [">= 2 irritants qualifiés", top_caillou]
     signaux:
       - {detect: chiffre_spontane, then: noter_estimation_temps}
@@ -272,7 +272,7 @@ steps:
       - {id: outils_racontes, type: free_text, required: true}
       - {id: outils_confirm, type: checklist, required: true,
          question: "Je coche ce que j'ai compris :",
-         options: from_recit + from_sector_pack}
+         options: 'from_recit + from_sector_pack'}
       - {id: sauvegarde, type: quick_replies, required: false,
          question: "Si ton ordi/téléphone meurt demain, tes données…",
          options: ["Sont sauvegardées", "En partie", "Aïe", "Je ne sais pas"]}
@@ -369,7 +369,7 @@ steps:
       - {if: "suite == 'Chiffrer ça (devis)'", then: create_devis_from_audit}     # POST /api/devis {audit_id}
       - {if: "suite == 'Préparer mon agent'", then: onboarding_prefilled}          # PAS un wizard vierge
       - {if: "suite == 'Parler à Alex'", then: lead_alex_avec_rapport}
-      - {if: "suite == 'Digérer d'abord'", then: email_rapport + relance_unique_j3}
+      - {if: "suite == 'Digérer d'abord'", then: 'email_rapport + relance_unique_j3'}
     outputs:
       report: [client_validated_summary]
       onboarding: [ALL_LOCKED]         # cette carte validée = source canonique
