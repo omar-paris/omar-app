@@ -752,6 +752,45 @@ def safe_write_onboarding(data_dir: Path, payload: dict[str, Any]) -> tuple[dict
     return onboarding, created
 
 
+def validate_hermes_bootstrap_dry_run(agent_spec: dict[str, Any]) -> dict[str, Any]:
+    """Validate that an onboarding agent_spec is structurally bootstrap-ready.
+
+    This is intentionally a local dry-run validator, not a live Hermes bootstrap:
+    it creates no profile, no credential, no external resource, and no paid action.
+    """
+    checks: list[dict[str, Any]] = []
+
+    def add_check(key: str, passed: bool, detail: str) -> None:
+        checks.append({"key": key, "result": "pass" if passed else "fail", "detail": detail})
+
+    agent_name = str(agent_spec.get("agent_name") or "").strip()
+    modules = agent_spec.get("modules")
+    infra = str(agent_spec.get("infra") or "").strip().lower()
+    raw = json.dumps(agent_spec, ensure_ascii=False)
+
+    add_check("agent_name_present", bool(agent_name), agent_name or "missing")
+    add_check("modules_non_empty", isinstance(modules, list) and bool(modules), f"{len(modules) if isinstance(modules, list) else 0} modules")
+    add_check("infra_supported", infra in {"vps", "pc", "hybride"}, infra or "missing")
+    for index, pattern in enumerate(SECRET_PATTERNS, start=1):
+        # Do not echo the forbidden literal into the public simulation payload.
+        add_check(f"secret_literal_absent_{index}", pattern not in raw, "absent" if pattern not in raw else "present")
+
+    passed = all(check["result"] == "pass" for check in checks)
+    return {
+        "schema": "appomar.hermes_bootstrap_dry_run.v1",
+        "mode": "local_validator_only",
+        "status": "valid" if passed else "invalid",
+        "configured": False,
+        "proven": False,
+        "paid_actions": "none",
+        "secrets_required": False,
+        "actions": [],
+        "checks": checks,
+        "conclusion": "potential",
+        "note": "Spec structurally validated for a future Hermes bootstrap; no live Hermes profile/agent was created.",
+    }
+
+
 def build_onboarding_simulation(onboarding: dict[str, Any], target: str) -> dict[str, Any]:
     target = normalize_onboarding_target(target)
     record = onboarding.get("record") or {}
@@ -759,12 +798,14 @@ def build_onboarding_simulation(onboarding: dict[str, Any], target: str) -> dict
     agent_spec.setdefault("agent_name", "Omar")
     agent_spec.setdefault("modules", record.get("objectifs", []))
     agent_spec.setdefault("infra", target)
+    hermes_bootstrap_dry_run = validate_hermes_bootstrap_dry_run(agent_spec)
     return {
         "schema": "appomar.onboarding_simulation.v1",
         "source_onboarding_id": onboarding["id"],
         "mode": "simulation_console",
         "status": "preview_only",
         "agent_spec": agent_spec,
+        "hermes_bootstrap_dry_run": hermes_bootstrap_dry_run,
         "provisioning_preview": {
             "schema": "omartop.provisioning-contract.v1.preview",
             "target": target,
@@ -774,12 +815,14 @@ def build_onboarding_simulation(onboarding: dict[str, Any], target: str) -> dict
             "checks": [
                 {"key": "onboarding_present", "result": "pass", "detail": onboarding["id"]},
                 {"key": "agent_spec_preview", "result": "pass", "detail": agent_spec.get("agent_name", "Omar")},
+                {"key": "hermes_bootstrap_dry_run", "result": hermes_bootstrap_dry_run["status"], "detail": hermes_bootstrap_dry_run["conclusion"]},
                 {"key": "paid_actions_none", "result": "pass", "detail": "simulation only"},
             ],
         },
         "next_steps": [
             {"route": "/devis/", "label": "Composer/valider le devis", "required": True},
             {"route": "/api/provisioning/dry-run", "label": "Créer un contrat dry-run après devis", "required": False},
+            {"route": "hermes_bootstrap", "label": "Bootstrap Hermes futur: non exécuté en dry-run local", "required": False},
             {"route": "human_go", "label": "GO humain obligatoire avant toute action payante", "required": True},
         ],
         "resume_url": onboarding.get("resume_url", f"/onboarding/?record_id={onboarding['id']}"),
@@ -1519,10 +1562,30 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 "catalogue_id",
                 "catalogue_refs",
                 "capability_status",
+                "proof_tier",
+                "proof_scope",
+                "runtime_scope",
+                "evidence_refs",
+                "measurement_state",
+                "connector_dependency_status",
+                "release_gate_ref",
+                "durable_gate_artifact_ref",
+                "safe_claim",
+                "do_not_claim",
+                "last_verified_at",
                 "runtime_status",
                 "cost_status",
                 "commercial_scope",
                 "human_approval_required",
+                "proof_status",
+                "source_task",
+                "pr",
+                "live_smoke",
+                "sensitive_endpoints_protected",
+                "runtime_client_proven",
+                "ram_mb",
+                "disk_mb",
+                "do_not_claim",
             ):
                 if key in p:
                     line[key] = p[key]

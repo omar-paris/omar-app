@@ -17,7 +17,34 @@
         "1 connexion (email ou agenda)"
       ],
       "cible": "artisan/commerçant qui démarre",
-      "est_pack_initial": true
+      "est_pack_initial": true,
+      "capability_status": "configured",
+      "proof_tier": "configured",
+      "proof_scope": "AppOmar product/catalog row exists for pricing or service framing only; it is not runtime proof.",
+      "runtime_scope": "commercial_wrapper",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "human_approval_required": true,
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Offre AppOmar à cadrer/valider humainement avant activation réelle.",
+      "do_not_claim": [
+        "runtime client autonome",
+        "installation/provisioning réel sans GO humain"
+      ],
+      "last_verified_at": "2026-07-08",
+      "cost_status": "known"
     },
     {
       "id": "formule-pro",
@@ -41,7 +68,96 @@
       "runtime_status": "unknown",
       "cost_status": "known",
       "human_approval_required": true,
-      "commercial_scope": "appomar_v1_mapping"
+      "commercial_scope": "appomar_v1_mapping",
+      "proof_tier": "configured",
+      "proof_scope": "Offre commerciale présente dans catalog.json; underlying catalogue ref remains potential/runtime unknown.",
+      "runtime_scope": "commercial_wrapper",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053",
+        "file:/home/omar/.hermes/kanban/artifacts/t_67da855e/appomar_capability_matrix_t_67da855e.json"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Pack/cadrage Formule Pro vendable avec limites explicites et validation humaine.",
+      "do_not_claim": [
+        "runtime client Catalogue déjà démontré"
+      ],
+      "last_verified_at": "2026-07-08"
+    },
+    {
+      "id": "appomar-public-audit-onboarding-funnel",
+      "famille": "preuve",
+      "label": "AppOmar — tunnel public audit/onboarding",
+      "pitch": "Lien prospect envoyable: audit, onboarding et préparation de devis assisté, sans accès admin/client public.",
+      "prix_mensuel": null,
+      "setup": null,
+      "est_pack_initial": false,
+      "catalogue_refs": [
+        "appomar-public-audit-onboarding-funnel"
+      ],
+      "capability_status": "proven",
+      "proof_status": "proven",
+      "runtime_status": "public_funnel_proven",
+      "cost_status": "unknown",
+      "commercial_scope": "audit_onboarding_devis_assiste_public_funnel_only",
+      "source_task": "t_d5dda7f0",
+      "pr": 56,
+      "live_smoke": {
+        "checked_at": "2026-07-08",
+        "public_endpoints": {
+          "/audit/": 200,
+          "/onboarding/": 200,
+          "/api/oa-start-packs.json": 200,
+          "/api/apps-l1.json": 200,
+          "/api/connector-readiness.json": 200
+        },
+        "sensitive_endpoints": {
+          "/api/onboarding/status": 401,
+          "/api/proposals": 401
+        }
+      },
+      "sensitive_endpoints_protected": true,
+      "human_approval_required": true,
+      "runtime_client_proven": false,
+      "ram_mb": "unknown",
+      "disk_mb": "unknown",
+      "do_not_claim": [
+        "runtime client autonome prouvé pour les 7 modules V1",
+        "connecteurs client intégrés/proven",
+        "envoi ou mutation automatique sans validation humaine",
+        "RAM/disk/coût mesuré par module"
+      ],
+      "proof_tier": "proven",
+      "proof_scope": "Public AppOmar audit/onboarding/devis assisté smoke live, not autonomous client runtime.",
+      "runtime_scope": "public_funnel_smoke",
+      "evidence_refs": [
+        "kanban:t_d5dda7f0",
+        "PR #56 omar-paris/omar-app",
+        "curl live read-only 2026-07-08: /audit/ 200; /onboarding/ 200; /api/oa-start-packs.json 200; /api/apps-l1.json 200; /api/connector-readiness.json 200; /api/onboarding/status 401; /api/proposals 401"
+      ],
+      "release_gate_ref": "t_d5dda7f0 / PR #56 / H-Athena pass",
+      "durable_gate_artifact_ref": "/home/omar/.hermes/kanban/artifacts/t_ed9f479a/review-manifest-1.md",
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "safe_claim": "Tunnel public AppOmar audit/onboarding accessible et protégé selon smoke live; devis assisté possible.",
+      "last_verified_at": "2026-07-08"
     },
     {
       "id": "formule-sur-mesure",
@@ -55,7 +171,34 @@
         "Devis personnalisé"
       ],
       "cible": "besoin spécifique",
-      "est_pack_initial": true
+      "est_pack_initial": true,
+      "capability_status": "configured",
+      "proof_tier": "configured",
+      "proof_scope": "AppOmar product/catalog row exists for pricing or service framing only; it is not runtime proof.",
+      "runtime_scope": "commercial_wrapper",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "human_approval_required": true,
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Offre AppOmar à cadrer/valider humainement avant activation réelle.",
+      "do_not_claim": [
+        "runtime client autonome",
+        "installation/provisioning réel sans GO humain"
+      ],
+      "last_verified_at": "2026-07-08",
+      "cost_status": "known"
     },
     {
       "id": "mod-crm",
@@ -71,7 +214,32 @@
       "runtime_status": "unknown",
       "cost_status": "known",
       "human_approval_required": true,
-      "commercial_scope": "appomar_v1_mapping"
+      "commercial_scope": "appomar_v1_mapping",
+      "proof_tier": "potential",
+      "proof_scope": "Legacy AppOmar commercial wrapper maps to Catalogue V1 rows; not proof of module runtime automation.",
+      "runtime_scope": "commercial_wrapper",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053",
+        "file:/home/omar/.hermes/kanban/artifacts/t_67da855e/appomar_capability_matrix_t_67da855e.json"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Ligne de devis/cadrage assisté avec limites runtime explicites.",
+      "do_not_claim": [
+        "runtime client Catalogue déjà démontré",
+        "module installé/healthy chez client"
+      ],
+      "last_verified_at": "2026-07-08"
     },
     {
       "id": "mod-presence",
@@ -87,7 +255,32 @@
       "runtime_status": "unknown",
       "cost_status": "known",
       "human_approval_required": true,
-      "commercial_scope": "appomar_v1_mapping"
+      "commercial_scope": "appomar_v1_mapping",
+      "proof_tier": "potential",
+      "proof_scope": "Legacy AppOmar commercial wrapper maps to Catalogue V1 rows; not proof of module runtime automation.",
+      "runtime_scope": "commercial_wrapper",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053",
+        "file:/home/omar/.hermes/kanban/artifacts/t_67da855e/appomar_capability_matrix_t_67da855e.json"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Ligne de devis/cadrage assisté avec limites runtime explicites.",
+      "do_not_claim": [
+        "runtime client Catalogue déjà démontré",
+        "module installé/healthy chez client"
+      ],
+      "last_verified_at": "2026-07-08"
     },
     {
       "id": "mod-paperasse",
@@ -106,7 +299,32 @@
       "runtime_status": "unknown",
       "cost_status": "known",
       "human_approval_required": true,
-      "commercial_scope": "appomar_v1_mapping"
+      "commercial_scope": "appomar_v1_mapping",
+      "proof_tier": "potential",
+      "proof_scope": "Legacy AppOmar commercial wrapper maps to Catalogue V1 rows; not proof of module runtime automation.",
+      "runtime_scope": "commercial_wrapper",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053",
+        "file:/home/omar/.hermes/kanban/artifacts/t_67da855e/appomar_capability_matrix_t_67da855e.json"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Ligne de devis/cadrage assisté avec limites runtime explicites.",
+      "do_not_claim": [
+        "runtime client Catalogue déjà démontré",
+        "module installé/healthy chez client"
+      ],
+      "last_verified_at": "2026-07-08"
     },
     {
       "id": "presta-onboarding",
@@ -114,7 +332,34 @@
       "label": "Installation & onboarding",
       "pitch": "Mise en service complète du VPS Hermes OA.",
       "prix_unique": 150,
-      "est_pack_initial": false
+      "est_pack_initial": false,
+      "capability_status": "configured",
+      "proof_tier": "configured",
+      "proof_scope": "AppOmar product/catalog row exists for pricing or service framing only; it is not runtime proof.",
+      "runtime_scope": "commercial_wrapper",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "human_approval_required": true,
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Offre AppOmar à cadrer/valider humainement avant activation réelle.",
+      "do_not_claim": [
+        "runtime client autonome",
+        "installation/provisioning réel sans GO humain"
+      ],
+      "last_verified_at": "2026-07-08",
+      "cost_status": "known"
     },
     {
       "id": "presta-sav",
@@ -122,7 +367,34 @@
       "label": "Intervention SAV",
       "pitch": "Inspection + correction assistée du VPS (à la demande).",
       "prix_unique": 60,
-      "est_pack_initial": false
+      "est_pack_initial": false,
+      "capability_status": "configured",
+      "proof_tier": "configured",
+      "proof_scope": "AppOmar product/catalog row exists for pricing or service framing only; it is not runtime proof.",
+      "runtime_scope": "commercial_wrapper",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "human_approval_required": true,
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Offre AppOmar à cadrer/valider humainement avant activation réelle.",
+      "do_not_claim": [
+        "runtime client autonome",
+        "installation/provisioning réel sans GO humain"
+      ],
+      "last_verified_at": "2026-07-08",
+      "cost_status": "known"
     },
     {
       "id": "presta-install-windows-pilote",
@@ -135,7 +407,31 @@
       "runtime_status": "unknown",
       "cost_status": "known",
       "human_approval_required": true,
-      "commercial_scope": "appomar_v1_mapping"
+      "commercial_scope": "appomar_v1_mapping",
+      "proof_tier": "pilot",
+      "proof_scope": "AppOmar product/catalog row exists for pricing or service framing only; it is not runtime proof.",
+      "runtime_scope": "commercial_wrapper",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Offre AppOmar à cadrer/valider humainement avant activation réelle.",
+      "do_not_claim": [
+        "runtime client autonome",
+        "installation/provisioning réel sans GO humain"
+      ],
+      "last_verified_at": "2026-07-08"
     },
     {
       "id": "presence-google-business-avis",
@@ -155,7 +451,34 @@
       "human_approval_required": true,
       "ram_mb": "unknown",
       "disk_mb": "unknown",
-      "runtime_client_proven": false
+      "runtime_client_proven": false,
+      "proof_tier": "potential",
+      "proof_scope": "Catalogue/AppOmar refs only; no client runtime proof; RAM/disk/runtime cost unknown until measured.",
+      "runtime_scope": "catalogue_only",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053",
+        "file:/home/omar/23-Offre/actifs/omar-catalogue/public/api/catalogue-site.json",
+        "file:/home/omar/.hermes/kanban/artifacts/t_67da855e/appomar_capability_matrix_t_67da855e.json"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Piste de devis/cadrage à valider humainement; aucune promesse de runtime client autonome.",
+      "do_not_claim": [
+        "configured/proven sans gate Athena",
+        "connecteurs client intégrés",
+        "RAM/disk/coût runtime mesurés"
+      ],
+      "last_verified_at": "2026-07-08"
     },
     {
       "id": "recrutement-annonces-candidats",
@@ -175,7 +498,34 @@
       "human_approval_required": true,
       "ram_mb": "unknown",
       "disk_mb": "unknown",
-      "runtime_client_proven": false
+      "runtime_client_proven": false,
+      "proof_tier": "potential",
+      "proof_scope": "Catalogue/AppOmar refs only; no client runtime proof; RAM/disk/runtime cost unknown until measured.",
+      "runtime_scope": "catalogue_only",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053",
+        "file:/home/omar/23-Offre/actifs/omar-catalogue/public/api/catalogue-site.json",
+        "file:/home/omar/.hermes/kanban/artifacts/t_67da855e/appomar_capability_matrix_t_67da855e.json"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Piste de devis/cadrage à valider humainement; aucune promesse de runtime client autonome.",
+      "do_not_claim": [
+        "configured/proven sans gate Athena",
+        "connecteurs client intégrés",
+        "RAM/disk/coût runtime mesurés"
+      ],
+      "last_verified_at": "2026-07-08"
     },
     {
       "id": "secretaire-tri-demandes",
@@ -195,7 +545,34 @@
       "human_approval_required": true,
       "ram_mb": "unknown",
       "disk_mb": "unknown",
-      "runtime_client_proven": false
+      "runtime_client_proven": false,
+      "proof_tier": "potential",
+      "proof_scope": "Catalogue/AppOmar refs only; no client runtime proof; RAM/disk/runtime cost unknown until measured.",
+      "runtime_scope": "catalogue_only",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053",
+        "file:/home/omar/23-Offre/actifs/omar-catalogue/public/api/catalogue-site.json",
+        "file:/home/omar/.hermes/kanban/artifacts/t_67da855e/appomar_capability_matrix_t_67da855e.json"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Piste de devis/cadrage à valider humainement; aucune promesse de runtime client autonome.",
+      "do_not_claim": [
+        "configured/proven sans gate Athena",
+        "connecteurs client intégrés",
+        "RAM/disk/coût runtime mesurés"
+      ],
+      "last_verified_at": "2026-07-08"
     },
     {
       "id": "secretaire-redaction-reponses",
@@ -215,7 +592,34 @@
       "human_approval_required": true,
       "ram_mb": "unknown",
       "disk_mb": "unknown",
-      "runtime_client_proven": false
+      "runtime_client_proven": false,
+      "proof_tier": "potential",
+      "proof_scope": "Catalogue/AppOmar refs only; no client runtime proof; RAM/disk/runtime cost unknown until measured.",
+      "runtime_scope": "catalogue_only",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053",
+        "file:/home/omar/23-Offre/actifs/omar-catalogue/public/api/catalogue-site.json",
+        "file:/home/omar/.hermes/kanban/artifacts/t_67da855e/appomar_capability_matrix_t_67da855e.json"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Piste de devis/cadrage à valider humainement; aucune promesse de runtime client autonome.",
+      "do_not_claim": [
+        "configured/proven sans gate Athena",
+        "connecteurs client intégrés",
+        "RAM/disk/coût runtime mesurés"
+      ],
+      "last_verified_at": "2026-07-08"
     },
     {
       "id": "secretaire-taches-relances",
@@ -235,7 +639,34 @@
       "human_approval_required": true,
       "ram_mb": "unknown",
       "disk_mb": "unknown",
-      "runtime_client_proven": false
+      "runtime_client_proven": false,
+      "proof_tier": "potential",
+      "proof_scope": "Catalogue/AppOmar refs only; no client runtime proof; RAM/disk/runtime cost unknown until measured.",
+      "runtime_scope": "catalogue_only",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053",
+        "file:/home/omar/23-Offre/actifs/omar-catalogue/public/api/catalogue-site.json",
+        "file:/home/omar/.hermes/kanban/artifacts/t_67da855e/appomar_capability_matrix_t_67da855e.json"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Piste de devis/cadrage à valider humainement; aucune promesse de runtime client autonome.",
+      "do_not_claim": [
+        "configured/proven sans gate Athena",
+        "connecteurs client intégrés",
+        "RAM/disk/coût runtime mesurés"
+      ],
+      "last_verified_at": "2026-07-08"
     },
     {
       "id": "secretaire-documents-devis-syntheses",
@@ -255,7 +686,34 @@
       "human_approval_required": true,
       "ram_mb": "unknown",
       "disk_mb": "unknown",
-      "runtime_client_proven": false
+      "runtime_client_proven": false,
+      "proof_tier": "potential",
+      "proof_scope": "Catalogue/AppOmar refs only; no client runtime proof; RAM/disk/runtime cost unknown until measured.",
+      "runtime_scope": "catalogue_only",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053",
+        "file:/home/omar/23-Offre/actifs/omar-catalogue/public/api/catalogue-site.json",
+        "file:/home/omar/.hermes/kanban/artifacts/t_67da855e/appomar_capability_matrix_t_67da855e.json"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Piste de devis/cadrage à valider humainement; aucune promesse de runtime client autonome.",
+      "do_not_claim": [
+        "configured/proven sans gate Athena",
+        "connecteurs client intégrés",
+        "RAM/disk/coût runtime mesurés"
+      ],
+      "last_verified_at": "2026-07-08"
     },
     {
       "id": "secretaire-connexions-surveillance",
@@ -275,7 +733,34 @@
       "human_approval_required": true,
       "ram_mb": "unknown",
       "disk_mb": "unknown",
-      "runtime_client_proven": false
+      "runtime_client_proven": false,
+      "proof_tier": "potential",
+      "proof_scope": "Catalogue/AppOmar refs only; no client runtime proof; RAM/disk/runtime cost unknown until measured.",
+      "runtime_scope": "catalogue_only",
+      "evidence_refs": [
+        "file:/home/omar/23-Offre/actifs/omar-app/catalog.json",
+        "card:t_a5778053",
+        "file:/home/omar/23-Offre/actifs/omar-catalogue/public/api/catalogue-site.json",
+        "file:/home/omar/.hermes/kanban/artifacts/t_67da855e/appomar_capability_matrix_t_67da855e.json"
+      ],
+      "measurement_state": {
+        "ram_mb": null,
+        "disk_mb": null,
+        "runtime_cost": null,
+        "state": "unknown",
+        "measured_at": null,
+        "measurement_ref": null
+      },
+      "connector_dependency_status": "unknown",
+      "release_gate_ref": "",
+      "durable_gate_artifact_ref": "",
+      "safe_claim": "Piste de devis/cadrage à valider humainement; aucune promesse de runtime client autonome.",
+      "do_not_claim": [
+        "configured/proven sans gate Athena",
+        "connecteurs client intégrés",
+        "RAM/disk/coût runtime mesurés"
+      ],
+      "last_verified_at": "2026-07-08"
     }
   ]
 }
