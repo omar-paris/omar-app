@@ -44,6 +44,8 @@
 .recap table{width:100%;font-size:14px;border-collapse:collapse}
 .recap td{padding:5px 0;vertical-align:top}.recap td:first-child{color:#64748b;width:140px}
 .recap .agent-spec{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-top:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;max-height:200px;overflow:auto}
+.audit-prefill{display:none;background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px 16px;margin:18px 0;color:#7c2d12}
+.audit-prefill.visible{display:block}.audit-prefill h2{font-size:17px;margin:0 0 6px}.audit-prefill ul{margin:8px 0 0;padding-left:20px;font-size:13px}
 
 /* --- provisioning timeline preview --- */
 .timeline{margin-top:18px}
@@ -56,7 +58,8 @@
 </style></head><body>
 <main class="ob">
 <h1 class="h1">Configurer votre assistant Omar</h1>
-<p class="sub">Quelques questions pour personnaliser votre secrétaire IA. Répondez à votre rythme — tout est sauvegardé automatiquement.</p>
+<p class="sub">Voici ce que l'audit a compris — confirme/corrige. Répondez à votre rythme — tout est sauvegardé automatiquement.</p>
+<div class="audit-prefill" id="audit-prefill" aria-live="polite"></div>
 
 <div class="steps-bar" id="sbar"></div>
 
@@ -213,14 +216,16 @@
   <h2>Profil enregistré !</h2>
   <p class="desc">Votre assistant Omar est en cours de préparation. Passons au devis pour finaliser votre configuration.</p>
   <div class="recap" id="recap_final"></div>
-  <div class="nav"><a class="btn pri" href="/devis/">Composer mon devis →</a></div>
+  <div class="nav"><a class="btn pri" id="devis-link" href="/devis/">Composer mon devis →</a></div>
 </div>
 
 </main>
 <script>
 const STEPS = ["Identité", "Objectifs", "Outils", "Infra", "Agent", "Récap"];
+const urlParams = new URLSearchParams(window.location.search);
+const auditId = urlParams.get("audit_id") || "";
 let cur = 0;
-let recordId = new URLSearchParams(window.location.search).get("record_id") || localStorage.getItem("appomar_onboarding_record_id") || "";
+let recordId = urlParams.get("record_id") || localStorage.getItem("appomar_onboarding_record_id") || "";
 let autosaveTimer = null;
 let lastSavedHash = "";
 const SECTION_KEYS = ["identite", "objectifs", "outils", "infra", "agent", "recap"];
@@ -233,7 +238,7 @@ function onboardingPayload(autosave=false){
   return {record_id: recordId || undefined, record:{identite:d.identite,entreprise:d.entreprise,activite:d.activite,email:d.email,domaine:d.domaine,
     objectifs:d.objectifs,objectifs_libre:d.objectifs_libre,outils:d.outils,
     infra:d.infra,appareils:d.appareils},
-    agent_profile:spec, completed_sections:completedSections(), current_step:cur, autosave};
+    agent_profile:spec, completed_sections:completedSections(), current_step:cur, source_audit_id:auditId || undefined, autosave};
 }
 
 // --- step navigation ---
@@ -418,6 +423,29 @@ function fillData(onboarding){
   document.querySelectorAll('.step-panel[data-step="4"] .chips input[type=checkbox]').forEach(i=>{ i.checked=(a.canaux||[]).includes(i.value); });
   cur=Math.max(0,Math.min(5,Number(onboarding.current_step||0))); applyChipStates(); renderBar(); go(cur);
 }
+function renderAuditPrefill(onboarding){
+  const box=document.getElementById("audit-prefill");
+  if(!box || !onboarding) return;
+  const s=onboarding.source_summary||{};
+  const bullets=(s.declared_by_client||s.omar_hypotheses||[]).slice(0,3).map(x=>`<li>${String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</li>`).join("");
+  box.classList.add("visible");
+  box.innerHTML=`<h2>Voici ce que l'audit a compris — confirme/corrige</h2><p>${s.summary||"On a prérempli les champs depuis votre rapport d'audit."}</p>${bullets?`<ul>${bullets}</ul>`:""}`;
+}
+async function loadAuditPrefill(){
+  if(!auditId || recordId) return false;
+  try{
+    const r=await fetch(`/api/onboarding/prefill?audit_id=${encodeURIComponent(auditId)}`);
+    const j=await r.json();
+    if(!r.ok||!j.ok) throw new Error(j.error||r.status);
+    fillData(j.onboarding); renderAuditPrefill(j.onboarding);
+    resumeStatus(`Préremplissage audit actif : ${auditId}. Confirmez ou corrigez avant devis.`);
+    return true;
+  }catch(e){ resumeStatus(`Préremplissage audit indisponible (${auditId}) : ${e.message}`); return false; }
+}
+async function loadInitialOnboarding(){
+  if(await loadAuditPrefill()) return;
+  await loadOnboardingRecord();
+}
 async function loadOnboardingRecord(){
   if(!recordId) return;
   try{
@@ -472,6 +500,8 @@ async function submitOnboarding(){
     if(j&&j.ok){
       msgEl.innerHTML=`<div style="color:#16a34a;font-weight:600">✓ Profil enregistré ! Lien de reprise : ${j.onboarding.resume_url}</div>`;
       document.getElementById("recap_final").innerHTML=document.getElementById("recap").innerHTML;
+      const devisHref=auditId?`/devis/?audit_id=${encodeURIComponent(auditId)}`:"/devis/";
+      const devisLink=document.getElementById("devis-link"); if(devisLink) devisLink.href=devisHref;
       go(6);
     } else {
       msgEl.innerHTML='<div style="color:#dc2626">Erreur : sauvegarde indisponible</div>';
@@ -485,5 +515,5 @@ async function submitOnboarding(){
 renderBar();
 document.addEventListener("input", autosaveOnboarding);
 document.addEventListener("change", autosaveOnboarding);
-loadOnboardingRecord();
+loadInitialOnboarding();
 </script></body></html>

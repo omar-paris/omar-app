@@ -165,7 +165,7 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     const hypo=(r.omar_hypotheses||[]).slice(0,3).map(x=>`<li>${esc(x)}</li>`).join('');
     const noauto=(r.do_not_automate||r.limits||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('');
     const next=(r.next_steps||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('');
-    $('audit-result').innerHTML=`<h3>${esc(r.title||'Rapport audit')}</h3><p>${esc(r.summary||'Rapport généré à partir de la conversation.')}</p><p><strong>Ce que vous m’avez dit</strong></p><ul>${declared}</ul><p><strong>Mes hypothèses</strong></p><ul>${hypo}</ul><p><strong>Ce qu’il ne faut PAS automatiser</strong></p><ul>${noauto}</ul><p><strong>Prochaines actions</strong></p><ul>${next}</ul><p class="status">Audit ${esc(state.auditId||'local')} enregistré. Aucun paiement ni provisioning déclenché.</p>`;
+    $('audit-result').innerHTML=`<h3>${esc(r.title||'Rapport audit')}</h3><p>${esc(r.summary||'Rapport généré à partir de la conversation.')}</p><p><strong>Ce que vous m’avez dit</strong></p><ul>${declared}</ul><p><strong>Mes hypothèses</strong></p><ul>${hypo}</ul><p><strong>Ce qu’il ne faut PAS automatiser</strong></p><ul>${noauto}</ul><p><strong>Prochaines actions</strong></p><ul>${next}</ul><p class="status">Audit ${esc(state.auditId||'local')} enregistré. Aucun paiement ni provisioning déclenché.</p><p><a class="send" href="/onboarding/?audit_id=${encodeURIComponent(state.auditId||'')}">Continuer vers l’onboarding prérempli</a></p>`;
     $('audit-result').classList.add('visible'); $('audit-status').textContent='Rapport généré depuis la conversation.'; render();
   }
   async function generateReport(){
