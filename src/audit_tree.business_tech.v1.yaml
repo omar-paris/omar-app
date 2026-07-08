@@ -375,6 +375,105 @@ steps:
       onboarding: [ALL_LOCKED]         # cette carte validée = source canonique
       devis: [devis_source]
 
+evidence_contract:
+  version: business_tech.v1
+  required_fields: [origin, confidence, source_ref]
+  origins:
+    - id: declared_client
+      label: Déclaré par le client
+      code: D
+      rule: Peut alimenter diagnostic et irritants, mais reste distinct des faits vérifiés.
+    - id: verified_public
+      label: Vérifié sur source publique consentie
+      code: V
+      rule: Utilisable seulement si la source a été autorisée puis revalidée par le client.
+    - id: omar_hypothesis
+      label: Hypothèse Omar
+      code: H
+      rule: Toujours présentée comme hypothèse explicable, jamais comme fait.
+    - id: provided_document
+      label: Document fourni par le client
+      code: F
+      rule: Utilisable seulement si fourni/autorisé, cité comme document et non source publique.
+  report_rule: Chaque item sensible du rapport porte origin + confidence + source_ref.
+
+consent_contract:
+  version: business_tech.v1
+  refusal_policy: non_blocking
+  sources:
+    - {id: web_public, label: Recherche web publique, consent_key: public_web_search}
+    - {id: sirene_detail, label: Fiche SIRENE détaillée, consent_key: legal_registry_lookup}
+    - {id: site_web, label: Site web indiqué, consent_key: public_web_search}
+    - {id: fiche_google, label: Fiche Google / avis, consent_key: public_web_search}
+    - {id: reseaux, label: Réseaux sociaux publics, consent_key: social_media_lookup}
+    - {id: documents, label: Documents fournis, consent_key: document_analysis}
+  validation_rule: Chaque trouvaille publique est montrée une par une au client avant usage conclusif.
+  error_handling:
+    - {id: multiple_establishments, action: demander_confirmation_etablissement}
+    - {id: sirene_non_diffusible, action: continuer_sur_declaratif_sans_bloquer}
+    - {id: obsolete_public_data, action: marquer_obsolete_et_demander_correction}
+
+cyber_baseline_contract:
+  version: business_tech.v1
+  checks:
+    - backups
+    - access_control
+    - mfa_admin
+    - password_manager
+    - device_update
+    - sensitive_data_map
+  rule: Baseline hygiène seulement ; pas d'audit sécurité exhaustif ni promesse de conformité.
+
+regulatory_baseline_contract:
+  version: business_tech.v1
+  facturation_electronique_2027:
+    included: true
+    rule: Toujours signaler la préparation facturation électronique 2026-2027 si admin/facturation détectée.
+    limits: Information de cadrage, pas conseil fiscal/juridique.
+
+scoring_contract:
+  version: business_tech.v1
+  scores:
+    - id: cyber_hygiene_score
+      signals: [sauvegarde, donnees_sensibles, validation_humaine, outils_confirm]
+      why: Mesure une hygiène minimale avant automatisation.
+      limits: Heuristique issue de réponses structurées, pas scan technique.
+      how_to_improve: Sauvegarde, MFA, gestionnaire de mots de passe, cartographie des accès.
+    - id: operational_friction_score
+      signals: [semaine, top_caillou, admin_racontee, flow_breaks]
+      why: Priorise les irritants qui consomment du temps ou créent des erreurs.
+      limits: Dépend des estimations client.
+      how_to_improve: Mesurer fréquence, temps perdu, coût erreur.
+    - id: digital_data_ai_maturity_score
+      signals: [niveau_digital, outils_confirm, sauvegarde]
+      why: Calibre le rythme d'onboarding IA.
+      limits: Auto-déclaratif tant que non vérifié.
+      how_to_improve: Centraliser données, réduire double saisie, documenter routines.
+    - id: automation_value_score
+      signals: [recos_validees, priorisation, time_sinks]
+      why: Estime valeur métier des premières boucles d'automatisation.
+      limits: Ne vaut pas business case financier complet.
+      how_to_improve: Tester une boucle 7 jours avec métrique simple.
+    - id: automation_risk_score
+      signals: [lignes_rouges, donnees_sensibles, validation_humaine]
+      why: Empêche de vendre une automatisation trop risquée.
+      limits: Ne remplace pas revue juridique/sécurité.
+      how_to_improve: Définir gates humains, données interdites, logs et rollback.
+
+onboarding_contract:
+  version: business_tech.v1
+  required_fields: [role, mission, tone, channels, allowed_connectors, forbidden_data, human_gates, initial_routines, test_scenarios, success_criteria]
+  rule: L'agent_profile est dérivé de la synthèse validée, pas du transcript brut.
+
+devis_contract:            # devis justifié par audit validé
+  version: business_tech.v1
+  regle: >
+    Chaque ligne du devis porte sa justification issue de l'audit :
+    « {item} — recommandé parce que {reco_source} ({verbatim_ou_preuve}) ».
+    Une ligne sans justification d'audit est marquée « optionnel ».
+  required_line_fields: [catalog_id, recommendation_ref, evidence, required, confidence]
+  checkout_gate: validation_client_obligatoire
+
 report_contract:            # sections du rapport, mappées sur les outputs structurés
   version: business_tech.v1
   sections: [resume_executif, declarations_client, sources_verifiees, documents_fournis,
@@ -386,12 +485,6 @@ report_contract:            # sections du rapport, mappées sur les outputs stru
     Chaque section est générée depuis les CHAMPS STRUCTURÉS des steps
     (outputs.report), jamais depuis le transcript brut. Déclaré ≠ vérifié
     ≠ hypothèse, marqués partout.
-
-devis_contract:
-  regle: >
-    Chaque ligne du devis porte sa justification issue de l'audit :
-    « {item} — recommandé parce que {reco_source} ({verbatim_ou_preuve}) ».
-    Une ligne sans justification d'audit est marquée « optionnel ».
 
 v0_scope:
   steps: [pacte, identity_public_context, activity_business_model, person_and_goals,

@@ -498,24 +498,183 @@ def _audit_list(value: str, *, fallback: str) -> list[str]:
     return chunks[:6] or [fallback]
 
 
+REPORT_CONTRACT_DEFAULT_SECTIONS = [
+    "resume_executif",
+    "declarations_client",
+    "sources_verifiees",
+    "documents_fournis",
+    "hypotheses_omar",
+    "diagnostic_business",
+    "diagnostic_tech",
+    "swot",
+    "matrice_automatisation",
+    "quick_wins_7j",
+    "plan_action_30j",
+    "recommandations_oa",
+    "limites_ne_pas_automatiser",
+    "prompts_a_copier",
+    "onboarding_source",
+    "devis_source",
+    "prochaines_decisions",
+]
+
+
+def report_contract_sections() -> list[str]:
+    """Lit le contrat du rapport depuis l'arbre exécutable, sans dépendance YAML.
+
+    Le rapport reste gouverné par `src/audit_tree.business_tech.v1.yaml` : si la
+    liste change dans l'arbre, le builder prend cette liste comme source de
+    vérité. Le fallback ne sert qu'à garder l'API lisible si le fichier manque.
+    """
+    tree = ROOT / "src" / "audit_tree.business_tech.v1.yaml"
+    try:
+        text = tree.read_text(encoding="utf-8")
+    except OSError:
+        return list(REPORT_CONTRACT_DEFAULT_SECTIONS)
+    match = re.search(r"report_contract:.*?sections:\s*\[(.*?)\]", text, re.S)
+    if not match:
+        return list(REPORT_CONTRACT_DEFAULT_SECTIONS)
+    sections = [part.strip().strip("'\"") for part in match.group(1).replace("\n", " ").split(",")]
+    return [section for section in sections if section] or list(REPORT_CONTRACT_DEFAULT_SECTIONS)
+
+
+def _source(ref: str, *, kind: str = "declared_by_user") -> dict[str, str]:
+    return {"ref": ref, "kind": kind}
+
+
+def _items(*values: str) -> list[str]:
+    return [re.sub(r"\s+", " ", str(value or "")).strip() for value in values if str(value or "").strip()]
+
+
+EVIDENCE_ORIGINS = ["declared_client", "verified_public", "omar_hypothesis", "provided_document"]
+
+
+def _audit_score(score: int, why: str, evidence: list[str], limits: str, how_to_improve: str) -> dict[str, Any]:
+    return {
+        "score": max(0, min(100, int(score))),
+        "why": why,
+        "evidence": evidence,
+        "limits": limits,
+        "how_to_improve": how_to_improve,
+    }
+
+
+def _contains_terms(text: str, needles: list[str]) -> bool:
+    hay = str(text or "").casefold()
+    return any(needle.casefold() in hay for needle in needles)
+
+
+def build_cyber_baseline(payload: dict[str, Any]) -> dict[str, Any]:
+    tools = str(payload.get("current_tools") or payload.get("tools") or "")
+    constraints = str(payload.get("constraints") or payload.get("sensitive_data") or "")
+    checks = [
+        {"id": "backups", "status": "to_confirm", "question": "Les données critiques sont-elles sauvegardées et restaurables ?"},
+        {"id": "access_control", "status": "to_confirm", "question": "Qui a accès aux outils et fichiers clients ?"},
+        {"id": "mfa_admin", "status": "to_confirm", "question": "Les comptes admin ont-ils MFA/2FA ?"},
+        {"id": "password_manager", "status": "to_confirm", "question": "Les mots de passe sont-ils dans un gestionnaire, pas dans le chat ?"},
+        {"id": "device_update", "status": "to_confirm", "question": "PC/téléphones sont-ils maintenus à jour ?"},
+        {"id": "sensitive_data_map", "status": "declared" if constraints else "to_confirm", "question": "Quelles données ne doivent jamais être automatisées ?"},
+    ]
+    return {
+        "schema": "oa_cyber_baseline.v1",
+        "scope": "baseline_hygiene_not_security_audit",
+        "checks": checks,
+        "signals": {"tools_declared": bool(tools), "sensitive_data_declared": bool(constraints)},
+        "limits": "Baseline déclarative : aucun scan, aucune promesse de conformité ou de sécurité exhaustive.",
+    }
+
+
+def build_regulatory_baseline(payload: dict[str, Any]) -> dict[str, Any]:
+    text = "\n".join(str(payload.get(k) or "") for k in ["activity", "repetitive_tasks", "current_tools", "constraints"])
+    admin_detected = _contains_terms(text, ["facture", "facturation", "devis", "comptable", "relance", "paiement", "admin", "paperasse"])
+    return {
+        "schema": "oa_regulatory_baseline.v1",
+        "facturation_electronique_2027": {
+            "included": True,
+            "relevance": "detected" if admin_detected else "generic_tpe_baseline",
+            "why": "La réforme de facturation électronique 2026-2027 impacte les flux devis/factures B2B et l'organisation administrative.",
+            "limits": "Information de cadrage produit, pas conseil fiscal/juridique.",
+        },
+    }
+
+
+def build_explainable_scores(payload: dict[str, Any], report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    text = json.dumps(payload, ensure_ascii=False).casefold()
+    constraints = str(payload.get("constraints") or "")
+    tasks = str(payload.get("repetitive_tasks") or "")
+    tools = str(payload.get("current_tools") or "")
+    cyber = 45 + (10 if constraints else 0) + (10 if tools else 0) + (10 if "validation" in text else 0)
+    friction = 40 + (20 if tasks else 0) + (15 if _contains_terms(text, ["devis", "relance", "whatsapp", "facture"]) else 0)
+    maturity = 35 + (15 if tools else 0) + (10 if _contains_terms(text, ["excel", "email", "whatsapp", "google", "crm"]) else 0)
+    value = 45 + (20 if report.get("opportunities") else 0) + (10 if _contains_terms(text, ["devis", "relance", "client"]) else 0)
+    risk = 35 + (20 if constraints else 0) + (15 if _contains_terms(text, ["paiement", "prix", "allerg", "sant", "juridique", "client"]) else 0)
+    return {
+        "cyber_hygiene_score": _audit_score(cyber, "Hygiène minimale avant automatisation.", ["constraints", "current_tools"], "Déclaratif, sans scan technique.", "Confirmer sauvegardes, MFA, gestionnaire de mots de passe et carte des accès."),
+        "operational_friction_score": _audit_score(friction, "Temps perdu et erreurs sur les tâches répétitives.", ["repetitive_tasks", "urgency"], "Dépend des estimations client.", "Mesurer fréquence, temps perdu et coût d'erreur sur 7 jours."),
+        "digital_data_ai_maturity_score": _audit_score(maturity, "Maturité outils/données pour calibrer le rythme IA.", ["current_tools", "ai_level"], "Auto-évaluation et signaux déclarés.", "Centraliser données, réduire double saisie, documenter routines."),
+        "automation_value_score": _audit_score(value, "Valeur probable des premières boucles IA.", ["repetitive_tasks", "opportunities"], "Ne remplace pas un business case complet.", "Tester une boucle courte avec métrique de succès claire."),
+        "automation_risk_score": _audit_score(risk, "Risque d'automatiser trop vite ou trop loin.", ["constraints", "do_not_automate"], "Ne remplace pas revue juridique/sécurité.", "Définir gates humains, données interdites, logs et rollback."),
+    }
+
+
+def enrich_audit_contract_v1(report: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+    enriched = dict(report)
+    enriched["source_separation"] = EVIDENCE_ORIGINS
+    enriched["cyber_baseline"] = build_cyber_baseline(payload)
+    enriched["regulatory_baseline"] = build_regulatory_baseline(payload)
+    enriched["scores"] = build_explainable_scores(payload, enriched)
+    return enriched
+
+
 def build_audit_report(payload: dict[str, Any]) -> dict[str, Any]:
-    activity = str(payload.get("activity") or "votre activité").strip()[:160]
-    urgency = str(payload.get("urgency") or "gagner du temps").strip()[:140]
-    ai_level = str(payload.get("ai_level") or "conversationnel").strip()[:80]
-    tasks = _audit_list(str(payload.get("repetitive_tasks") or ""), fallback="Identifier une tâche répétitive non sensible à tester en premier.")
-    tools = _audit_list(str(payload.get("current_tools") or ""), fallback="Lister les outils actuels avant de brancher de nouvelles automatisations.")
-    constraints = _audit_list(str(payload.get("constraints") or ""), fallback="Garder validation humaine pour les données sensibles, paiements et publications externes.")
-    opportunities_payload = _audit_list(str(payload.get("opportunities") or ""), fallback="Première boucle IA à confirmer avec le client.")
+    raw_structured = payload.get("structured_fields")
+    structured: dict[str, Any] = raw_structured if isinstance(raw_structured, dict) else {}
+
+    def field(name: str, *legacy_names: str, default: str = "") -> str:
+        for key in (name, *legacy_names):
+            value = structured.get(key) if key in structured else payload.get(key)
+            if str(value or "").strip():
+                return str(value).strip()
+        return default
+
+    activity = field("business_activity", "activity", default="votre activité")[:160]
+    urgency = field("urgency", default="gagner du temps")[:140]
+    ai_level = field("ai_level", "autonomy_profile", default="conversationnel")[:80]
+    location = field("location")
+    company_size = field("company_size")
+    company_age = field("company_age")
+    customer_type = field("customer_type")
+    sales_channel = field("sales_channel")
+    repetitive_tasks = field("repetitive_tasks")
+    time_spent = field("time_spent")
+    tools_raw = field("tools", "current_tools")
+    flow_breaks = field("flow_breaks")
+    sensitive_data = field("sensitive_data")
+    human_validation = field("human_validation")
+    opportunity = field("opportunity_choice", "opportunities")
+    synthesis_validation = field("synthesis_validation", "validation")
+    constraints_raw = field("constraints") or "; ".join(_items(sensitive_data, human_validation))
+
+    tasks = _audit_list(repetitive_tasks, fallback="Irritant prioritaire à confirmer dans les champs structurés.")
+    tools = _audit_list(tools_raw, fallback="Outils actuels à confirmer dans les champs structurés.")
+    constraints = _audit_list(constraints_raw, fallback="Validation humaine avant toute action externe sensible.")
     first_task = tasks[0]
+    context = ", ".join(_items(activity, location, company_size, company_age, customer_type, sales_channel)) or activity
+    source_declared = [_source("outputs.report.activity_business_model"), _source("outputs.report.operations_week"), _source("outputs.report.digital_tools_data"), _source("outputs.report.risks_limits")]
+    source_hypothesis = [_source("outputs.report.diagnosis", kind="hypothesis_from_structured_fields")]
+
     declared = [
         f"Activité déclarée : {activity}.",
+        *([f"Contexte déclaré : {context}."] if context != activity else []),
         f"Irritant prioritaire déclaré : {first_task}.",
         f"Outils/canaux déclarés : {', '.join(tools[:4])}.",
     ]
     verified = [
         "Aucune source publique n’est utilisée sans consentement explicite source par source en V0.",
-        "Les éventuelles sources autorisées sont conservées séparément des déclarations client.",
+        "Les sources autorisées restent séparées des déclarations client et doivent être citées par provenance.",
     ]
+    if payload.get("sources_used"):
+        verified = [str(src.get("label") or src.get("type") or src) for src in payload.get("sources_used", []) if isinstance(src, dict)] or verified
     hypotheses = [
         f"Hypothèse Omar : le premier gain vient de {first_task}.",
         f"Hypothèse de cadrage : niveau IA {ai_level}, commencer par une boucle courte et vérifiable.",
@@ -532,46 +691,67 @@ def build_audit_report(payload: dict[str, Any]) -> dict[str, Any]:
     ]
     prompts = [
         f"Tu es mon assistant métier. Mon activité : {activity}. Aide-moi à traiter ce cas : {first_task}. Pose les questions manquantes avant de proposer une réponse.",
-        "Transforme ces notes brutes en procédure simple : objectif, étapes, validation humaine, risques, modèle réutilisable.",
+        "Transforme ces notes structurées en procédure simple : objectif, étapes, validation humaine, risques, modèle réutilisable.",
         "Liste ce qu’il ne faut surtout pas automatiser dans ce flux, puis propose une version prudente avec validation humaine.",
     ]
-    return {
-        "schema": "oa_audit_report.fable_v0",
+    section_payloads = {
+        "resume_executif": {"items": [f"Enjeu prioritaire : {urgency}.", "Départ recommandé : une boucle courte, mesurable et sûre."], "sources": [_source("outputs.report.recommendations")]},
+        "declarations_client": {"items": declared, "sources": source_declared},
+        "sources_verifiees": {"items": verified, "sources": [_source("outputs.report.sources_autorisees", kind="consent_or_verified_source")]},
+        "documents_fournis": {"items": [f"{len(payload.get('uploaded_documents') or [])} document(s) fourni(s)."], "sources": [_source("outputs.report.public_sources_consent", kind="user_upload_or_none")]},
+        "hypotheses_omar": {"items": hypotheses, "sources": source_hypothesis},
+        "diagnostic_business": {"items": declared[:2] + [f"Canal de vente : {sales_channel}."] if sales_channel else declared[:2], "sources": [_source("outputs.report.activity_business_model"), _source("outputs.report.marketing_sales")]},
+        "diagnostic_tech": {"items": [f"Outils/canaux : {', '.join(tools[:4])}.", *( [f"Rupture de flux : {flow_breaks}."] if flow_breaks else [] )], "sources": [_source("outputs.report.digital_tools_data")]},
+        "swot": {"items": ["Forces/faiblesses/opportunités/menaces à valider avec le client avant conclusion finale."], "sources": [_source("outputs.report.swot_valide", kind="client_validated_or_pending")]},
+        "matrice_automatisation": {"items": [f"Impact initial : {first_task}.", "Effort et risque à qualifier avant automatisation."], "sources": [_source("outputs.report.automation_matrix", kind="client_validated_or_pending")]},
+        "quick_wins_7j": {"items": quick_wins, "sources": [_source("outputs.report.quick_wins")]},
+        "plan_action_30j": {"items": ["J+1 : choisir le premier cas.", "J+7 : mesurer le test humainement relu.", "J+30 : décider autonomie, accompagnement ou agent."], "sources": [_source("outputs.report.plan_30j")]},
+        "recommandations_oa": {"items": [f"Créer une boucle assistée pour : {first_task}.", f"Structurer les outils actuels avant intégration : {', '.join(tools[:3])}.", *( [f"Opportunité validée : {opportunity}."] if opportunity else [] )], "sources": [_source("outputs.report.recommendations")]},
+        "limites_ne_pas_automatiser": {"items": do_not_automate, "sources": [_source("outputs.report.risk_register"), _source("outputs.report.compliance_notes")]},
+        "prompts_a_copier": {"items": prompts, "sources": [_source("outputs.report.prompts_a_copier", kind="generated_from_structured_fields")]},
+        "onboarding_source": {"items": ["Pack onboarding prérempli depuis champs structurés, sans reprise du journal conversationnel brut.", *( [f"Synthèse client : {synthesis_validation}."] if synthesis_validation else [] )], "sources": [_source("outputs.onboarding.ALL_LOCKED", kind="client_validated_or_pending")]},
+        "devis_source": {"items": ["Chaque ligne de devis doit pointer une recommandation validée ou rester optionnelle."], "sources": [_source("outputs.devis.items_justifies"), _source("outputs.devis.devis_source")]},
+        "prochaines_decisions": {"items": ["Quelle boucle tester en premier ?", "Quelles validations humaines sont obligatoires ?", "Souhaitez-vous apprendre seul, être accompagné, ou préparer un agent ?"], "sources": [_source("outputs.report.client_validated_summary")]},
+    }
+    sections = []
+    for section_id in report_contract_sections():
+        payload_section = section_payloads.get(section_id, {"items": ["Section prévue par le contrat, à compléter."], "sources": [_source(f"outputs.report.{section_id}", kind="contract_placeholder")]})
+        sections.append({"id": section_id, "items": payload_section["items"], "sources": payload_section["sources"]})
+
+    report = {
+        "schema": "oa_audit_report.business_tech.v1",
+        "legacy_schema": "oa_audit_report.fable_v0",
+        "report_contract_version": "business_tech.v1",
         "title": f"Diagnostic IA — {activity}",
         "summary": f"Votre enjeu prioritaire : {urgency}. Le bon départ n’est pas de tout automatiser, mais de choisir une boucle utile, mesurable et sûre.",
+        "sections": sections,
+        "section_count": len(sections),
+        "generation_sources": "outputs.report_structured_fields_only_no_raw_conversation_log",
         "declared_by_client": declared,
         "verified_sources": verified,
         "omar_hypotheses": hypotheses,
         "diagnostic": declared + hypotheses[:1],
         "pain_map": tasks,
-        "opportunities": [
-            f"Créer une boucle assistée pour : {first_task}.",
-            f"Structurer les outils actuels avant intégration : {', '.join(tools[:3])}.",
-            *[f"À étudier : {item}." for item in opportunities_payload[:2]],
-        ],
+        "opportunities": section_payloads["recommandations_oa"]["items"],
         "limits": do_not_automate,
         "do_not_automate": do_not_automate,
         "quick_wins": quick_wins,
-        "tutorial": [
-            "Choisir une tâche répétitive non sensible.",
-            "Rassembler trois exemples réels anonymisés.",
-            "Demander à l’IA un brouillon, jamais un envoi automatique.",
-            "Corriger le modèle, puis mesurer pendant sept jours.",
-        ],
+        "tutorial": ["Choisir une tâche répétitive non sensible.", "Rassembler trois exemples réels anonymisés.", "Demander à l’IA un brouillon, jamais un envoi automatique.", "Corriger le modèle, puis mesurer pendant sept jours."],
         "prompts": prompts,
         "commands": ["mkdir -p ~/audit-ia-test/{documents,prompts,resultats}"],
-        "decisions": [
-            "Quelle boucle tester en premier ?",
-            "Quelles validations humaines sont obligatoires ?",
-            "Souhaitez-vous apprendre seul, être accompagné, ou préparer un agent ?",
-        ],
-        "next_steps": ["24h : choisir le premier cas", "7 jours : tester le brouillon", "30 jours : décider autonomie, accompagnement ou agent"],
+        "decisions": section_payloads["prochaines_decisions"]["items"],
+        "next_steps": section_payloads["plan_action_30j"]["items"],
     }
+    return enrich_audit_contract_v1(report, payload)
 
 def validate_audit_payload(payload: dict[str, Any]) -> str | None:
-    if not str(payload.get("activity") or "").strip():
+    raw_structured = payload.get("structured_fields")
+    structured: dict[str, Any] = raw_structured if isinstance(raw_structured, dict) else {}
+    activity = str(payload.get("activity") or structured.get("business_activity") or "").strip()
+    repetitive_tasks = str(payload.get("repetitive_tasks") or structured.get("repetitive_tasks") or "").strip()
+    if not activity:
         return "activity required"
-    if not str(payload.get("repetitive_tasks") or "").strip():
+    if not repetitive_tasks:
         return "repetitive_tasks required"
     raw = json.dumps(payload, ensure_ascii=False)
     for pattern in SECRET_PATTERNS:
@@ -586,9 +766,9 @@ def safe_write_audit(data_dir: Path, payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(error)
     aid = f"audit-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
     payload = {**payload, "audit_id": aid}
-    report = build_audit_report(payload)
     consent_snapshot = audit_normalize_consents(payload)
     sources_used = audit_build_sources_used(payload)
+    report = build_audit_report({**payload, "sources_used": sources_used})
     devis_source = audit_build_devis_source(payload, report, consent_snapshot)
     onboarding_pack = audit_build_onboarding_pack_v1(payload, report)
     out = {
@@ -1438,22 +1618,38 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 self.send_json(200, {"ok": True, "session": session, "research_plan": plan, "research_result": result})
                 return
             if action == "report":
-                # Compatibilité V0 : transforme la session en payload /api/audits.
-                text = "\n".join(str(m.get("text", "")) for m in session.get("messages", []))
+                # business_tech.v1 : le rapport est généré depuis les champs structurés
+                # validés/collectés, jamais depuis le transcript brut de session.
+                raw_answers = session.get("answers")
+                answers: dict[str, Any] = raw_answers if isinstance(raw_answers, dict) else {}
+                structured_fields = {**answers}
+                if isinstance(payload.get("structured_fields"), dict):
+                    structured_fields.update(payload["structured_fields"])
+                for legacy_key, structured_key in {
+                    "activity": "business_activity",
+                    "repetitive_tasks": "repetitive_tasks",
+                    "current_tools": "tools",
+                    "constraints": "sensitive_data",
+                    "opportunities": "opportunity_choice",
+                    "validation": "synthesis_validation",
+                }.items():
+                    if payload.get(legacy_key):
+                        structured_fields[structured_key] = payload[legacy_key]
                 payload = {
-                    "activity": str(payload.get("activity") or session.get("sector_id") or "activité à préciser"),
+                    "activity": str(structured_fields.get("business_activity") or "activité à préciser"),
                     "urgency": str(payload.get("urgency") or "comprendre les vrais enjeux IA"),
                     "ai_level": "conversationnel sectoriel",
-                    "repetitive_tasks": str(payload.get("repetitive_tasks") or text or "à préciser"),
-                    "current_tools": str(payload.get("current_tools") or text),
-                    "constraints": str(payload.get("constraints") or text),
-                    "opportunities": str(payload.get("opportunities") or ""),
-                    "autonomy": str(payload.get("autonomy") or ""),
-                    "validation": str(payload.get("validation") or ""),
-                    "synthesis_card": audit_build_synthesis_card(session),
-                    "transcript": session.get("messages", []),
+                    "repetitive_tasks": str(structured_fields.get("repetitive_tasks") or "irritant à préciser"),
+                    "current_tools": str(structured_fields.get("tools") or "outils à préciser"),
+                    "constraints": str(payload.get("constraints") or structured_fields.get("sensitive_data") or structured_fields.get("human_validation") or "validation humaine à cadrer"),
+                    "opportunities": str(structured_fields.get("opportunity_choice") or ""),
+                    "autonomy": str(structured_fields.get("autonomy_profile") or ""),
+                    "validation": str(structured_fields.get("synthesis_validation") or ""),
+                    "structured_fields": structured_fields,
+                    "synthesis_card": audit_build_synthesis_card({**session, "messages": []}),
                     "sector_id": session.get("sector_id"),
-                    "interface": "audit_cockpit_conversationnel_sectoriel.v0",
+                    "interface": "audit_cockpit_conversationnel_sectoriel.business_tech.v1",
+                    "source_policy": "structured_fields_only_no_raw_conversation_log",
                 }
                 audit = safe_write_audit(self.data_dir, payload)
                 share = audit_share_payload(audit)
