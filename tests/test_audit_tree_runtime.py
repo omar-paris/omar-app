@@ -73,6 +73,7 @@ def test_business_tech_tree_session_persists_structured_outputs_and_branches_hr_
     answers = {
         "pacte": {"tutoiement": "Restons au vous", "rythme": "Droit au but", "temps_dispo": "20 min"},
         "identity_public_context": {"nom_entreprise": "DU PAIN ET DES IDEES Paris", "sirene_match": "C'est bien moi"},
+        "public_sources_consent": {"consents": {"web_public": True, "sirene_detail": True, "site_web": False, "fiche_google": False, "reseaux": False}},
         "activity_business_model": {"recit_activite": "Boulangerie à Paris", "type_clients": "Des particuliers", "taille_equipe": "Solo", "canaux_vente": "Sur place"},
         "person_and_goals": {"objectifs_racontes": "gagner du temps", "niveau_digital": "Ça va"},
         "operations_week": {"semaine": "devis et commandes prennent 3 h par semaine", "top_caillou": "Devis"},

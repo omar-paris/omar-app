@@ -68,11 +68,10 @@ def test_audit_page_is_v4_minimal_conversation_not_cockpit_or_static_form():
     for term in [
         "conversation avec omar",
         "rencontre. plongée. livraison.",
-        "audit_fable_tree_v0",
-        "audit fable v0 actif",
-        "bonjour, je suis omar, un agent formé par alexandre willemetz",
-        "en savoir plus sur cet audit.",
-        "on commence !",
+        "audit_business_tech_tree_v1",
+        "audit business & tech actif",
+        "noyau déclaratif yaml",
+        "bonjour, moi c’est omar",
         "ce qu’omar a compris",
         "ce qu’il ne faut pas automatiser",
         "sauvegarde optionnelle",
@@ -85,11 +84,12 @@ def test_audit_page_is_v4_minimal_conversation_not_cockpit_or_static_form():
         "encre #16140f",
         "corail #a8553a",
         "/api/audit-sessions",
+        "/documents",
         "aucun mot de passe",
         "aucune carte bancaire",
     ]:
         assert term in text
-    for step in ["pacte", "activité", "semaine réelle", "outils", "lignes rouges", "opportunités", "synthèse", "rapport"]:
+    for step in ["pacte", "identité", "sources publiques", "activité", "dirigeant & objectifs", "semaine réelle", "admin & finances", "outils", "lignes rouges", "diagnostic", "priorités", "synthèse finale"]:
         assert step in text
     for act in ["rencontre", "plongée", "livraison"]:
         assert act in text
@@ -99,6 +99,20 @@ def test_audit_page_is_v4_minimal_conversation_not_cockpit_or_static_form():
     assert "valider cette étape" not in text
     assert "préparer recherches" not in text
     assert "<form id=\"audit-form\"" not in text
+
+
+def test_audit_page_final_step_matches_business_tech_runtime_validation_not_legacy_report():
+    build_site()
+    raw = html(PUBLIC / "audit" / "index.html")
+    compact = re.sub(r"\s+", "", raw)
+
+    assert "{id:'livraison',label:'Livraison',steps:['diagnosis','recommendations','validation']}" in compact
+    assert "{id:'validation',label:'Synthèsefinale'" in compact
+    assert "session.status==='complete'" in raw
+    assert "completion.complete" in raw
+    assert "current_step)==='report'" not in raw
+    assert "final_synthesis" not in raw
+    assert "audit_fable_tree_v0" not in raw
 
 
 def test_devis_page_declares_registered_payment_blocked_target():

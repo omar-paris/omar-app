@@ -2,7 +2,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Audit — conversation avec Omar · Omar App</title>
 <meta name="description" content="Audit conversationnel Omar : trois actes, questions ouvertes, synthèse validée, rapport et onboarding agent.">
-<meta name="omar-audit-ui" content="v4-fable-tree-v0">
+<meta name="omar-audit-ui" content="v4-business-tech-tree-v1">
 <script src="/pages-app/_portal.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,22 +47,26 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
 </main><script>
 (function(){
   const acts = [
-    {id:'rencontre', label:'Rencontre', steps:['intro','activity']},
-    {id:'plongee', label:'Plongée', steps:['real_week','tools','data_limits','opportunities']},
-    {id:'livraison', label:'Livraison', steps:['synthesis_card','report']}
+    {id:'rencontre', label:'Rencontre', steps:['pacte','identity_public_context','public_sources_consent']},
+    {id:'plongee', label:'Plongée', steps:['activity_business_model','person_and_goals','operations_week','admin_finance_purchasing','digital_tools_data','risks_limits']},
+    {id:'livraison', label:'Livraison', steps:['diagnosis','recommendations','validation']}
   ];
   const steps = [
-    {id:'intro', label:'Pacte', fallback:'Bonjour, je suis Omar, un agent formé par Alexandre Willemetz et biberonné sur les meilleurs standard en gestion et en informatique. Je vais vous poser des questions. Vous me répondez à votre rythme et selon vos objectifs. A la fin vous pourriez télécharger votre Audit Business & Tech.'},
-    {id:'activity', label:'Activité', fallback:'Racontez-moi votre activité simplement : métier, ville, équipe.'},
-    {id:'real_week', label:'Semaine réelle', fallback:'Racontez-moi votre semaine dernière — la vraie.'},
-    {id:'tools', label:'Outils', fallback:'Qu’utilisez-vous aujourd’hui, même si c’est téléphone, cahier ou Excel ?'},
-    {id:'data_limits', label:'Lignes rouges', fallback:'Qu’est-ce qui ne doit jamais sortir ou être automatisé ?'},
-    {id:'opportunities', label:'Opportunités', fallback:'Voilà ce que je vois pour vous. Dites-moi si je vise juste.'},
-    {id:'synthesis_card', label:'Synthèse', fallback:'Avant votre rapport, vérifiez-moi.'},
-    {id:'report', label:'Rapport', fallback:'Votre diagnostic est prêt.'}
+    {id:'pacte', label:'Pacte', fallback:'Bonjour, moi c’est Omar. En 20 minutes je comprends votre activité et je vous remets un vrai diagnostic business & tech.'},
+    {id:'identity_public_context', label:'Identité', fallback:'Commençons simple : le nom de votre entreprise et votre ville ?'},
+    {id:'public_sources_consent', label:'Sources publiques', fallback:'Vous m’autorisez à regarder quelles sources publiques ?'},
+    {id:'activity_business_model', label:'Activité', fallback:'Racontez-moi votre activité simplement : métier, ville, équipe.'},
+    {id:'person_and_goals', label:'Dirigeant & objectifs', fallback:'Dites-moi où vous voulez emmener cette boîte.'},
+    {id:'operations_week', label:'Semaine réelle', fallback:'Racontez-moi votre semaine dernière — la vraie.'},
+    {id:'admin_finance_purchasing', label:'Admin & finances', fallback:'Côté paperasse, qu’est-ce qui traîne toujours ?'},
+    {id:'digital_tools_data', label:'Outils', fallback:'Qu’utilisez-vous aujourd’hui, même si c’est téléphone, cahier ou Excel ?'},
+    {id:'risks_limits', label:'Lignes rouges', fallback:'Qu’est-ce qui ne doit jamais sortir ou être automatisé ?'},
+    {id:'diagnosis', label:'Diagnostic', fallback:'Voilà ce que je vois pour vous. Dites-moi si je vise juste.'},
+    {id:'recommendations', label:'Priorités', fallback:'Classez les recommandations qui vous parlent.'},
+    {id:'validation', label:'Synthèse finale', fallback:'Dernière étape : vérifiez-moi tout. Ensuite votre rapport est à vous.'}
   ];
   const intro = steps[0];
-  const state = {current:'intro', sessionId:null, answers:{}, validated:{}, transcript:[], busy:false, reportReady:false, auditId:null, share:null,lastOmar:null,lastSynthesis:null, savePromptDismissed:false,researchPrompted:false,researchDone:false,pendingAfterResearch:null,publicResearch:null};
+  const state = {current:'pacte', sessionId:null, answers:{}, validated:{}, transcript:[], busy:false, reportReady:false, auditId:null, share:null,lastOmar:null,lastSynthesis:null, savePromptDismissed:false,researchPrompted:false,researchDone:false,pendingAfterResearch:null,publicResearch:null};
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function visibleIndex(stepId){return steps.findIndex(s=>s.id===stepId)}
@@ -89,13 +93,24 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
   function renderQuickReplies(){
     let wrap=document.getElementById('quick-replies');
     if(!wrap){wrap=document.createElement('div'); wrap.id='quick-replies'; wrap.className='quick'; $('composer-form').parentNode.insertBefore(wrap,$('composer-form'))}
-    const opts=(state.lastOmar&&state.lastOmar.options)||[];
-    wrap.innerHTML=opts.slice(0,6).map(o=>`<button type="button" data-reply="${esc(o)}">${esc(o)}</button>`).join('');
-    wrap.querySelectorAll('button').forEach(btn=>btn.onclick=()=>handleQuickReply(btn.dataset.reply));
+    const actions=((state.lastOmar&&state.lastOmar.actions)||[]).filter(a=>a&&a.label);
+    if(actions.length){
+      wrap.innerHTML=actions.slice(0,6).map(a=>`<button type="button" data-reply="${esc(a.label)}" data-intent="${esc(a.intent||'')}">${esc(a.label)}</button>`).join('');
+    }else{
+      const opts=(state.lastOmar&&state.lastOmar.options)||[];
+      wrap.innerHTML=opts.slice(0,6).map(o=>`<button type="button" data-reply="${esc(o)}" data-intent="">${esc(o)}</button>`).join('');
+    }
+    wrap.querySelectorAll('button').forEach(btn=>btn.onclick=()=>handleQuickReply(btn.dataset.reply, btn.dataset.intent||''));
   }
 
   async function api(path, payload){
     const response=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload||{})});
+    const data=await response.json().catch(()=>({ok:false,error:`HTTP ${response.status}`}));
+    if(!response.ok || data.ok===false){const err=new Error(data.error || `HTTP ${response.status}`); err.data=data; err.status=response.status; throw err}
+    return data;
+  }
+  async function apiGet(path){
+    const response=await fetch(path,{method:'GET',headers:{'accept':'application/json'}});
     const data=await response.json().catch(()=>({ok:false,error:`HTTP ${response.status}`}));
     if(!response.ok || data.ok===false){const err=new Error(data.error || `HTTP ${response.status}`); err.data=data; err.status=response.status; throw err}
     return data;
@@ -142,12 +157,28 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
   function ask(omar){window.setTimeout(()=>{setBusy(false); state.lastOmar=omar||{}; addBubble('omar', formatOmar(omar)); if(omar&&omar.synthesis_card&&['opportunities','synthesis_card','report'].includes(omar.step)){addUnderstandingCard(omar.synthesis_card)} render()},180)}
   async function startSession(){
     setBusy(true);
-    try{const data=await api('/api/audit-sessions',{}); syncSession(data.session); $('audit-status').textContent='Audit Fable V0 actif · 3 actes · aucune action payante.'; ask(data.omar)}
+    try{const data=await api('/api/audit-sessions',{tree_id:'business_tech'}); syncSession(data.session); $('audit-status').textContent='Audit Business & Tech actif · noyau déclaratif YAML · aucune action payante.'; ask(data.omar)}
     catch(error){setBusy(false); $('audit-status').textContent='Mode local : moteur audit indisponible.'; addBubble('omar', intro.fallback)}
   }
   function auditMoreText(){return "Cet audit sert à comprendre votre activité, vos outils, vos irritants, vos lignes rouges et les premières automatisations utiles. Il ne déclenche ni paiement, ni provisioning, ni recherche publique sans consentement. À la fin, vous pourrez télécharger votre Audit Business & Tech."}
-  async function handleQuickReply(text){
+  async function handleQuickReply(text, intent){
     if(state.busy) return;
+    if(['confirm','continue'].includes(intent)){
+      addBubble('client', text); setBusy(true);
+      if(state.sessionId){
+        try{const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:state.current}); syncSession(data.session); ask(data.next); return}
+        catch(error){
+          if(error && error.message==='step_incomplete'){
+            try{
+              await api(`/api/audit-sessions/${state.sessionId}/message`,{message:text});
+              const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:state.current});
+              syncSession(data.session); ask(data.next); return;
+            }catch(inner){error=inner}
+          }
+          setBusy(false); addBubble('omar', `Je ne peux pas encore passer à la suite : ${error.message}. Ajoutez une précision.`); render(); return
+        }
+      }
+    }
     if(text==='Oui, recherche publique autorisée'){
       addBubble('client', text); setBusy(true);
       try{const result=await runPublicResearch(); addBubble('omar', summarizePublicResearch(result)); const next=state.pendingAfterResearch; state.pendingAfterResearch=null; if(next){ask(next)}else{setBusy(false)}}
@@ -160,10 +191,10 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     if(state.current==='intro' && text==='En savoir plus sur cet Audit.'){
       addBubble('client', text); addBubble('omar', auditMoreText()); render(); return;
     }
-    if(state.current==='intro' && text==='On commence !'){
+    if(state.current==='pacte' && text==='On commence !'){
       addBubble('client', text); setBusy(true);
-      if(state.sessionId){try{const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:'intro'}); syncSession(data.session); ask(data.next); return}catch(error){setBusy(false)}}
-      state.current='activity'; state.validated.intro=true; addBubble('omar', currentStep().fallback); render(); setBusy(false); return;
+      if(state.sessionId){try{const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:'pacte'}); syncSession(data.session); ask(data.next); return}catch(error){setBusy(false)}}
+      state.current='identity_public_context'; state.validated.pacte=true; addBubble('omar', currentStep().fallback); render(); setBusy(false); return;
     }
     $('reply').value=text; userSend();
   }
@@ -174,7 +205,7 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
       const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:stepId});
       syncSession(data.session); addBubble('omar', `✓ ${currentStepLabel(stepId)} validé.`, 'system');
       if(stepId==='activity' && !state.researchPrompted){askResearchConsent(data.next); return true}
-      if((data.session&&data.session.current_step)==='report'){ask(data.next); await generateReport(); return true}
+      if(data.session && (data.session.status==='complete' || (data.session.completion&&data.session.completion.complete))){ask(data.next); await generateReport(); return true}
       if(allVisibleStepsDone()){await generateReport(); return true}
       ask(data.next); return true;
     }catch(error){return false}
@@ -191,7 +222,7 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     render();
   }
   function collectConsents(){return {public_web_search:false,legal_registry_lookup:false,social_media_lookup:false,document_analysis:false,market_trends_lookup:false,anonymized_improvement:false,accepted_at:new Date().toISOString(),consent_version:'2026-07-06.v4-minimal'};}
-  function buildFallbackPayload(){return {communication_preferences:'vouvoiement', activity:state.answers.activity||'', urgency:compact(state.answers.real_week,'audit conversationnel'), ai_level:'conversationnel', repetitive_tasks:state.answers.real_week||'', current_tools:state.answers.tools||'', constraints:state.answers.data_limits||'', opportunities:state.answers.opportunities||'', autonomy:state.answers.opportunities||'', validation:state.answers.synthesis_card||'', synthesis_card:state.lastSynthesis, consents:collectConsents(), uploaded_documents:[], transcript:state.transcript.slice(-80), interface:'audit_fable_tree_v0'};}
+  function buildFallbackPayload(){return {communication_preferences:'vouvoiement', activity:state.answers.activity||'', urgency:compact(state.answers.real_week,'audit conversationnel'), ai_level:'conversationnel', repetitive_tasks:state.answers.real_week||'', current_tools:state.answers.tools||'', constraints:state.answers.data_limits||'', opportunities:state.answers.opportunities||'', autonomy:state.answers.opportunities||'', validation:state.answers.synthesis_card||'', synthesis_card:state.lastSynthesis, consents:collectConsents(), uploaded_documents:[], transcript:state.transcript.slice(-80), interface:'audit_business_tech_tree_v1'};}
   function renderReport(data){
     const r=data.report||{}; state.reportReady=true; state.auditId=data.audit&&data.audit.id; state.share=data.share||null;
     const declared=(r.declared_by_client||r.diagnostic||[]).slice(0,3).map(x=>`<li>${esc(x)}</li>`).join('');
@@ -203,9 +234,23 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     $('audit-result').innerHTML=`<h3>${esc(r.title||'Rapport audit')}</h3><p>${esc(r.summary||'Rapport généré à partir de la conversation.')}</p><p><strong>Ce que vous m’avez dit</strong></p><ul>${declared}</ul><p><strong>Vérifié publiquement</strong></p><ul>${verified}</ul>${evidence}<p><strong>Mes hypothèses</strong></p><ul>${hypo}</ul><p><strong>Ce qu’il ne faut PAS automatiser</strong></p><ul>${noauto}</ul><p><strong>Prochaines actions</strong></p><ul>${next}</ul><p class="status">Audit ${esc(state.auditId||'local')} généré. Aucun paiement ni provisioning déclenché.</p><div class="result-cta"><strong>Sauvegarder et recevoir ce rapport</strong><span>Connectez-vous pour enregistrer l’audit, le recevoir par email, le reprendre plus tard et ouvrir l’étape devis.</span><a href="/oauth2/start?rd=/audit/">Se connecter / sauvegarder l’audit</a><span class="devis-locked">Le devis est volontairement réservé aux personnes enregistrées : cela sécurise l’envoi, le suivi et l’étape paiement.</span></div>`;
     $('audit-result').classList.add('visible'); $('audit-status').textContent='Rapport généré depuis la conversation.'; render();
   }
+  function renderJ1terDocuments(documents){
+    if(!documents) return;
+    const audit=documents.structured_audit||{};
+    const profile=audit.profile||{};
+    const open=(documents.open_questions||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('') || '<li>Aucune question critique restante dans le périmètre V0.</li>';
+    const gates=((documents.agent_profile&&documents.agent_profile.human_gates)||[]).slice(0,3).map(x=>`<li>${esc(x)}</li>`).join('') || '<li>Validation humaine avant action externe sensible.</li>';
+    const html=`<section class="understanding visible"><h3>Documents fondateurs générés</h3><dl><dt>Audit structuré</dt><dd>${esc(profile.activity||'Activité à préciser')} · secteur ${esc(profile.sector_id||'generic_tpe')}</dd><dt>Manifeste business</dt><dd>${esc(compact(documents.manifest_business||'', 'Manifeste généré', 220))}</dd><dt>Identité dirigeant</dt><dd>Maturité digitale : ${esc((documents.owner_identity&&documents.owner_identity.digital_maturity)||'à préciser')}</dd><dt>Profil agent</dt><dd>${esc((documents.agent_profile&&documents.agent_profile.role)||'assistant IA opérationnel')}</dd><dt>Human gates</dt><dd><ul>${gates}</ul></dd><dt>Questions restantes</dt><dd><ul>${open}</ul></dd></dl></section>`;
+    $('audit-result').insertAdjacentHTML('beforeend', html);
+  }
+  async function loadJ1terDocuments(){
+    if(!state.sessionId) return null;
+    try{const data=await apiGet(`/api/audit-sessions/${state.sessionId}/documents`); renderJ1terDocuments(data.documents); return data.documents}
+    catch(error){console.warn('documents J1-ter indisponibles', error); return null}
+  }
   async function generateReport(){
     if(state.reportReady) return; $('audit-status').textContent='Génération du rapport…';
-    try{const data=state.sessionId ? await api(`/api/audit-sessions/${state.sessionId}/report`, buildFallbackPayload()) : await api('/api/audits', buildFallbackPayload()); setBusy(false); renderReport(data)}
+    try{const data=state.sessionId ? await api(`/api/audit-sessions/${state.sessionId}/report`, buildFallbackPayload()) : await api('/api/audits', buildFallbackPayload()); setBusy(false); renderReport(data); await loadJ1terDocuments()}
     catch(error){setBusy(false); $('audit-status').textContent=`Rapport non généré : ${error.message}. La conversation reste enregistrée localement.`}
   }
   function autoResize(){const el=$('reply'); el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,150)+'px'}
@@ -214,4 +259,4 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
   $('reply').addEventListener('input', autoResize); $('reply').addEventListener('keydown', e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault(); userSend()}});
   startSession(); render();
 })();
-</script><footer class="sr-only">Omar App · app.omar.paris · V0.5.0 · Audit Fable V0 · audit_fable_tree_v0 · /api/audit-sessions</footer></body></html>
+</script><footer class="sr-only">Omar App · app.omar.paris · V0.5.0 · Audit Business Tech V1 · audit_business_tech_tree_v1 · /api/audit-sessions</footer></body></html>
