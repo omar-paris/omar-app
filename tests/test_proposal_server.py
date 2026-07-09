@@ -115,6 +115,27 @@ def test_vault_secret_rejects_unscoped_path_or_field(monkeypatch):
     assert calls == []
 
 
+def test_server_serves_public_lifecycle_contract_json(tmp_path):
+    # Build artifacts are expected to exist in public/api; server must expose them
+    # because app.omar.paris proxies /api/* to proposal_server.py, not static files.
+    proc, port = start_server(tmp_path)
+    try:
+        for endpoint, schema in [
+            ("/api/appomar-lifecycle.json", "oa.appomar-lifecycle/v1"),
+            ("/api/oa-system-contracts.json", "oa.system-contracts/v1"),
+        ]:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}{endpoint}", timeout=3) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            assert response.status == 200
+            assert payload["schema"] == schema
+            serialized = json.dumps(payload, ensure_ascii=False)
+            for forbidden in ["BEGIN OPENSSH", "ghp_", "sk-proj-", "-----BEGIN", "Authorization:"]:
+                assert forbidden not in serialized
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
 def test_proposal_api_stores_pending_human_go_json_without_secrets(tmp_path):
     proc, port = start_server(tmp_path)
     try:

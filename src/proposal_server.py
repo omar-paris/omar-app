@@ -1293,6 +1293,8 @@ class ProposalHandler(BaseHTTPRequestHandler):
             "/api/oa-start-packs.json": "oa-start-packs.json",
             "/api/apps-l1.json": "apps-l1.json",
             "/api/connector-readiness.json": "connector-readiness.json",
+            "/api/appomar-lifecycle.json": "appomar-lifecycle.json",
+            "/api/oa-system-contracts.json": "oa-system-contracts.json",
         }
         public_api_file = PUBLIC_API_FILES.get(path)
         if public_api_file:
