@@ -72,6 +72,40 @@ def test_j1ter_identity_free_text_records_company_name_and_advances_like_live_us
     assert validated["session"]["current_step"] == "public_sources_consent"
 
 
+def test_j1ter_natural_free_text_flow_completes_and_generates_documents_like_live_smoke():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+    natural_answers = [
+        ("pacte", "OK, on commence"),
+        ("identity_public_context", "Boulangerie Dupont à Paris 11e"),
+        ("public_sources_consent", "Oui pour les sources publiques, pas de réseaux sociaux"),
+        ("activity_business_model", "Boulangerie artisanale, vente boutique, particuliers du quartier, équipe de 6 personnes, sandwichs midi, pâtisseries le week-end"),
+        ("person_and_goals", "Je dirige avec mon épouse, objectif gagner du temps sans perdre le contact client, niveau digital correct"),
+        ("operations_week", "Tout : commandes fournisseurs, planning, caisse, demandes clients, factures"),
+        ("admin_finance_purchasing", "Factures fournisseurs, achats farine beurre énergie, suivi marge manuel"),
+        ("digital_tools_data", "Beaucoup Excel, caisse, Google Business, Instagram un peu"),
+        ("risks_limits", "Ne pas envoyer de message automatique sans validation, garder le secret recette"),
+        ("documents", "Oui, générez les documents"),
+        ("diagnosis", "Oui"),
+        ("recommendations", "Oui"),
+        ("validation", "Oui je valide la synthèse finale"),
+    ]
+
+    for step_id, text in natural_answers:
+        result = ai.add_message(session, text)
+        session = result["session"]
+        validated = ai.validate_step(session, step_id)
+        assert validated["ok"], {"step": step_id, "validated": validated, "state": session.get("state", {}).get(step_id)}
+        session = validated["session"]
+
+    assert session["status"] == "complete"
+    assert session["current_step"] == "validation"
+    assert session["completion"]["complete"] is True
+    docs = ai.build_j1ter_documents(session)
+    assert docs["schema"] == "oa.j1ter.documents.v1"
+    assert docs["structured_audit"]["profile"]["sector_id"] == "bakery"
+    assert docs["structured_audit"]["profile"]["company_name"] == "Boulangerie Dupont à Paris 11e"
+
+
 def test_j1ter_public_research_consent_is_backend_state_not_front_fragile_yes():
     created = ai.create_session({"tree_id": "business_tech"})
     session = created["session"]
