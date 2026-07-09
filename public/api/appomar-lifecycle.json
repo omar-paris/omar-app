@@ -1,0 +1,87 @@
+{
+  "schema": "oa.appomar-lifecycle/v1",
+  "generated_at": "2026-07-09T01:07:09Z",
+  "visibility": "public_safe_redacted",
+  "status": "contract_reference_only",
+  "commercial_policy": {
+    "payment_copy_changed": false,
+    "payment_provider_changed": false,
+    "note": "Le contrat technique expose les étapes; il ne publie pas de nouvelle politique paiement sans GO business explicite. Stripe reste legacy; PayPal/coupons/bons/paiement premier mois restent options à valider."
+  },
+  "canonical_route": "https://app.omar.paris/audit/",
+  "live_status_expected": {
+    "root": "auth_or_redirect_expected",
+    "audit": "public_200_expected",
+    "claim": "Le tunnel complet n'est pas déclaré prêt tant que rapport/propositions/devis/onboarding ne sont pas smoke-testés end-to-end."
+  },
+  "lifecycle": [
+    {
+      "id": "promise",
+      "label": "Promesse publique",
+      "objective": "Expliquer l'activation Omar & Alex sans sur-promettre les intégrations ou le paiement.",
+      "source_of_truth": ["README.md", "APP_CONTRACT.md"]
+    },
+    {
+      "id": "audit_conversationnel",
+      "label": "Audit conversationnel Omar",
+      "objective": "Collecter le contexte business/tech via arbre structuré business_tech.v1, pas transcript brut.",
+      "source_of_truth": ["src/audit_tree.business_tech.v1.yaml", "docs/contracts/appomar-activation-boundary-v1.md"],
+      "output_schema": "oa.audit-session.business_tech/v1"
+    },
+    {
+      "id": "report_proposals",
+      "label": "Rapport / propositions",
+      "objective": "Produire recommandations et preuves D/V/H/F séparées.",
+      "source_of_truth": ["docs/contracts/appomar-activation-boundary-v1.md"],
+      "output_schema": "oa.audit-report.business_tech/v1"
+    },
+    {
+      "id": "quote_validation",
+      "label": "Devis ou validation commerciale",
+      "objective": "Chaque ligne de devis est justifiée par recommandation/preuve; checkout_state technique seulement.",
+      "source_of_truth": ["docs/contracts/appomar-activation-boundary-v1.md"],
+      "output_schema": "oa.devis.business_tech/v1"
+    },
+    {
+      "id": "onboarding",
+      "label": "Onboarding agent prérempli",
+      "objective": "Créer le pack agent depuis résumé client validé, préférences, canaux, gates et scénarios de test.",
+      "source_of_truth": ["docs/contracts/appomar-activation-boundary-v1.md"],
+      "output_schema": "oa.onboarding-pack.business_tech/v1"
+    },
+    {
+      "id": "hub_client_bootstrap",
+      "label": "Mise en place Hub client",
+      "objective": "Amorcer le Hub local avec paramètres safe; aucun secret dans le payload AppOmar.",
+      "source_of_truth": ["docs/contracts/appomar-activation-boundary-v1.md", "public/api/oa-system-contracts.json"],
+      "output_schema": "oa.hub-client-bootstrap/v1"
+    },
+    {
+      "id": "sav",
+      "label": "SAV / maintenance / évolutions",
+      "objective": "Ouvrir demandes SAV sans logs bruts, transcripts ou secrets.",
+      "source_of_truth": ["docs/contracts/appomar-activation-boundary-v1.md"],
+      "output_schema": "oa.sav-request/v1"
+    }
+  ],
+  "interfaces": {
+    "qg": {
+      "allowed_states": ["audit_started", "report_ready", "devis_draft", "onboarding_ready", "hub_pending", "sav_open"],
+      "forbidden": ["raw_transcript", "client_secret", "payment_token", "private_documents"]
+    },
+    "hub": {
+      "allowed_payload": ["tenant_id", "company_context_summary", "agent_profile_ref", "apps_needed", "connectors_needed", "human_gates", "redaction_level", "source_audit_id"],
+      "forbidden": ["secrets", "raw_env", "auth_headers"]
+    }
+  },
+  "actions": [
+    {"id": "appomar.audit.smoke", "mode": "check", "status": "enabled", "risk": "low", "label": "Smoker /audit/ et vérifier statut HTTP"},
+    {"id": "appomar.lifecycle.plan", "mode": "plan", "status": "enabled", "risk": "low", "label": "Planifier intégration rapport/devis/onboarding depuis business_tech.v1"},
+    {"id": "appomar.payment.apply", "mode": "apply", "status": "gated", "risk": "high", "label": "Changer paiement/copie publique seulement après GO business + review gate"}
+  ],
+  "proofs": [
+    {"label": "Contrat documentaire", "url_or_path": "docs/contracts/appomar-activation-boundary-v1.md", "checked_at": "2026-07-09T01:07:09Z", "status": "ok"},
+    {"label": "Audit live", "url_or_path": "https://app.omar.paris/audit/", "checked_at": "2026-07-09T01:07:09Z", "status": "ok"},
+    {"label": "Contrat système partagé", "url_or_path": "public/api/oa-system-contracts.json", "checked_at": "2026-07-09T01:07:09Z", "status": "ok"}
+  ]
+}

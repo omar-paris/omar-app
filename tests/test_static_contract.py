@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import re
 import subprocess
 
@@ -163,6 +164,37 @@ def test_build_exports_packs_and_l1_apps_json_for_hub_top_chain():
         assert term in packs
     for app in ["ubuntu", "ssh", "ufw", "tailscale", "caddy", "hub", "hermes-agent", "secrets", "backups", "qg-reporting"]:
         assert app in apps
+
+
+def test_appomar_lifecycle_and_shared_system_contracts_are_public_safe():
+    build_site()
+    lifecycle_path = PUBLIC / "api" / "appomar-lifecycle.json"
+    system_path = PUBLIC / "api" / "oa-system-contracts.json"
+    assert lifecycle_path.exists()
+    assert system_path.exists()
+    lifecycle = json.loads(lifecycle_path.read_text(encoding="utf-8"))
+    system = json.loads(system_path.read_text(encoding="utf-8"))
+    assert lifecycle["schema"] == "oa.appomar-lifecycle/v1"
+    assert lifecycle["commercial_policy"]["payment_copy_changed"] is False
+    assert lifecycle["commercial_policy"]["payment_provider_changed"] is False
+    steps = [item["id"] for item in lifecycle["lifecycle"]]
+    assert steps == [
+        "promise",
+        "audit_conversationnel",
+        "report_proposals",
+        "quote_validation",
+        "onboarding",
+        "hub_client_bootstrap",
+        "sav",
+    ]
+    assert lifecycle["interfaces"]["qg"]["allowed_states"] == ["audit_started", "report_ready", "devis_draft", "onboarding_ready", "hub_pending", "sav_open"]
+    assert all(action["status"] == "gated" for action in lifecycle["actions"] if action["mode"] == "apply")
+    assert system["schema"] == "oa.system-contracts/v1"
+    page_ids = {item["id"] for item in system["page_contracts"]["items"]}
+    assert "appomar.lifecycle" in page_ids
+    serialized = lifecycle_path.read_text(encoding="utf-8") + system_path.read_text(encoding="utf-8")
+    for forbidden in ["BEGIN OPENSSH", "ghp_", "sk-proj-", "-----BEGIN", "Authorization:"]:
+        assert forbidden not in serialized
 
 
 def test_config_javascript_builds_proposal_without_paid_autoprovisioning():

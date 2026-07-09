@@ -445,6 +445,11 @@ def write_api_assets() -> None:
     (api / "oa-start-packs.json").write_text(json.dumps(packs_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     (api / "apps-l1.json").write_text(json.dumps(apps_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     (api / "connector-readiness.json").write_text(json.dumps(connector_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    public_api_seed = ROOT / "data" / "public-api"
+    if public_api_seed.exists():
+        for seed in sorted(public_api_seed.glob("*.json")):
+            json.loads(seed.read_text(encoding="utf-8"))
+            (api / seed.name).write_text(seed.read_text(encoding="utf-8"), encoding="utf-8")
     app_js = APP_JS.replace("__PACKS__", json.dumps(OA_START_PACKS, ensure_ascii=False)).replace(
         "__APPS_L1__", json.dumps(APPS_L1, ensure_ascii=False)
     )
