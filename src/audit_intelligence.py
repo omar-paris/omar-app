@@ -906,6 +906,40 @@ def _tree_interpret_contextual_free_text(step_id: str, text: str) -> dict[str, A
             return {"tutoiement": "Restons au vous", "rythme": "Droit au but", "pacte_text": text}
     if step_id == "identity_public_context" and hay:
         return {"nom_entreprise": str(text or "").strip()}
+    if step_id == "activity_business_model" and hay:
+        team = "6-20" if any(token in hay for token in ["6 personnes", "6 pers", "équipe de 6", "equipe de 6"]) else ("2-5" if any(token in hay for token in ["2", "3", "4", "5"]) else ("Solo" if "solo" in hay else "À préciser"))
+        customers = "Des pros" if any(token in hay for token in ["professionnels", "pros", "b2b"]) else ("Les deux" if any(token in hay for token in ["les deux", "particuliers et pros"]) else "Des particuliers")
+        channel = "Sur place" if any(token in hay for token in ["boutique", "sur place", "quartier"]) else "À préciser"
+        return {"recit_activite": text, "type_clients": customers, "taille_equipe": team, "canaux_vente": channel}
+    if step_id == "person_and_goals" and hay:
+        maturity = "J'ai déjà testé l'IA" if "ia" in hay else ("À l'aise" if any(token in hay for token in ["à l'aise", "a l'aise", "correct"]) else "Ça va")
+        return {"objectifs_racontes": text, "niveau_digital": maturity}
+    if step_id == "operations_week" and hay:
+        if hay in {"tout", "un peu tout", "tout ça", "tout ca"}:
+            return {
+                "semaine": text,
+                "interpreted_intent": "answer_broad",
+                "detected_irritants": ["horaires", "disponibilité", "commandes", "allergènes", "prix"],
+            }
+        return {"semaine": text, "top_caillou": "demandes clients", "detected_irritants": ["commandes", "planning", "caisse", "demandes clients", "factures"]}
+    if step_id == "admin_finance_purchasing" and hay:
+        return {"admin_racontee": text}
+    if step_id == "digital_tools_data" and hay:
+        if hay in {"beaucoup", "plein", "plein de choses", "pas mal", "beaucoup de choses"}:
+            return {
+                "outils_racontes": text,
+                "interpreted_intent": "answer_vague",
+            }
+        return {"outils_racontes": text, "outils_confirm": ["Excel", "caisse", "Google Business", "Instagram"]}
+    if step_id == "risks_limits" and hay:
+        sensitive = ["secret recette"] if "secret" in hay else ["Rien de sensible"]
+        return {"lignes_rouges": text, "donnees_sensibles": sensitive, "validation_humaine": "Je valide tout au début"}
+    if step_id == "diagnosis" and hay:
+        return {"swot_reaction": text, "matrice_reaction": text}
+    if step_id == "recommendations" and hay:
+        return {"recos_validees": [text], "priorisation": ["réduire les demandes répétitives"]}
+    if step_id == "validation" and hay:
+        return {"synthese_finale": text}
     if step_id == "public_sources_consent":
         yes_tokens = {"oui", "ok", "d'accord", "daccord", "vas-y", "go", "autorisé", "autorise", "j'autorise"}
         no_tokens = {"non", "pas maintenant", "continue sans", "sans recherche", "je refuse"}
@@ -913,17 +947,6 @@ def _tree_interpret_contextual_free_text(step_id: str, text: str) -> dict[str, A
             return {"consents": {"web_public": True, "sirene_detail": True, "site_web": False, "fiche_google": False, "reseaux": False}, "consent_text": text}
         if hay in no_tokens or any(token in hay for token in ["sans recherche", "refuse", "pas maintenant"]):
             return {"consents": {"web_public": False, "sirene_detail": False, "site_web": False, "fiche_google": False, "reseaux": False}, "consent_text": text}
-    if step_id == "operations_week" and hay in {"tout", "un peu tout", "tout ça", "tout ca"}:
-        return {
-            "semaine": text,
-            "interpreted_intent": "answer_broad",
-            "detected_irritants": ["horaires", "disponibilité", "commandes", "allergènes", "prix"],
-        }
-    if step_id == "digital_tools_data" and hay in {"beaucoup", "plein", "plein de choses", "pas mal", "beaucoup de choses"}:
-        return {
-            "outils_racontes": text,
-            "interpreted_intent": "answer_vague",
-        }
     return None
 
 
@@ -1010,7 +1033,8 @@ def business_tech_add_message(session: dict[str, Any], text: str) -> dict[str, A
     now = _tree_now()
     raw_answers = payload.get("answers")
     answers: dict[str, Any] = raw_answers if isinstance(raw_answers, dict) else {"free_text": text}
-    contextual = _tree_interpret_contextual_free_text(step_id, str(payload.get("raw_text") or text))
+    is_plain_free_text = isinstance(raw_answers, dict) and set(raw_answers) == {"free_text"}
+    contextual = _tree_interpret_contextual_free_text(step_id, str(payload.get("raw_text") or text)) if is_plain_free_text else None
     if contextual:
         answers = contextual
     state = session.setdefault("state", {}).setdefault(step_id, {"answers": {}, "events": [], "sector_pack_depth": 0})
