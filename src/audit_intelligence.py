@@ -89,7 +89,7 @@ FALLBACK_QUESTIONS = {
     "sales_channel": "Comment les clients arrivent et achètent aujourd’hui : boutique, site, téléphone, email, recommandations, plateformes ?",
     "public_research_scope": "Si vous avez un site ou une fiche Google, donnez-moi le lien ou refusez simplement. Je n’utilise que ce que vous autorisez.",
     "repetitive_tasks": "Racontez-moi votre semaine dernière — la vraie. Qu’est-ce qui vous a pris du temps inutilement ?",
-    "time_spent": "Ce caillou revient combien de fois ou vous prend combien de temps par semaine ?",
+    "time_spent": "Parmi ces irritants, lequel est prioritaire pour commencer, et quel ordre de grandeur cela prend par semaine ? Plusieurs irritants sont possibles ; on choisit seulement le premier à traiter.",
     "tools": "Qu’utilisez-vous aujourd’hui — même si c’est juste téléphone, WhatsApp, cahier ou Excel ?",
     "flow_breaks": "Ce que vous ressaisissez deux fois, ou recopiez d’un outil à l’autre, c’est quoi ?",
     "sensitive_data": "Qu’est-ce qui ne doit jamais sortir ou être automatisé : données clients, santé, prix, paiements, juridique ?",
@@ -392,14 +392,14 @@ PRECISION_PLACEHOLDERS = {
 }
 
 FIELD_EXPLANATIONS = {
-    "business_activity": "Je cherche juste le métier réel, pas une catégorie parfaite. Exemple : pâtissier, salon de coiffure, traducteur freelance, restaurant italien, cabinet d’avocat.",
+    "business_activity": "Je cherche juste le métier réel, pas une catégorie parfaite. Exemple : boulangerie-pâtisserie, salon de coiffure, artisan bâtiment, restaurant italien, cabinet d’avocat.",
     "company_size": "Je cherche l’ordre de grandeur de l’équipe qui fait tourner l’activité : solo, 2-5, 6-20, ou plus. Une estimation suffit.",
     "company_age": "Je cherche l’ancienneté approximative, parce qu’une activité lancée cette année n’a pas les mêmes priorités qu’une maison installée depuis 10 ans.",
     "customer_type": "Je veux savoir pour qui vous travaillez vraiment : particuliers, professionnels, ou les deux. Ça change les opportunités utiles.",
     "sales_channel": "Je cherche le chemin d’arrivée des clients : boutique, téléphone, email, site, WhatsApp, recommandations, plateformes. Plusieurs réponses sont possibles.",
     "location": "Je cherche votre zone réelle : adresse, ville, quartier, rayon d’intervention, région, France entière ou à distance. Une adresse complète marche aussi.",
-    "repetitive_tasks": "Je cherche ce qui vous mange du temps dans une vraie semaine : devis, relances, messages, planning, factures, recherche d’infos, suivi client.",
-    "time_spent": "Je cherche un ordre de grandeur : tous les jours, chaque semaine, 1-2 h, 3-5 h, ou plus. Pas besoin d’être exact.",
+    "repetitive_tasks": "Je cherche ce qui vous mange du temps dans une vraie semaine : commandes, appels, devis, relances, messages, planning, factures, recherche d’infos, suivi client. Vous pouvez en citer plusieurs.",
+    "time_spent": "Je cherche un ordre de grandeur et une priorité : tous les jours, chaque semaine, 1-2 h, 3-5 h, ou plus. Si vous avez plusieurs sujets, dites lequel traiter en premier.",
 }
 
 
@@ -409,6 +409,8 @@ def classify_user_intent(text: str, expected_field: str | None = None) -> str:
         return "empty"
     if raw in PRECISION_PLACEHOLDERS:
         return "precision"
+    if expected_field == "time_spent" and raw in FIELD_OPTIONS.get("time_spent", []):
+        return "answer"
     hay = raw.casefold()
     if any(re.search(pattern, hay, re.I) for pattern in HELP_PATTERNS):
         return "help"
@@ -424,25 +426,25 @@ def is_answer_like(text: str, expected_field: str | None = None) -> bool:
 
 
 FIELD_OPTIONS = {
-    "business_activity": ["Traducteur freelance", "Artisan bâtiment", "Commerce / boutique", "Restaurant / food", "Conseil / formation", "Autre métier"],
+    "business_activity": ["Boulangerie / pâtisserie", "Commerce / boutique", "Restaurant / food", "Artisan bâtiment", "Cabinet / profession réglementée", "Autre métier"],
     "company_size": ["Solo", "2-5", "6-20", "20+", "Je précise"],
     "company_age": ["Moins d’un an", "1-3 ans", "4-10 ans", "Plus de 10 ans", "Reprise / transmission"],
     "customer_type": ["Particuliers", "Professionnels", "Les deux", "Je ne sais pas encore"],
     "sales_channel": ["Boutique / lieu physique", "Site ou formulaire", "Téléphone", "Email", "WhatsApp / SMS", "Recommandations", "Plateformes"],
     "location": ["Paris", "Île-de-France", "France entière", "À distance", "Je précise"],
-    "repetitive_tasks": ["Devis / propositions", "Relances clients", "Emails / messages", "Factures / administratif", "Planning / rendez-vous", "Recherche d'infos", "Montrez-moi des exemples"],
+    "repetitive_tasks": ["Commandes / demandes clients", "Devis / propositions", "Relances clients", "Emails / messages", "Factures / administratif", "Planning / rendez-vous", "Plusieurs sujets / je précise"],
     "time_spent": ["Tous les jours", "Chaque semaine", "1-2 h/semaine", "3-5 h/semaine", "Plus de 5 h/semaine", "Je ne sais pas"],
 }
 
 HELP_QUESTIONS = {
-    "business_activity": "Je vous aide. Dites simplement votre métier comme sur une carte de visite. Exemples : traducteur freelance, plombier, boulangerie, cabinet de conseil, boutique en ligne.",
+    "business_activity": "Je vous aide. Dites simplement votre métier comme sur une carte de visite. Exemples : boulangerie-pâtisserie, plombier, cabinet d’avocat, boutique en ligne, cabinet de conseil.",
     "company_size": "Pas besoin d'être précis : êtes-vous solo, 2 à 5, 6 à 20, ou plus ?",
     "company_age": "Une approximation suffit : activité lancée récemment, 1-3 ans, 4-10 ans, plus ancien, ou reprise ?",
     "customer_type": "Pensez à vos derniers clients : plutôt particuliers, professionnels, ou les deux ?",
     "sales_channel": "Pensez au dernier client signé : il est venu par recommandation, téléphone, email, boutique, site, plateforme, réseau ?",
     "location": "Indiquez seulement votre zone utile : ville, région, France entière, ou à distance.",
-    "repetitive_tasks": "Je vous propose des pistes. La semaine dernière, est-ce que vous avez perdu du temps sur devis/propositions, relances, emails, factures, planning, recherche d'informations, ou suivi client ?",
-    "time_spent": "Même à la louche : tous les jours, chaque semaine, 1-2 h, 3-5 h, ou plus de 5 h par semaine ?",
+    "repetitive_tasks": "Je vous propose des pistes. La semaine dernière, est-ce que vous avez perdu du temps sur commandes, appels, devis/propositions, relances, emails, factures, planning, recherche d'informations, ou suivi client ? Vous pouvez en citer plusieurs.",
+    "time_spent": "Même à la louche : tous les jours, chaque semaine, 1-2 h, 3-5 h, ou plus de 5 h par semaine ? Si plusieurs sujets ressortent, choisissez le premier à traiter.",
 }
 
 CONTEXTUAL_ANSWERS = {
@@ -474,6 +476,8 @@ CONTEXTUAL_ANSWERS = {
     "Factures / administratif": "Je perds du temps sur les factures ou l'administratif.",
     "Planning / rendez-vous": "Je perds du temps sur le planning ou les rendez-vous.",
     "Recherche d'infos": "Je perds du temps à chercher des informations.",
+    "Commandes / demandes clients": "Je perds du temps sur les commandes ou demandes clients.",
+    "Plusieurs sujets / je précise": "J’ai plusieurs irritants et je vais les préciser.",
     "Tous les jours": "Cela revient tous les jours.",
     "Chaque semaine": "Cela revient chaque semaine.",
     "1-2 h/semaine": "Cela prend environ 1 à 2 heures par semaine.",
@@ -491,7 +495,10 @@ def answer_matches_expected_field(raw_text: str, stored_text: str, expected_fiel
     if not expected_field:
         return False
     raw = re.sub(r"\s+", " ", str(raw_text or "")).strip()
-    if not raw or classify_user_intent(raw, expected_field) != "answer":
+    if not raw:
+        return False
+    intent = classify_user_intent(raw, expected_field)
+    if intent != "answer":
         return False
     if raw in FIELD_OPTIONS.get(expected_field, []):
         return True
@@ -546,6 +553,35 @@ def options_for_field(field: str | None) -> list[str]:
     return list(FIELD_OPTIONS.get(str(field or ""), []))
 
 
+def sector_question_for_missing_field(session: dict[str, Any], step: str, field: str | None) -> str | None:
+    """Use concrete sector questions before generic field fallbacks.
+
+    J1-bis: when the user says boulanger/boulangerie, the live audit must stop
+    feeling like a generic form and ask bakery-shaped questions immediately.
+    """
+    refs = load_sector_references()
+    sector_id = str(session.get("sector_id") or detect_sector(session_text(session), refs))
+    if sector_id != "bakery" or not field:
+        return None
+    blocks = (refs.get("bakery") or {}).get("question_blocks") or {}
+    mapping = {
+        ("real_week", "repetitive_tasks"): ("pain", 0),
+        ("real_week", "time_spent"): ("pain", 1),
+        ("tools", "tools"): ("tools", 0),
+        ("tools", "flow_breaks"): ("tools", 1),
+        ("data_limits", "sensitive_data"): ("risk", 1),
+        ("data_limits", "human_validation"): ("risk", 0),
+    }
+    key = mapping.get((step, field))
+    if not key:
+        return None
+    block_name, idx = key
+    block = blocks.get(block_name) or []
+    if idx < len(block):
+        return enforce_vouvoiement_text(str(block[idx]))
+    return None
+
+
 
 def next_question(session: dict[str, Any], step: str | None = None) -> dict[str, Any]:
     if _is_business_tech_tree_session(session):
@@ -576,7 +612,7 @@ def next_question(session: dict[str, Any], step: str | None = None) -> dict[str,
     elif step == "report":
         question = "Votre diagnostic est prêt. Il est à vous, quoi que vous décidiez ensuite."
     elif missing:
-        question = question_for_field(missing[0], session)
+        question = sector_question_for_missing_field(session, step, missing[0]) or question_for_field(missing[0], session)
     elif step == "activity":
         question = "J’ai assez d’éléments sur votre activité. Je passe à votre semaine réelle."
     elif auditbiz_payload and auditbiz_payload.get("interaction") == "open":

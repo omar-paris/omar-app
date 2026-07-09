@@ -62,7 +62,7 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     {id:'report', label:'Rapport', fallback:'Votre diagnostic est prêt.'}
   ];
   const intro = steps[0];
-  const state = {current:'intro', sessionId:null, answers:{}, validated:{}, transcript:[], busy:false, reportReady:false, auditId:null, share:null,lastOmar:null,lastSynthesis:null, savePromptDismissed:false};
+  const state = {current:'intro', sessionId:null, answers:{}, validated:{}, transcript:[], busy:false, reportReady:false, auditId:null, share:null,lastOmar:null,lastSynthesis:null, savePromptDismissed:false,researchPrompted:false,researchDone:false,pendingAfterResearch:null,publicResearch:null};
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function visibleIndex(stepId){return steps.findIndex(s=>s.id===stepId)}
@@ -100,6 +100,28 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     if(!response.ok || data.ok===false){const err=new Error(data.error || `HTTP ${response.status}`); err.data=data; err.status=response.status; throw err}
     return data;
   }
+  function researchConsentText(){return "Vous m’avez donné assez d’éléments pour situer l’activité. M’autorisez-vous à chercher uniquement des informations publiques — SIRENE/SIRET, site ou fiche publique si disponibles — pour distinguer ce que vous déclarez de ce qui est vérifié ? Vous pouvez refuser."}
+  function askResearchConsent(next){
+    state.researchPrompted=true; state.pendingAfterResearch=next||null;
+    state.lastOmar={step:'public_research_consent',question:researchConsentText(),options:['Oui, recherche publique autorisée','Non, on continue sans recherche']};
+    addBubble('omar', researchConsentText()); render(); setBusy(false);
+  }
+  async function runPublicResearch(){
+    if(!state.sessionId) return null;
+    const activityText=state.answers.activity||'';
+    const payload={company_public_name:activityText,location:activityText,consents:{public_web_search:false,legal_registry_lookup:true,social_media_lookup:false},dry_run:false};
+    const data=await api(`/api/audit-sessions/${state.sessionId}/public-research`, payload);
+    state.publicResearch=data.research_result||null; state.researchDone=true;
+    return state.publicResearch;
+  }
+  function summarizePublicResearch(result){
+    if(!result) return 'Recherche publique terminée : aucune donnée exploitable retournée.';
+    const facts=(result.facts||[]).slice(0,2).map(f=>String(f.value||'').trim()).filter(Boolean);
+    const missing=(result.not_executed||[]).slice(0,2).map(x=>String(x.label||x.reason||'source non exécutée')).filter(Boolean);
+    if(facts.length) return `J’ai trouvé des éléments publics à vous faire valider : ${facts.join(' / ')}. Je les marque comme vérifiés publiquement, pas comme déclarés par vous.`;
+    if(missing.length) return `Recherche publique autorisée, mais rien de fiable n’a été récupéré automatiquement pour l’instant. Sources non exploitées : ${missing.join(', ')}.`;
+    return 'Recherche publique autorisée, mais aucun fait fiable n’a été récupéré automatiquement.';
+  }
   function syncSession(session){
     if(!session) return; state.sessionId=session.id || state.sessionId; const step=session.current_step || state.current; state.current=step; state.validated={}; (session.validated_steps||[]).forEach(id=>{state.validated[id]=true}); render();
   }
@@ -126,6 +148,15 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
   function auditMoreText(){return "Cet audit sert à comprendre votre activité, vos outils, vos irritants, vos lignes rouges et les premières automatisations utiles. Il ne déclenche ni paiement, ni provisioning, ni recherche publique sans consentement. À la fin, vous pourrez télécharger votre Audit Business & Tech."}
   async function handleQuickReply(text){
     if(state.busy) return;
+    if(text==='Oui, recherche publique autorisée'){
+      addBubble('client', text); setBusy(true);
+      try{const result=await runPublicResearch(); addBubble('omar', summarizePublicResearch(result)); const next=state.pendingAfterResearch; state.pendingAfterResearch=null; if(next){ask(next)}else{setBusy(false)}}
+      catch(error){addBubble('omar', `Je n’ai pas pu faire la recherche publique maintenant : ${error.message}. Je continue l’audit sans l’inventer.`); const next=state.pendingAfterResearch; state.pendingAfterResearch=null; if(next){ask(next)}else{setBusy(false)}}
+      return;
+    }
+    if(text==='Non, on continue sans recherche'){
+      addBubble('client', text); state.researchDone=true; addBubble('omar','Très bien. Je continue uniquement avec vos réponses déclarées, sans prétendre avoir vérifié publiquement.'); const next=state.pendingAfterResearch; state.pendingAfterResearch=null; if(next){ask(next)} return;
+    }
     if(state.current==='intro' && text==='En savoir plus sur cet Audit.'){
       addBubble('client', text); addBubble('omar', auditMoreText()); render(); return;
     }
@@ -142,6 +173,7 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     try{
       const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:stepId});
       syncSession(data.session); addBubble('omar', `✓ ${currentStepLabel(stepId)} validé.`, 'system');
+      if(stepId==='activity' && !state.researchPrompted){askResearchConsent(data.next); return true}
       if((data.session&&data.session.current_step)==='report'){ask(data.next); await generateReport(); return true}
       if(allVisibleStepsDone()){await generateReport(); return true}
       ask(data.next); return true;
@@ -166,7 +198,9 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     const hypo=(r.omar_hypotheses||[]).slice(0,3).map(x=>`<li>${esc(x)}</li>`).join('');
     const noauto=(r.do_not_automate||r.limits||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('');
     const next=(r.next_steps||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('');
-    $('audit-result').innerHTML=`<h3>${esc(r.title||'Rapport audit')}</h3><p>${esc(r.summary||'Rapport généré à partir de la conversation.')}</p><p><strong>Ce que vous m’avez dit</strong></p><ul>${declared}</ul><p><strong>Mes hypothèses</strong></p><ul>${hypo}</ul><p><strong>Ce qu’il ne faut PAS automatiser</strong></p><ul>${noauto}</ul><p><strong>Prochaines actions</strong></p><ul>${next}</ul><p class="status">Audit ${esc(state.auditId||'local')} généré. Aucun paiement ni provisioning déclenché.</p><div class="result-cta"><strong>Sauvegarder et recevoir ce rapport</strong><span>Connectez-vous pour enregistrer l’audit, le recevoir par email, le reprendre plus tard et ouvrir l’étape devis.</span><a href="/oauth2/start?rd=/audit/">Se connecter / sauvegarder l’audit</a><span class="devis-locked">Le devis est volontairement réservé aux personnes enregistrées : cela sécurise l’envoi, le suivi et l’étape paiement.</span></div>`;
+    const verified=(state.publicResearch&&state.publicResearch.facts||[]).slice(0,3).map(f=>`<li>${esc(f.value)} <small>source publique · confiance ${esc(f.confidence||'')}</small></li>`).join('') || '<li>Aucune source publique vérifiée automatiquement, ou recherche refusée.</li>';
+    const evidence=`<p><strong>Contrat de preuve</strong></p><ul><li>Déclaré client : vos réponses ci-dessus.</li><li>Vérifié public : seulement les éléments sourcés listés.</li><li>Hypothèses Omar : séparées ci-dessous, à valider.</li><li>Inconnu : ce qui manque reste non inventé.</li></ul>`;
+    $('audit-result').innerHTML=`<h3>${esc(r.title||'Rapport audit')}</h3><p>${esc(r.summary||'Rapport généré à partir de la conversation.')}</p><p><strong>Ce que vous m’avez dit</strong></p><ul>${declared}</ul><p><strong>Vérifié publiquement</strong></p><ul>${verified}</ul>${evidence}<p><strong>Mes hypothèses</strong></p><ul>${hypo}</ul><p><strong>Ce qu’il ne faut PAS automatiser</strong></p><ul>${noauto}</ul><p><strong>Prochaines actions</strong></p><ul>${next}</ul><p class="status">Audit ${esc(state.auditId||'local')} généré. Aucun paiement ni provisioning déclenché.</p><div class="result-cta"><strong>Sauvegarder et recevoir ce rapport</strong><span>Connectez-vous pour enregistrer l’audit, le recevoir par email, le reprendre plus tard et ouvrir l’étape devis.</span><a href="/oauth2/start?rd=/audit/">Se connecter / sauvegarder l’audit</a><span class="devis-locked">Le devis est volontairement réservé aux personnes enregistrées : cela sécurise l’envoi, le suivi et l’étape paiement.</span></div>`;
     $('audit-result').classList.add('visible'); $('audit-status').textContent='Rapport généré depuis la conversation.'; render();
   }
   async function generateReport(){

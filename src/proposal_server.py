@@ -1595,7 +1595,15 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 external_calls_attempted = False
                 dry_run = bool(payload.get("dry_run", False))
                 website = str(payload.get("website") or payload.get("site") or "").strip()
-                registry_query = str(payload.get("siret") or payload.get("sirene") or payload.get("company_public_name") or payload.get("public_name") or "").strip()
+                registry_query = str(
+                    payload.get("siret")
+                    or payload.get("sirene")
+                    or payload.get("company_public_name")
+                    or payload.get("public_name")
+                    or payload.get("location")
+                    or payload.get("address")
+                    or ""
+                ).strip()
                 permissions = plan.get("consent_snapshot", {}).get("permissions", {})
                 if website and permissions.get("public_web_search") and not dry_run:
                     external_calls_attempted = True
