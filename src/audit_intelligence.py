@@ -904,6 +904,8 @@ def _tree_interpret_contextual_free_text(step_id: str, text: str) -> dict[str, A
     if step_id == "pacte":
         if any(token in hay for token in ["ok", "on commence", "je réponds", "droit au but", "restons au vous", "vouvoiement"]):
             return {"tutoiement": "Restons au vous", "rythme": "Droit au but", "pacte_text": text}
+    if step_id == "identity_public_context" and hay:
+        return {"nom_entreprise": str(text or "").strip()}
     if step_id == "public_sources_consent":
         yes_tokens = {"oui", "ok", "d'accord", "daccord", "vas-y", "go", "autorisé", "autorise", "j'autorise"}
         no_tokens = {"non", "pas maintenant", "continue sans", "sans recherche", "je refuse"}
