@@ -57,6 +57,21 @@ def test_j1ter_pacte_quick_start_records_required_answers_and_advances():
     assert answers["rythme"] == "Droit au but"
 
 
+def test_j1ter_identity_free_text_records_company_name_and_advances_like_live_user():
+    created = ai.create_session({"tree_id": "business_tech"})
+    session = created["session"]
+    session = _answer_and_validate(session, "pacte", {"tutoiement": "Restons au vous", "rythme": "Droit au but"})
+
+    result = ai.add_message(session, "Boulangerie Dupont à Paris 11e")
+    session = result["session"]
+    answers = session["state"]["identity_public_context"]["answers"]
+
+    assert answers["nom_entreprise"] == "Boulangerie Dupont à Paris 11e"
+    validated = ai.validate_step(session, "identity_public_context")
+    assert validated["ok"], validated
+    assert validated["session"]["current_step"] == "public_sources_consent"
+
+
 def test_j1ter_public_research_consent_is_backend_state_not_front_fragile_yes():
     created = ai.create_session({"tree_id": "business_tech"})
     session = created["session"]
