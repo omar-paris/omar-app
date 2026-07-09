@@ -31,17 +31,17 @@
 <main>
 <h1 class="h1" style="margin-bottom:4px">Composez votre solution</h1>
 <p class="sub" style="margin-bottom:8px">Le devis est l’étape sécurisée après l’audit : vous devez être enregistré pour sauvegarder, recevoir le devis et déclencher le paiement.</p>
-<div class="safe">🔒 Accès devis réservé aux personnes enregistrées · Paiement sécurisé cible PayPal · aucun provisioning sans validation humaine.</div>
+<div class="safe">🔒 Accès devis réservé aux personnes enregistrées · Paiement sécurisé non configuré · aucun provisioning sans validation humaine.</div>
 <div class="grid"><div id="cat"></div>
 <aside class="cart"><h2>Votre devis</h2><div id="lines"><div style="font-size:13px;color:#9ca3af">Aucune sélection</div></div>
 <div class="tot"><span>Mensuel</span><span id="tm">0 &euro;</span></div>
 <div class="tot" style="font-weight:500;font-size:13px"><span>Installation</span><span id="tu">0 &euro;</span></div>
 <button class="save" onclick="saveDevis(true)">Sauvegarder &amp; copier mon lien</button>
-<button class="buy" onclick="buy()">Continuer vers PayPal</button>
+<button class="buy" onclick="buy()">Continuer vers le paiement sécurisé</button>
 <div class="saved" id="saved"></div><div id="msg"></div>
 <div class="tl" id="prov-tl" style="display:none">
-  <h3>Provisioning après paiement</h3>
-  <div class="tl-step cur"><div class="tl-dot">●</div><div><div class="tl-lbl">Paiement validé</div></div></div>
+  <h3>Provisioning après validation paiement</h3>
+  <div class="tl-step cur"><div class="tl-dot">●</div><div><div class="tl-lbl">Paiement en attente</div></div></div>
   <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-lbl">VPS provisionné</div><div class="tl-sub">Hetzner EU + sauvegardes</div></div></div>
   <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-lbl">Caddy + domaine</div><div class="tl-sub">HTTPS + routage</div></div></div>
   <div class="tl-step"><div class="tl-dot">○</div><div><div class="tl-lbl">Hub local</div><div class="tl-sub">Cockpit santé</div></div></div>
@@ -58,10 +58,10 @@ async function load(){
   const rid=params.get("id");
   if(rid){ try{ const dr=await fetch("/api/devis/"+rid); if(dr.ok){ const dv=(await dr.json()).devis;
     devisId=dv.id; sel=new Set(dv.lignes.map(l=>l.id));
-    if(dv.statut==="achete"||dv.statut==="paid_test"){ document.getElementById("saved").textContent="✓ Ce devis a été acheté le "+(dv.paye_le||"").slice(0,10);
+    if(dv.statut==="achete"){ document.getElementById("saved").textContent="✓ Ce devis a été acheté le "+(dv.paye_le||"").slice(0,10);
       showProvisioningTimeline(); }
   } }catch(e){} }
-  if(params.get("paid")){ msg("✓ Paiement test reçu — merci ! Votre configuration va démarrer.",true); showProvisioningTimeline(); }
+  if(params.get("paid")){ msg("✓ Paiement reçu — merci ! Votre configuration va démarrer.",true); showProvisioningTimeline(); }
   render();
 }
 function render(){
@@ -104,10 +104,11 @@ async function buy(){ const id=await saveDevis(false); if(!id){msg("Choisissez a
   const d=await r.json();
   if(r.status===503){
     const tu=Number(d.total_unique_eur||0); const one=tu?` + ${tu} € d'installation`:'';
-    msg("💳 "+(d.message||"Paiement sécurisé PayPal en attente de configuration.")+" Votre devis ("+d.total_mensuel_eur+" €/mois"+one+") est sauvegardé pour validation.",true);
-    showProvisioningTimeline();
+    msg("💳 "+(d.message||"Paiement sécurisé en attente de configuration.")+" Votre devis ("+d.total_mensuel_eur+" €/mois"+one+") est sauvegardé pour validation.",true);
+    // Pas de timeline provisioning tant que le paiement n'est pas validé.
+    document.getElementById('prov-tl').style.display='none';
   } else if(r.ok&&d.checkout_url){ location.href=d.checkout_url; }
   else { msg("Paiement indisponible ("+(d.error||r.status)+")",false); }
 }
 load();
-</script><footer class="sr-only">Omar App · app.omar.paris · V0.5.0 · Devis authentifié · PayPal cible · paid_actions=none</footer></body></html>
+</script><footer class="sr-only">Omar App · app.omar.paris · V0.5.0 · Devis authentifié · paiement sécurisé non configuré · paid_actions=none</footer></body></html>

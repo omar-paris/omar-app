@@ -4,7 +4,7 @@
 Creates a non-zero devis via the running proposal server, calls /api/checkout,
 and prints a redacted result:
 - OK when a configured payment provider returns a checkout URL
-- BLOCKED paypal_non_configure while PayPal is not wired/configured
+- BLOCKED payment_provider_unconfigured while payment provider is not wired/configured
 - FAIL for unexpected API/runtime errors
 
 No payment secret, checkout URL, or sensitive payload is printed.
@@ -78,10 +78,10 @@ def main() -> int:
         })
         print(json.dumps(result, ensure_ascii=False))
         return 0
-    if checkout_status == 503 and checkout_payload.get("error") == "paypal_non_configure":
+    if checkout_status == 503 and checkout_payload.get("error") == "payment_provider_unconfigured":
         result.update({
             "status": "BLOCKED",
-            "blocker": "paypal_non_configure",
+            "blocker": "payment_provider_unconfigured",
             "message": checkout_payload.get("message"),
         })
         print(json.dumps(result, ensure_ascii=False))

@@ -6,7 +6,7 @@
   "commercial_policy": {
     "payment_copy_changed": false,
     "payment_provider_changed": false,
-    "note": "Le contrat technique expose les étapes; il ne publie pas de nouvelle politique paiement sans GO business explicite. Stripe reste legacy; PayPal/coupons/bons/paiement premier mois restent options à valider."
+    "note": "Le contrat technique expose les étapes; il ne publie pas de nouvelle politique paiement sans GO business explicite. Le provider de paiement reste à valider/configurer; coupons/bons/paiement premier mois restent options commerciales non publiées comme promesse active."
   },
   "canonical_route": "https://app.omar.paris/audit/",
   "live_status_expected": {
