@@ -2,8 +2,8 @@
 
 > **For Hermes:** transformer ce cadrage en arbre YAML audit + contrats API + plan d’implémentation. Ne pas sauter vers le devis avant que le rapport/propositions soient justifiés.
 
-**Date:** 2026-07-08  
-**Contexte:** feedback Alex après hotfix audit conversation_policy V2.  
+**Date:** 2026-07-08
+**Contexte:** feedback Alex après hotfix audit conversation_policy V2.
 **Objectif:** AppOmar doit devenir un tunnel cohérent : audit business & technologique profond → enrichissement public consenti → rapport diagnostic → propositions justifiées → onboarding agent → devis/validation → dry-run provisioning.
 
 ---

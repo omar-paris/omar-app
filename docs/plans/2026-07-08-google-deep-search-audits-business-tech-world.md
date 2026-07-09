@@ -1,8 +1,8 @@
 # Google Deep Search — Audits Business & Tech mondiaux pour AppOmar
 
-**Date :** 2026-07-08  
-**Repo :** `/home/omar/23-Offre/actifs/omar-app`  
-**Arbre de référence :** `src/audit_tree.business_tech.v1.yaml`  
+**Date :** 2026-07-08
+**Repo :** `/home/omar/23-Offre/actifs/omar-app`
+**Arbre de référence :** `src/audit_tree.business_tech.v1.yaml`
 **But :** enrichir l’audit Omar & Alex avec les meilleurs frameworks d’audit business, tech, digital maturity, AI readiness, operations, cybersécurité et transformation TPE/PME — sans perdre la logique conversationnelle Omar.
 
 ---
