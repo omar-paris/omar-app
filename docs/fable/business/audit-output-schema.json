@@ -16,7 +16,7 @@
         "completed_at": { "type": ["string", "null"], "format": "date-time" },
         "duration_minutes": { "type": ["number", "null"] },
         "channel": { "type": "string", "enum": ["app_web", "assisted", "phone", "in_person"], "description": "assisted = client devant l'écran avec facilitateur humain à côté" },
-        "facilitator": { "type": ["string", "null"], "description": "ex. alex — si channel=assisted" },
+        "facilitator": { "type": ["string", "null"], "description": "ex. facilitateur_oa — si channel=assisted" },
         "session_ids": { "type": "array", "items": { "type": "string" }, "description": "sessions var/audit_sessions liées (reprises comprises)" }
       }
     },
@@ -26,7 +26,7 @@
       "properties": {
         "display_name": { "type": ["string", "null"] },
         "email": { "type": ["string", "null"], "format": "email" },
-        "activity": { "type": "string", "description": "métier exact en clair, ex. consultante auprès de boulangeries" },
+        "activity": { "type": "string", "description": "métier exact en clair, ex. activité de conseil ou commerce de proximité" },
         "sector_id": { "type": ["string", "null"], "description": "id data/audit_sectors, ex. bakery, lawyer, generic_tpe" },
         "location": { "type": ["string", "null"] },
         "service_area": { "type": ["string", "null"] },

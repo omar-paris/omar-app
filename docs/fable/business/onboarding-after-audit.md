@@ -1,6 +1,6 @@
 # De l'audit à l'onboarding — le passage à l'action
 
-Version : 0.1 — 2026-07-02 — Fable 2
+Version : 0.2 — 2026-07-10 — Fable 2
 Compagnons : `audit-model.md`, `audit-output-schema.json`, `agent-secretaire-profile.md`,
 `local-pc-vps-checklist.md`.
 
@@ -16,11 +16,11 @@ Tunnel complet : landing (attire) → audit (intéresse) → rapport + devis (d�
 
 ## Déclencheur
 
-L'onboarding démarre quand le devis est accepté — y compris un devis à 0 €
-(offre pilote, ex. « Installation PC Windows — offre pilote » du catalogue).
-L'acceptation vaut GO commercial ; elle ne vaut PAS GO technique : toute action
-payante ou irréversible reste soumise au GO humain
-(`human_go_required_before_paid_actions`, mécanisme existant d'AppOmar).
+L'onboarding démarre quand le devis est accepté — y compris une offre pilote
+générique si elle est explicitement présentée comme telle. L'acceptation vaut GO
+commercial ; elle ne vaut PAS GO technique : toute action payante ou irréversible
+reste soumise au GO humain (`human_go_required_before_paid_actions`, mécanisme
+existant d'AppOmar).
 
 ## Les 6 étapes (reprennent l'onboarding AppOmar existant, nourries par l'audit)
 
@@ -29,7 +29,7 @@ payante ou irréversible reste soumise au GO humain
 | 1 | Identité | nom, entreprise, métier, email | domaine éventuel |
 | 2 | Objectifs | gros cailloux → premières boucles | ordre des 2-3 premières victoires |
 | 3 | Outils & connexions | outils déclarés, consentements | quels comptes brancher en premier (noms seulement, jamais de secrets dans AppOmar) |
-| 4 | Infrastructure | readiness.infra_preference + pc_specs | VPS managé / PC accompagné / hybride — décision finale après smoke test |
+| 4 | Infrastructure | readiness.infra_preference + specs machine | VPS managé / poste local accompagné / hybride — décision finale après smoke test |
 | 5 | Agent | mode d'autonomie, canaux préférés, lignes rouges | nom de l'agent, ton, périmètre d'autonomie initial |
 | 6 | Récap & GO | tout | accord explicite → plan de provisioning |
 
@@ -40,11 +40,11 @@ payante ou irréversible reste soumise au GO humain
 
 - **VPS** : location serveur → bootstrap OmarTop (skill `omar-top-bootstrap`,
   `phases-spec.yaml`) → applis infra + applis métier → agent Hermes → canaux.
-- **PC (Windows)** : voir `local-pc-vps-checklist.md` — vérification machine,
-  smoke test, installation accompagnée. Le PC est un « edge client » : il ne porte
-  ni Caddy, ni Vault, ni serveur Hermes (règle profil `maryse-pc.yml`).
+- **Poste local accompagné** : voir `local-pc-vps-checklist.md` — vérification
+  machine, smoke test, installation accompagnée. Le poste local est un « edge
+  client » : il ne porte ni Caddy, ni Vault, ni serveur Hermes.
 - **Hybride** : serveur pour la fiabilité 24/7 (relances, surveillance boîte mail),
-  PC pour les usages locaux (documents, dossiers du client).
+  poste local pour les usages locaux (documents, dossiers du client).
 
 Les interactions client sont réduites au strict nécessaire et regroupées :
 consentements, mots de passe saisis PAR le client dans les interfaces des
@@ -61,11 +61,10 @@ victoire, apprend les préférences, montre qu'il travaille (bilan hebdomadaire)
 Support et contrôle côté client, via AppOmar :
 
 - **/sav/** : discuter avec un agent support qui peut diagnostiquer et corriger
-  (ex. Hermes Desktop qui ne répond plus) — uniquement dans le cadre des
-  autorisations accordées.
+  uniquement dans le cadre des autorisations accordées.
 - **Autorisations activables/désactivables par le client** (à construire — même
-  logique que les consentements d'audit) : accès distant au PC (RustDesk),
-  accès à certains dossiers, recherche Internet, actions par service connecté.
+  logique que les consentements d'audit) : assistance distante, accès à certains
+  dossiers, recherche Internet, actions par service connecté.
   Par défaut : tout est fermé ; chaque ouverture est explicite, datée, révocable.
 
 ## Garde-fous non négociables

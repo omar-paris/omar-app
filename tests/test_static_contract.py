@@ -332,6 +332,35 @@ def test_jab_plan_is_not_part_of_public_build():
         assert forbidden not in all_public_html
 
 
+def test_fable_business_docs_do_not_reintroduce_pilot_client_details():
+    business_docs = ROOT / "docs" / "fable" / "business"
+    assert business_docs.exists()
+    forbidden_files = [
+        business_docs / "maryse-audit-script.md",
+        business_docs / "maryse-cailloux-hypotheses.md",
+        business_docs / "maryse-readiness-questions.md",
+    ]
+    for path in forbidden_files:
+        assert not path.exists(), f"pilot-client doc must stay out of repo: {path}"
+
+    scoped_files = [
+        business_docs / "agent-secretaire-profile.md",
+        business_docs / "local-pc-vps-checklist.md",
+        business_docs / "onboarding-after-audit.md",
+        business_docs / "audit-output-schema.json",
+    ]
+    text = "\n".join(path.read_text(encoding="utf-8").lower() for path in scoped_files)
+    forbidden_patterns = {
+        "pilot-person-name": r"\bmaryse\b",
+        "pilot-client-label": r"client[- ]pilote",
+        "pilot-business-profile": r"consultante\s+boulangerie|consultante\s+aupr[eè]s\s+de\s+boulangeries",
+        "pilot-machine-profile": r"maryse-pc|h-maryse|clients/maryse|omar-top/profiles/",
+        "operational-client-tooling": r"rustdesk|pc windows",
+    }
+    for label, pattern in forbidden_patterns.items():
+        assert not re.search(pattern, text), label
+
+
 def test_onboarding_frontend_exposes_resume_autosave_and_simulation_console():
     text = (ROOT / "pages-app" / "onboarding.html").read_text(encoding="utf-8")
     for term in [
