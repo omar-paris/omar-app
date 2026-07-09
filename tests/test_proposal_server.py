@@ -598,11 +598,101 @@ def test_devis_api_accepts_catalogue_v1_ids_with_honest_runtime_status(tmp_path)
         assert all(line["label"].strip() for line in lines)
         assert all(line["catalogue_id"] == line["id"] for line in lines)
         assert {line["capability_status"] for line in lines} == {"potential"}
+        assert {line["proof_tier"] for line in lines} == {"potential"}
+        assert {line["runtime_scope"] for line in lines} == {"catalogue_only"}
         assert {line["runtime_status"] for line in lines} == {"unknown"}
         assert {line["cost_status"] for line in lines} == {"unknown"}
+        for line in lines:
+            assert line["proof_scope"].startswith("Catalogue/AppOmar refs only")
+            assert line["evidence_refs"]
+            assert line["measurement_state"] == {
+                "ram_mb": None,
+                "disk_mb": None,
+                "runtime_cost": None,
+                "state": "unknown",
+                "measured_at": None,
+                "measurement_ref": None,
+            }
+            assert line["durable_gate_artifact_ref"] == ""
+            assert line["human_approval_required"] is True
+            assert line["safe_claim"].strip()
+            assert line["do_not_claim"]
         serialized = json.dumps(lines, ensure_ascii=False).lower()
         for forbidden in ["installed", "enabled", "healthy", "live"]:
             assert forbidden not in serialized
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
+def test_public_audit_onboarding_funnel_exposes_pr56_proof_without_upgrading_v1_modules(tmp_path):
+    catalog = {item["id"]: item for item in proposal_server.load_catalog()["products"]}
+    proof = catalog["appomar-public-audit-onboarding-funnel"]
+
+    assert proof["proof_status"] == "proven"
+    assert proof["proof_tier"] == "proven"
+    assert proof["capability_status"] == "proven"
+    assert proof["source_task"] == "t_d5dda7f0"
+    assert proof["pr"] == 56
+    assert proof["release_gate_ref"] == "PR#56"
+    assert proof["durable_gate_artifact_ref"]
+    assert proof["sensitive_endpoints_protected"] is True
+    assert proof["runtime_client_proven"] is False
+    assert proof["ram_mb"] == "unknown"
+    assert proof["disk_mb"] == "unknown"
+    assert proof["measurement_state"] == {
+        "ram_mb": None,
+        "disk_mb": None,
+        "runtime_cost": None,
+        "state": "unknown",
+        "measured_at": None,
+        "measurement_ref": None,
+    }
+    assert proof["live_smoke"]["public_endpoints"] == {
+        "/audit/": 200,
+        "/onboarding/": 200,
+        "/api/oa-start-packs.json": 200,
+        "/api/apps-l1.json": 200,
+        "/api/connector-readiness.json": 200,
+    }
+    assert proof["live_smoke"]["sensitive_endpoints"] == {
+        "/api/onboarding/status": 401,
+        "/api/proposals": 401,
+    }
+
+    v1_ids = {
+        "presence-google-business-avis",
+        "recrutement-annonces-candidats",
+        "secretaire-tri-demandes",
+        "secretaire-redaction-reponses",
+        "secretaire-taches-relances",
+        "secretaire-documents-devis-syntheses",
+        "secretaire-connexions-surveillance",
+    }
+    for item_id in v1_ids:
+        item = catalog[item_id]
+        assert item["capability_status"] == "potential"
+        assert item["proof_tier"] == "potential"
+        assert item["runtime_status"] == "unknown"
+        assert item["cost_status"] == "unknown"
+        assert item["runtime_client_proven"] is False
+        assert item["ram_mb"] == "unknown"
+        assert item["disk_mb"] == "unknown"
+
+    proc, port = start_server(tmp_path)
+    try:
+        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/devis", {"items": ["appomar-public-audit-onboarding-funnel"]})
+        assert status == 201
+        line = created["devis"]["lignes"][0]
+        assert line["id"] == "appomar-public-audit-onboarding-funnel"
+        assert line["proof_status"] == "proven"
+        assert line["proof_tier"] == "proven"
+        assert line["source_task"] == "t_d5dda7f0"
+        assert line["pr"] == 56
+        assert line["live_smoke"]["public_endpoints"]["/audit/"] == 200
+        assert line["live_smoke"]["sensitive_endpoints"]["/api/proposals"] == 401
+        assert line["sensitive_endpoints_protected"] is True
+        assert line["runtime_client_proven"] is False
     finally:
         proc.terminate()
         proc.wait(timeout=3)
