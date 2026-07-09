@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Smoke AppOmar Stripe checkout without exposing secrets.
+"""Smoke AppOmar checkout without exposing secrets.
 
 Creates a non-zero devis via the running proposal server, calls /api/checkout,
 and prints a redacted result:
-- OK when Stripe returns a Checkout URL
-- BLOCKED stripe_non_configure when the app lacks the scoped Vault token/secret
+- OK when a configured payment provider returns a checkout URL
+- BLOCKED paypal_non_configure while PayPal is not wired/configured
 - FAIL for unexpected API/runtime errors
 
-No Stripe key, checkout URL, or sensitive payload is printed.
+No payment secret, checkout URL, or sensitive payload is printed.
 """
 from __future__ import annotations
 
@@ -40,11 +40,11 @@ def post_json(base_url: str, path: str, payload: dict[str, Any]) -> tuple[int, d
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://127.0.0.1:8096")
-    parser.add_argument("--client-email", default="stripe-smoke@example.test")
+    parser.add_argument("--client-email", default="payment-smoke@example.test")
     args = parser.parse_args()
 
     devis_status, devis_payload = post_json(args.base_url, "/api/devis", {
-        "client": {"email": args.client_email, "name": "Stripe Smoke"},
+        "client": {"email": args.client_email, "name": "Payment Smoke"},
         "items": ["formule-starter", "presta-onboarding"],
     })
     if devis_status != 201 or not devis_payload.get("ok"):
@@ -57,7 +57,7 @@ def main() -> int:
         validate_status, validate_payload = post_json(args.base_url, f"/api/devis/{devis['id']}/validate", {
             "accepted": True,
             "email": args.client_email,
-            "understood": "Smoke test: devis validé explicitement avant checkout Stripe test.",
+            "understood": "Smoke test: devis validé explicitement avant checkout paiement sécurisé.",
         })
         if validate_status != 200 or not validate_payload.get("ok"):
             print(json.dumps({"status": "FAIL", "step": "validate_devis", "http": validate_status, "error": validate_payload.get("error")}, ensure_ascii=False))
@@ -78,10 +78,10 @@ def main() -> int:
         })
         print(json.dumps(result, ensure_ascii=False))
         return 0
-    if checkout_status == 503 and checkout_payload.get("error") == "stripe_non_configure":
+    if checkout_status == 503 and checkout_payload.get("error") == "paypal_non_configure":
         result.update({
             "status": "BLOCKED",
-            "blocker": "stripe_non_configure",
+            "blocker": "paypal_non_configure",
             "message": checkout_payload.get("message"),
         })
         print(json.dumps(result, ensure_ascii=False))

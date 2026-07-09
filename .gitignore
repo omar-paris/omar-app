@@ -8,7 +8,9 @@ __pycache__/
 var/proposals/
 var/audit_sessions/
 var/auditbizia/
+var/audits/
 var/devis/
+var/clients/onboarding-*.json
 var/*.json
 var/proposal-server.env
 review_result.json

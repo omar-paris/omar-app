@@ -7,6 +7,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from auditbiz_question_engine import choose_next_question as auditbiz_choose_next_question
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -543,7 +545,11 @@ def question_for_field(field: str, session: dict[str, Any]) -> str:
 def options_for_field(field: str | None) -> list[str]:
     return list(FIELD_OPTIONS.get(str(field or ""), []))
 
+
+
 def next_question(session: dict[str, Any], step: str | None = None) -> dict[str, Any]:
+    if _is_business_tech_tree_session(session):
+        return business_tech_next_question(session, step)
     step = normalize_step_id(step or str(session.get("current_step") or "intro"))
     refs = load_sector_references()
     sector_id = str(session.get("sector_id") or detect_sector(session_text(session), refs))
@@ -617,6 +623,8 @@ def next_question(session: dict[str, Any], step: str | None = None) -> dict[str,
 
 def create_session(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
+    if _wants_business_tech_tree(payload):
+        return create_business_tech_session(payload)
     initial = str(payload.get("message") or payload.get("activity") or "")
     refs = load_sector_references()
     sid = f"audit-session-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
@@ -628,6 +636,8 @@ def create_session(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"session": session, "omar": q}
 
 def add_message(session: dict[str, Any], text: str) -> dict[str, Any]:
+    if _is_business_tech_tree_session(session):
+        return business_tech_add_message(session, text)
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     session["current_step"] = normalize_step_id(str(session.get("current_step") or "intro"))
     current_step = str(session.get("current_step") or "intro")
@@ -650,6 +660,8 @@ def add_message(session: dict[str, Any], text: str) -> dict[str, Any]:
     return {"session": session, "omar": q}
 
 def validate_step(session: dict[str, Any], step: str | None = None) -> dict[str, Any]:
+    if _is_business_tech_tree_session(session):
+        return business_tech_validate_step(session, step)
     step = normalize_step_id(step or str(session.get("current_step") or "intro"))
     c = completion_for_step(session, step)
     if not c["ready"]:
@@ -666,6 +678,241 @@ def validate_step(session: dict[str, Any], step: str | None = None) -> dict[str,
         session["current_step"] = steps[idx+1]
     session["acts"] = act_metrics(session)
     return {"ok": True, "session": session, "completion": c, "next": next_question(session, str(session.get("current_step")))}
+
+BUSINESS_TECH_TREE_PATH = ROOT / "src" / "audit_tree.business_tech.v1.yaml"
+BUSINESS_TECH_SESSION_SCHEMA = "oa_audit_session.business_tech.v1"
+TREE_V0_ALLOWED_INTERACTIONS = {"free_text", "quick_replies", "validation_card", "rank"}
+
+
+def load_business_tech_tree(path: Path = BUSINESS_TECH_TREE_PATH) -> dict[str, Any]:
+    """Load the executable audit tree as data; no LLM prompt free-form fallback."""
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or data.get("schema") != "oa.audit-tree/1":
+        raise ValueError("invalid business tech audit tree schema")
+    if not isinstance(data.get("steps"), list) or not data["steps"]:
+        raise ValueError("business tech audit tree has no steps")
+    return data
+
+
+def _wants_business_tech_tree(payload: dict[str, Any]) -> bool:
+    return str(payload.get("tree_id") or payload.get("runtime") or "").strip() in {"business_tech", "business_tech_v1", "oa.audit-tree/1"}
+
+
+def _is_business_tech_tree_session(session: dict[str, Any]) -> bool:
+    return str(session.get("schema") or "") == BUSINESS_TECH_SESSION_SCHEMA
+
+
+def _tree_steps_by_id(tree: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {str(step.get("step_id")): step for step in tree.get("steps", []) if step.get("step_id")}
+
+
+def _tree_v0_scope(tree: dict[str, Any]) -> list[str]:
+    return [str(step_id) for step_id in ((tree.get("v0_scope") or {}).get("steps") or [])]
+
+
+def _limit_message_lines(text: str, max_lines: int = 3) -> str:
+    lines = [re.sub(r"\s+", " ", line).strip() for line in str(text or "").splitlines()]
+    lines = [line for line in lines if line]
+    return "\n".join(lines[:max(1, int(max_lines or 3))]) if lines else "Pouvez-vous préciser ce point ?"
+
+
+def _tree_now() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _coerce_tree_answer_payload(text: str) -> dict[str, Any]:
+    raw = str(text or "").strip()
+    if not raw:
+        return {"answers": {}}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return {"answers": {"free_text": raw}, "raw_text": raw}
+    if isinstance(parsed, dict):
+        answers = parsed.get("answers") if isinstance(parsed.get("answers"), dict) else parsed
+        return {"step_id": parsed.get("step_id"), "answers": answers, "raw_text": raw}
+    return {"answers": {"value": parsed}, "raw_text": raw}
+
+
+def _tree_step_required_inputs(step: dict[str, Any]) -> list[str]:
+    return [str(item.get("id")) for item in step.get("inputs", []) or [] if isinstance(item, dict) and item.get("required", False) and item.get("id")]
+
+
+def _tree_input_by_id(step: dict[str, Any], input_id: str) -> dict[str, Any] | None:
+    for item in step.get("inputs", []) or []:
+        if isinstance(item, dict) and str(item.get("id")) == input_id:
+            return item
+    return None
+
+
+def _tree_missing_inputs(session: dict[str, Any], step_id: str) -> list[str]:
+    step = _tree_steps_by_id(load_business_tech_tree()).get(step_id) or {}
+    answers = ((session.get("state") or {}).get(step_id) or {}).get("answers") or {}
+    return [input_id for input_id in _tree_step_required_inputs(step) if answers.get(input_id) in (None, "", [])]
+
+
+def _tree_step_completion(session: dict[str, Any], step_id: str) -> dict[str, Any]:
+    step = _tree_steps_by_id(load_business_tech_tree()).get(step_id) or {}
+    required = _tree_step_required_inputs(step)
+    missing = _tree_missing_inputs(session, step_id)
+    done = len(required) - len(missing)
+    return {"step": step_id, "required_inputs": required, "missing_inputs": missing, "ready": not missing, "completion_pct": 100 if not required else round(done * 100 / len(required))}
+
+
+def _tree_answer_text(session: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for step_state in (session.get("state") or {}).values():
+        for value in (step_state.get("answers") or {}).values():
+            parts.append(" ".join(map(str, value)) if isinstance(value, list) else str(value))
+    for msg in session.get("messages", []) or []:
+        parts.append(str(msg.get("text") or ""))
+    return "\n".join(parts)
+
+
+def _tree_sector_id(session: dict[str, Any]) -> str:
+    return str(session.get("sector_id") or detect_sector(_tree_answer_text(session)))
+
+
+def _tree_sector_pack_relance(session: dict[str, Any], step_id: str) -> dict[str, Any] | None:
+    if step_id != "operations_week":
+        return None
+    step_state = (session.get("state") or {}).get(step_id) or {}
+    if int(step_state.get("sector_pack_depth") or 0) >= 1:
+        return None
+    sector_id = _tree_sector_id(session)
+    refs = load_sector_references()
+    ref = refs.get(sector_id) or refs.get("generic_tpe") or {}
+    block = (ref.get("question_blocks") or {}).get("pain") or (ref.get("question_blocks") or {}).get("operations_week") or []
+    question = str(block[0]) if block else "Quel irritant concret revient le plus souvent dans votre semaine ?"
+    return {"source": "sector_pack.question_blocks", "sector_id": sector_id, "depth": 1, "max_depth": 1, "question": enforce_vouvoiement_text(question)}
+
+
+def _tree_skip_rules(session: dict[str, Any]) -> set[str]:
+    answers = ((session.get("state") or {}).get("activity_business_model") or {}).get("answers") or {}
+    return {"hr_team_organization"} if str(answers.get("taille_equipe") or "").casefold() == "solo" else set()
+
+
+def _tree_next_step_after(session: dict[str, Any], step_id: str) -> str | None:
+    scope = list((session.get("runtime") or {}).get("v0_scope") or [])
+    skipped = _tree_skip_rules(session)
+    if step_id not in scope:
+        return scope[0] if scope else None
+    idx = scope.index(step_id) + 1
+    while idx < len(scope) and scope[idx] in skipped:
+        idx += 1
+    return scope[idx] if idx < len(scope) else None
+
+
+def _tree_output_value(input_id: str, answers: dict[str, Any], *, step_id: str) -> dict[str, Any]:
+    return {"schema": "oa.audit-tree.output-field.v1", "source": "client_declared_or_validated", "source_step": step_id, "source_input": input_id, "value": answers}
+
+
+def _persist_tree_outputs(session: dict[str, Any], step_id: str) -> None:
+    step = _tree_steps_by_id(load_business_tech_tree()).get(step_id) or {}
+    answers = ((session.get("state") or {}).get(step_id) or {}).get("answers") or {}
+    outputs = session.setdefault("outputs", {"report": {}, "onboarding": {}, "devis": {}})
+    for bucket, fields in (step.get("outputs") or {}).items():
+        if bucket not in outputs or not isinstance(outputs[bucket], dict):
+            outputs[bucket] = {}
+        for field in fields or []:
+            outputs[bucket][str(field)] = _tree_output_value(str(field), answers, step_id=step_id)
+
+
+def _tree_completion(session: dict[str, Any]) -> dict[str, Any]:
+    scope = list((session.get("runtime") or {}).get("v0_scope") or [])
+    skipped = set((session.get("runtime") or {}).get("skipped_steps") or []) | _tree_skip_rules(session)
+    validated = set(session.get("validated_steps") or [])
+    required = [step for step in scope if step not in skipped]
+    complete_steps = [step for step in required if step in validated]
+    return {"required_steps": required, "validated_steps": complete_steps, "skipped_steps": sorted(skipped), "complete": all(step in validated for step in required), "completion_pct": round(100 * len(complete_steps) / max(1, len(required)))}
+
+
+def create_business_tech_session(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload = payload or {}
+    tree = load_business_tech_tree()
+    now = _tree_now()
+    sid = f"audit-session-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
+    session: dict[str, Any] = {
+        "id": sid,
+        "schema": BUSINESS_TECH_SESSION_SCHEMA,
+        "tree_id": tree["tree_id"],
+        "tree_version": tree["version"],
+        "created_at": now,
+        "current_step": _tree_v0_scope(tree)[0],
+        "status": "running",
+        "messages": [],
+        "state": {},
+        "validated_steps": [],
+        "outputs": {"report": {}, "onboarding": {}, "devis": {}},
+        "runtime": {"v0_scope": _tree_v0_scope(tree), "allowed_interactions_v0": list((tree.get("v0_scope") or {}).get("interactions") or sorted(TREE_V0_ALLOWED_INTERACTIONS)), "skipped_steps": [], "policy": {"regle_70_30": True, "profondeur_relance_max": 1, "message_max_lignes": int((tree.get("principles") or {}).get("message_max_lignes") or 3)}},
+        "safety": {"paid_actions": "none", "provisioning": "none", "no_llm_freeform": True},
+    }
+    initial = str(payload.get("message") or "")
+    if initial:
+        session["messages"].append({"role": "client", "text": initial, "at": now})
+    q = business_tech_next_question(session)
+    session.setdefault("asked_questions", []).append({"step": q["step"], "question": q["question"], "at": now})
+    return {"session": session, "omar": q}
+
+
+def business_tech_next_question(session: dict[str, Any], step: str | None = None) -> dict[str, Any]:
+    tree = load_business_tech_tree()
+    steps = _tree_steps_by_id(tree)
+    step_id = str(step or session.get("current_step") or _tree_v0_scope(tree)[0])
+    if step_id not in steps:
+        step_id = _tree_v0_scope(tree)[0]
+    step_data = steps[step_id]
+    missing = _tree_missing_inputs(session, step_id)
+    wanted_input = _tree_input_by_id(step_data, missing[0]) if missing else None
+    raw_question = str((wanted_input or {}).get("question") or step_data.get("entry_message") or step_data.get("objectif") or "Pouvez-vous préciser ce point ?")
+    max_lines = int((session.get("runtime") or {}).get("policy", {}).get("message_max_lignes") or (tree.get("principles") or {}).get("message_max_lignes") or 3)
+    interaction = str((wanted_input or {}).get("type") or ((step_data.get("inputs") or [{}])[0] or {}).get("type") or "free_text")
+    if interaction not in TREE_V0_ALLOWED_INTERACTIONS:
+        interaction = "quick_replies" if interaction in {"checklist", "consent_gate", "slider"} else "free_text"
+    options = (wanted_input or {}).get("options") or []
+    if not isinstance(options, list):
+        options = []
+    return {"schema": "oa.audit-tree.next-question.v1", "tree_id": tree["tree_id"], "step": step_id, "label": step_data.get("label"), "acte": step_data.get("acte"), "objective": step_data.get("objectif"), "question": _limit_message_lines(enforce_vouvoiement_text(raw_question), max_lines), "interaction": interaction, "options": [enforce_vouvoiement_text(str(item)) for item in options], "completion": _tree_step_completion(session, step_id), "missing_inputs": missing, "sector_pack_relance": _tree_sector_pack_relance(session, step_id), "allowed_interactions_v0": list((tree.get("v0_scope") or {}).get("interactions") or sorted(TREE_V0_ALLOWED_INTERACTIONS)), "policy": {"regle_70_30": True, "message_max_lignes": max_lines, "profondeur_relance_max": 1, "no_llm_freeform": True}}
+
+
+def business_tech_add_message(session: dict[str, Any], text: str) -> dict[str, Any]:
+    payload = _coerce_tree_answer_payload(text)
+    step_id = str(payload.get("step_id") or session.get("current_step") or "pacte")
+    now = _tree_now()
+    answers = payload.get("answers") if isinstance(payload.get("answers"), dict) else {"free_text": text}
+    state = session.setdefault("state", {}).setdefault(step_id, {"answers": {}, "events": [], "sector_pack_depth": 0})
+    state.setdefault("answers", {}).update(answers)
+    if "relance_pack" in answers:
+        state["sector_pack_depth"] = min(1, int(state.get("sector_pack_depth") or 0) + 1)
+    state.setdefault("events", []).append({"at": now, "event": "answers_recorded", "fields": sorted(answers)})
+    session.setdefault("messages", []).append({"role": "client", "text": str(payload.get("raw_text") or text), "step": step_id, "at": now})
+    session["sector_id"] = _tree_sector_id(session)
+    session.setdefault("runtime", {})["skipped_steps"] = sorted(_tree_skip_rules(session))
+    q = business_tech_next_question(session, step_id)
+    session.setdefault("asked_questions", []).append({"step": q["step"], "question": q["question"], "at": now})
+    return {"session": session, "omar": q}
+
+
+def business_tech_validate_step(session: dict[str, Any], step: str | None = None) -> dict[str, Any]:
+    step_id = str(step or session.get("current_step") or "pacte")
+    completion = _tree_step_completion(session, step_id)
+    if not completion["ready"]:
+        return {"ok": False, "error": "step_incomplete", "completion": completion, "omar": business_tech_next_question(session, step_id)}
+    validated = session.setdefault("validated_steps", [])
+    if step_id not in validated:
+        validated.append(step_id)
+    _persist_tree_outputs(session, step_id)
+    next_step = _tree_next_step_after(session, step_id)
+    session.setdefault("runtime", {})["skipped_steps"] = sorted(_tree_skip_rules(session))
+    if next_step:
+        session["current_step"] = next_step
+    else:
+        session["status"] = "complete"
+    session["completion"] = _tree_completion(session)
+    if session["completion"]["complete"]:
+        session["status"] = "complete"
+    return {"ok": True, "session": session, "completion": completion, "next": business_tech_next_question(session, str(session.get("current_step") or step_id))}
+
 
 CONSENT_KEYS = [
     "public_web_search",
@@ -684,7 +931,7 @@ def normalize_consents(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     permissions = {key: bool(raw.get(key, False)) for key in CONSENT_KEYS}
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     return {
-        "schema": "oa_audit_consent.v0",
+        "schema": "oa_audit_consent.v1",
         "permissions": permissions,
         "accepted_at": raw.get("accepted_at") or (now if any(permissions.values()) else None),
         "consent_version": str(raw.get("consent_version") or "2026-06-29.rigorous-audit.v1"),
@@ -1022,18 +1269,18 @@ def build_sources_used(payload: dict[str, Any], session: dict[str, Any] | None =
     sources: list[dict[str, Any]] = []
     answer_fields = ["activity", "urgency", "repetitive_tasks", "current_tools", "constraints", "opportunities", "autonomy", "validation"]
     if payload.get("transcript") or (session or {}).get("messages") or any(str(payload.get(k) or "").strip() for k in answer_fields):
-        sources.append({"type": "user_answer", "label": "Réponses conversationnelles du client", "provenance": "declared_by_user"})
+        sources.append({"type": "user_answer", "label": "Réponses conversationnelles du client", "provenance": "declared_by_user", "evidence_origin": "declared_client"})
     docs = payload.get("uploaded_documents") if isinstance(payload.get("uploaded_documents"), list) else []
     if docs:
-        sources.append({"type": "uploaded_document", "label": f"{len(docs)} document(s) fourni(s)", "provenance": "user_upload"})
+        sources.append({"type": "uploaded_document", "label": f"{len(docs)} document(s) fourni(s)", "provenance": "user_upload", "evidence_origin": "provided_document"})
     consents = normalize_consents(payload)["permissions"]
     if consents.get("public_web_search"):
-        sources.append({"type": "public_web_authorized", "label": "Recherche web publique autorisée, non exécutée en V0 déterministe", "provenance": "consent"})
+        sources.append({"type": "public_web_authorized", "label": "Recherche web publique autorisée, non exécutée en V0 déterministe", "provenance": "consent", "evidence_origin": "verified_public"})
     if consents.get("legal_registry_lookup"):
-        sources.append({"type": "legal_registry_authorized", "label": "Données légales publiques autorisées, non exécutées en V0 déterministe", "provenance": "consent"})
+        sources.append({"type": "legal_registry_authorized", "label": "Données légales publiques autorisées, non exécutées en V0 déterministe", "provenance": "consent", "evidence_origin": "verified_public"})
     if consents.get("social_media_lookup"):
-        sources.append({"type": "social_media_authorized", "label": "Réseaux sociaux publics autorisés, non exécutés en V0 déterministe", "provenance": "consent"})
-    sources.append({"type": "sector_reference", "label": str(payload.get("sector_id") or "generic_tpe"), "provenance": "oa_sector_reference"})
+        sources.append({"type": "social_media_authorized", "label": "Réseaux sociaux publics autorisés, non exécutés en V0 déterministe", "provenance": "consent", "evidence_origin": "verified_public"})
+    sources.append({"type": "sector_reference", "label": str(payload.get("sector_id") or "generic_tpe"), "provenance": "oa_sector_reference", "evidence_origin": "omar_hypothesis"})
     return sources
 
 
@@ -1048,7 +1295,14 @@ def build_devis_source(payload: dict[str, Any], report: dict[str, Any], consents
     recommendations: list[dict[str, Any]] = []
     def add(catalog_id: str, reason: str, *, confidence: float = 0.7, required: bool = True) -> None:
         if catalog_id not in [r["catalog_id"] for r in recommendations]:
-            recommendations.append({"catalog_id": catalog_id, "required": required, "reason": reason, "evidence": "user_answers_and_sector_reference", "confidence": confidence})
+            recommendations.append({
+                "catalog_id": catalog_id,
+                "required": required,
+                "reason": reason,
+                "recommendation_ref": f"audit.recommendations.{catalog_id}",
+                "evidence": "declared_client+omar_hypothesis:user_answers_and_sector_reference",
+                "confidence": confidence,
+            })
     if _contains_any(text, ["multi", "équipe", "crm", "connecteur", "automatisation", "plusieurs"]):
         add("formule-pro", "Besoin probable de plusieurs boucles, suivi client ou connecteurs : formule Pro à valider humainement.", confidence=0.62)
     else:
@@ -1062,7 +1316,7 @@ def build_devis_source(payload: dict[str, Any], report: dict[str, Any], consents
         add("mod-crm", "Besoin de suivi client/prospect ou historique de demandes à structurer.", confidence=0.61, required=False)
     missing_consent = [k for k in ["public_web_search", "legal_registry_lookup", "market_trends_lookup"] if not consents.get("permissions", {}).get(k)]
     return {
-        "schema": "oa_devis_source.v0",
+        "schema": "oa_devis_source.v1",
         "status": "ready_for_user_validation",
         "audit_id": payload.get("audit_id"),
         "recommended_items": recommendations,

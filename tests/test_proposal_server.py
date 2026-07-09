@@ -115,6 +115,27 @@ def test_vault_secret_rejects_unscoped_path_or_field(monkeypatch):
     assert calls == []
 
 
+def test_server_serves_public_lifecycle_contract_json(tmp_path):
+    # Build artifacts are expected to exist in public/api; server must expose them
+    # because app.omar.paris proxies /api/* to proposal_server.py, not static files.
+    proc, port = start_server(tmp_path)
+    try:
+        for endpoint, schema in [
+            ("/api/appomar-lifecycle.json", "oa.appomar-lifecycle/v1"),
+            ("/api/oa-system-contracts.json", "oa.system-contracts/v1"),
+        ]:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}{endpoint}", timeout=3) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            assert response.status == 200
+            assert payload["schema"] == schema
+            serialized = json.dumps(payload, ensure_ascii=False)
+            for forbidden in ["BEGIN OPENSSH", "ghp_", "sk-proj-", "-----BEGIN", "Authorization:"]:
+                assert forbidden not in serialized
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
 def test_proposal_api_stores_pending_human_go_json_without_secrets(tmp_path):
     proc, port = start_server(tmp_path)
     try:
@@ -353,7 +374,11 @@ def test_audit_api_stores_personalized_report_without_paid_actions_or_secrets(tm
         report = created["report"]
         assert "Boulangerie artisanale" in report["title"]
         assert any("relances clients" in item for item in report["opportunities"])
-        assert report["schema"] == "oa_audit_report.fable_v0"
+        assert report["schema"] == "oa_audit_report.business_tech.v1"
+        assert report["legacy_schema"] == "oa_audit_report.fable_v0"
+        assert report["section_count"] == 17
+        assert len(report["sections"]) == 17
+        assert all(section["sources"] for section in report["sections"])
         assert report["declared_by_client"]
         assert report["omar_hypotheses"]
         assert report["do_not_automate"]
@@ -494,6 +519,13 @@ def test_audit_session_backend_drives_sector_questions_and_exports(tmp_path):
         assert status == 200
         assert valid2["session"]["current_step"] == "tools"
 
+        status, poison = request_json(
+            "POST",
+            f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/message",
+            {"message": "POISON_TRANSCRIPT_BRUT à ne jamais recopier dans le rapport"},
+        )
+        assert status == 200
+
         status, report = request_json(
             "POST",
             f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/report",
@@ -507,7 +539,16 @@ def test_audit_session_backend_drives_sector_questions_and_exports(tmp_path):
         assert status == 201
         assert report["audit"]["id"].startswith("audit-")
         assert "réponses WhatsApp" in "\n".join(report["report"]["diagnostic"] + report["report"]["opportunities"])
-        assert report["report"]["schema"] == "oa_audit_report.fable_v0"
+        assert report["report"]["schema"] == "oa_audit_report.business_tech.v1"
+        assert report["report"]["report_contract_version"] == "business_tech.v1"
+        assert report["report"]["section_count"] == 17
+        assert [section["id"] for section in report["report"]["sections"]] == proposal_server.report_contract_sections()
+        assert all(section["items"] for section in report["report"]["sections"])
+        assert all(section["sources"] for section in report["report"]["sections"])
+        assert "POISON_TRANSCRIPT_BRUT" not in json.dumps(report["report"], ensure_ascii=False)
+        stored_audit = json.loads((tmp_path / "audits" / f"{report['audit']['id']}.json").read_text(encoding="utf-8"))
+        assert "transcript" not in stored_audit["input"]
+        assert "POISON_TRANSCRIPT_BRUT" not in json.dumps(stored_audit, ensure_ascii=False)
         assert report["onboarding_pack"]["schema"] == "onboarding_pack.v1"
         assert report["share"]["exports"]["markdown"].startswith("# ")
         assert report["share"]["exports"]["pdf_status"] == "pending_renderer"
@@ -611,12 +652,19 @@ def test_rigorous_audit_persists_consents_sources_devis_source_and_delete(tmp_pa
         assert status == 201
         assert created["onboarding_pack"]["schema"] == "onboarding_pack.v1"
         assert created["onboarding_pack"]["dry_run_contract"]["schema"] == "omartop.provisioning-contract.v1"
-        assert created["devis_source"]["schema"] == "oa_devis_source.v0"
+        assert created["devis_source"]["schema"] == "oa_devis_source.v1"
         assert created["devis_source"]["governance"]["requires_user_validation_before_checkout"] is True
+        assert created["consent_snapshot"]["schema"] == "oa_audit_consent.v1"
         assert created["consent_snapshot"]["permissions"]["public_web_search"] is True
         assert created["consent_snapshot"]["improvement_opt_in"] is False
         assert {s["type"] for s in created["sources_used"]} >= {"user_answer", "uploaded_document", "sector_reference", "public_web_authorized", "legal_registry_authorized"}
+        assert {s["evidence_origin"] for s in created["sources_used"]} >= {"declared_client", "provided_document", "verified_public", "omar_hypothesis"}
+        assert created["report"]["source_separation"] == ["declared_client", "verified_public", "omar_hypothesis", "provided_document"]
+        assert created["report"]["cyber_baseline"]["checks"]
+        assert created["report"]["regulatory_baseline"]["facturation_electronique_2027"]["included"] is True
+        assert all({"score", "why", "evidence", "limits", "how_to_improve"} <= set(score) for score in created["report"]["scores"].values())
         assert any(item["catalog_id"] == "formule-starter" for item in created["devis_source"]["recommended_items"])
+        assert all(item["recommendation_ref"] and item["evidence"] for item in created["devis_source"]["recommended_items"])
 
         aid = created["audit"]["id"]
         status, devis_created = request_json("POST", f"http://127.0.0.1:{port}/api/devis", {"audit_id": aid})
@@ -638,7 +686,7 @@ def test_rigorous_audit_persists_consents_sources_devis_source_and_delete(tmp_pa
         proc.terminate()
         proc.wait(timeout=3)
 
-def test_devis_requires_user_validation_before_checkout_then_reports_unconfigured_stripe(tmp_path):
+def test_devis_requires_user_validation_before_checkout_then_reports_unconfigured_paypal(tmp_path):
     proc, port = start_server(tmp_path)
     try:
         status, created = request_json("POST", f"http://127.0.0.1:{port}/api/devis", {"items": ["formule-starter", "presta-onboarding"]})
@@ -680,7 +728,9 @@ def test_devis_requires_user_validation_before_checkout_then_reports_unconfigure
         except urllib.error.HTTPError as exc:
             body = json.loads(exc.read().decode("utf-8"))
             assert exc.code == 503
-            assert body["error"] == "stripe_non_configure"
+            assert body["error"] == "paypal_non_configure"
+            assert body["payment_provider_target"] == "paypal"
+            assert body["legacy_provider_disabled"] == "stripe"
             assert body["total_mensuel_eur"] == 49
             assert body["total_unique_eur"] == 150
     finally:

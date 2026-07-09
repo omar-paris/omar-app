@@ -1,0 +1,497 @@
+# audit_tree.business_tech.v1 — arbre source exécutable de l'audit Omar & Alex
+# Fusion : arbre conversationnel Fable (3 actes, règle 70/30, validation cards)
+#        × cadrage Business & Tech H-Omar (14 étapes, 2026-07-08)
+# Consommé par le runtime : tree + conversation_policy + sector_pack + session_state.
+# Références : docs/plans/2026-07-07-fable-audit-conversation-tree.md (design)
+#              docs/plans/2026-07-08-audit-business-tech-onboarding-devis-deepsearch.md (cadrage)
+schema: oa.audit-tree/1
+tree_id: business_tech
+version: 1
+language: fr
+
+principles:
+  regle_70_30: >
+    Les questions sont OUVERTES (le coach écoute) ; les boutons ne servent
+    qu'à confirmer ce qu'Omar a compris ou à accélérer un choix simple.
+    Jamais un QCM à la place d'une écoute.
+  profondeur_relance: 1        # une relance max par sujet — l'audit AVANCE
+  message_max_lignes: 3        # appliqué côté serveur, pas seulement prompté
+  validation_par_acte: true    # carte « Ce qu'Omar a compris » à chaque fin d'acte
+  aucune_action_sensible: >
+    Jamais de paiement, provisioning, contact externe ou publication sans
+    GO humain explicite. Jamais de mot de passe/clé/RIB.
+
+interaction_types:            # contrat UI — V0 = les 4 premiers
+  - free_text
+  - quick_replies
+  - validation_card
+  - rank
+  - checklist                 # V1
+  - consent_gate              # V1 (V0 : version simplifiée en quick_replies)
+  - slider                    # V1
+  - file_or_url               # V1
+
+actes:
+  - id: rencontre
+    label: "On fait connaissance"
+    duree_cible_min: 6
+  - id: plongee
+    label: "On entre dans le concret"
+    duree_cible_min: 12
+  - id: livraison
+    label: "Ton diagnostic"
+    duree_cible_min: 4
+
+steps:
+  # ══════════════ ACTE I — RENCONTRE ══════════════
+  - step_id: pacte
+    acte: rencontre
+    label: Accueil & pacte
+    objectif: Cadre posé (durée, gratuité, contrôle client) + style choisi.
+    entry_message: >
+      Bonjour, moi c'est Omar. En 20 minutes je comprends ton activité et je
+      te remets un vrai diagnostic business & tech — gratuit, sans engagement.
+      On se tutoie ?
+    inputs:
+      - {id: tutoiement, type: quick_replies, required: true,
+         options: ["On se tutoie", "Restons au vous"]}
+      - {id: rythme, type: quick_replies, required: true,
+         question: "Tu préfères aller droit au but, ou prendre le temps ?",
+         options: ["Droit au but", "Prendre le temps"]}
+      - {id: temps_dispo, type: quick_replies, required: false,
+         question: "Tu as combien de temps, là ?",
+         options: ["10 min", "20 min", "Pas de limite"]}
+    completion: [tutoiement, rythme]
+    branches:
+      - {if: "temps_dispo == '10 min'", then: set_mode_express}
+    outputs: {onboarding: [preferences_communication]}
+
+  - step_id: identity_public_context
+    acte: rencontre
+    label: Identité & contexte public
+    objectif: >
+      Identifier l'entreprise OFFICIELLEMENT (SIRENE) en une question, pas en
+      dix. Le moment « wahou » : Omar retrouve la fiche, le client confirme.
+    entry_message: >
+      Commençons simple : le nom de ton entreprise et ta ville ? Je retrouve
+      le reste moi-même.
+    inputs:
+      - {id: nom_entreprise, type: free_text, required: true}
+      - id: sirene_match
+        type: validation_card
+        required: false
+        source: api_recherche_entreprises   # recherche-entreprises.api.gouv.fr
+                                            # gratuit, sans auth, 7 req/s, données publiques
+        card: "J'ai trouvé ça : {denomination}, {activite_naf}, {adresse}, créée en {annee}. C'est bien toi ?"
+        options: ["C'est bien moi", "Ce n'est pas moi", "À corriger"]
+      - {id: siret_manuel, type: free_text, required: false,
+         condition: "sirene_match != 'C'est bien moi'",
+         question: "Pas grave — ton SIRET si tu l'as sous la main ? (sinon on continue sans)"}
+    completion: [nom_entreprise]
+    branches:
+      - {if: sirene_confirme, then: prefill_context_from_sirene}   # ancienneté, NAF, forme, effectif déclaré
+    outputs:
+      report: [identite_officielle]
+      onboarding: [company_legal_context]
+
+  - step_id: public_sources_consent
+    acte: rencontre
+    label: Sources publiques consenties
+    objectif: Droit EXPLICITE, source par source. Chaque trouvaille sera re-validée une par une.
+    entry_message: >
+      Si tu me montres où tu existes en ligne, je vérifie des choses par
+      moi-même au lieu de te questionner. Tu m'autorises à regarder quoi ?
+    inputs:
+      - id: consents
+        type: consent_gate          # V0 : série de quick_replies Oui/Non par source
+        required: true
+        sources:
+          - {id: web_public, ask: "Recherche web publique sur l'entreprise ?"}
+          - {id: sirene_detail, ask: "Ta fiche SIRENE détaillée ?", default_from: sirene_match}
+          - {id: site_web, ask: "Ton site web ?", field: url}
+          - {id: fiche_google, ask: "Ta fiche Google et ses avis ?", field: url_ou_nom}
+          - {id: reseaux, ask: "Un réseau social pro ?", field: url}
+      - {id: docs, type: file_or_url, required: false,
+         question: "Un document utile ? (plaquette, tarifs…) — optionnel"}
+    completion: [consents]          # même si tout est refusé
+    branches:
+      - {if: any_consent, then: schedule_public_research_background}
+      - {if: all_refused, then: "say: Aucun souci — on fait tout en discutant."}
+    regles:
+      - Jamais consulter une source non cochée.
+      - Chaque trouvaille présentée UNE PAR UNE en validation ("Oui exact / À modifier / Ce n'est pas moi / Ignorer").
+      - Le rapport cite chaque source consultée.
+    outputs:
+      report: [sources_autorisees]
+      onboarding: [allowed_sources, source_consents]
+
+  - step_id: activity_business_model
+    acte: rencontre
+    label: Activité & modèle
+    objectif: Le VRAI métier, les clients, comment l'argent rentre.
+    entry_message: >
+      Raconte-moi ton activité comme à un voisin : tu fais quoi, pour qui,
+      et comment ça se vend ?
+    inputs:
+      - {id: recit_activite, type: free_text, required: true}
+      - {id: type_clients, type: quick_replies, required: true,
+         condition: non_extrait(recit_activite),
+         question: "Tes clients, c'est plutôt…",
+         options: ["Des particuliers", "Des pros", "Les deux"]}
+      - {id: taille_equipe, type: quick_replies, required: true,
+         condition: non_extrait(recit_activite),
+         options: ["Solo", "2-5", "6-20", "20+"]}
+      - {id: canaux_vente, type: quick_replies, required: false,
+         question: "On te trouve / on t'achète comment, principalement ?",
+         options: ["Bouche à oreille", "Google/web", "Réseaux", "Sur place", "Plateformes"]}
+    completion: [métier_identifié, type_clients, taille_equipe]
+    branches:
+      - {if: secteur_in_packs, then: load_sector_pack}       # bakery, plumber, restaurant, lawyer…
+      - {if: secteur_inconnu, then: load_pack_generic_tpe}
+      - {if: profession_reglementee, then: enable_regulated_guardrails}
+      - {if: "taille_equipe == 'Solo'", then: skip_step(hr_team_organization)}
+    outputs:
+      report: [company_context, business_model, sector_hypothesis]
+      onboarding: [business_type, team_size, sales_channels]
+
+  - step_id: person_and_goals
+    acte: rencontre
+    label: La personne & ses objectifs
+    objectif: Qui est le dirigeant, où il veut aller, son rapport au digital/IA.
+    entry_message: >
+      Et toi là-dedans ? Dis-moi où tu veux emmener cette boîte — et ce que
+      tu aimerais que ça change pour TOI.
+    inputs:
+      - {id: objectifs_racontes, type: free_text, required: true}
+      - {id: horizon, type: quick_replies, required: false,
+         question: "Ton horizon, c'est plutôt…",
+         options: ["Tenir le rythme", "Grandir", "Me libérer du temps", "Transmettre/vendre"]}
+      - {id: niveau_digital, type: quick_replies, required: true,
+         question: "Avec les outils numériques, tu te sens…",
+         options: ["À l'aise", "Ça va", "Pas copain", "J'ai déjà testé l'IA"]}
+    completion: [objectifs_racontes, niveau_digital]
+    branches:
+      - {if: "niveau_digital == 'Pas copain'", then: simplify_all_next_messages}
+    outputs:
+      report: [person_profile, goals, digital_maturity_self]
+      onboarding: [owner_profile, tone_adaptation]
+    fin_acte: validation_card_rencontre    # « Ce qu'Omar a compris » n°1
+
+  # ══════════════ ACTE II — PLONGÉE ══════════════
+  - step_id: operations_week
+    acte: plongee
+    label: La semaine réelle
+    objectif: La carte des irritants avec poids temporel ET émotionnel — le cœur.
+    entry_message: >
+      Maintenant le concret. Raconte-moi ta semaine dernière — pas la théorie,
+      la vraie : qu'est-ce qui t'a pris du temps que tu aurais préféré passer ailleurs ?
+    inputs:
+      - {id: semaine, type: free_text, required: true}
+      - {id: relance_pack, type: free_text, required: false,
+         source: sector_pack.question_blocks, profondeur_max: 1}
+      - {id: top_caillou, type: quick_replies, required: true,
+         question: "Si je ne t'enlève QU'UNE épine du pied, c'est…",
+         options: 'from_detected_irritants + ["Autre chose"]'}
+    completion: [">= 2 irritants qualifiés", top_caillou]
+    signaux:
+      - {detect: chiffre_spontane, then: noter_estimation_temps}
+      - {detect: emotion_forte, then: reconnaitre_avant_de_continuer}
+      - {detect: reponses_courtes, then: proposer_qcm_secours}
+    outputs:
+      report: [pain_map, time_sinks, verbatims]
+      onboarding: [candidate_routines]
+
+  - step_id: marketing_sales
+    acte: plongee
+    label: Marketing & ventes
+    objectif: Comment les clients arrivent, ce qui fuit dans l'entonnoir.
+    entry_message: >
+      Côté clients : ils arrivent tout seuls, ou tu dois aller les chercher ?
+      Raconte-moi comment ça se passe du premier contact à la vente.
+    inputs:
+      - {id: parcours_client_raconte, type: free_text, required: true}
+      - {id: presence_en_ligne, type: quick_replies, required: false,
+         question: "Ta vitrine en ligne aujourd'hui…",
+         options: ["Fiche Google", "Site", "Réseaux actifs", "Pas grand-chose", "Tout ça"]}
+      - {id: perte_identifiee, type: quick_replies, required: true,
+         question: "Là où tu perds des clients, c'est plutôt…",
+         options: ["Ils ne me trouvent pas", "Je réponds trop tard", "Devis/relance", "Fidélisation", "Je ne sais pas"]}
+    completion: [parcours_client_raconte, perte_identifiee]
+    branches:
+      - {if: "type_clients == 'Des pros'", then: relance_b2b_cycle_long}
+      - {if: commerce_local && fiche_google_consentie, then: croiser_avis_publics}
+    outputs:
+      report: [marketing_diagnosis, funnel_leaks]
+      onboarding: [marketing_routines_candidates]
+
+  - step_id: admin_finance_purchasing
+    acte: plongee
+    label: Admin, finance & achats
+    objectif: La paperasse réelle — devis, factures, relances, achats, échéances.
+    entry_message: >
+      La paperasse maintenant. Devis, factures, relances, fournisseurs :
+      qu'est-ce qui se passe bien, et qu'est-ce qui traîne toujours ?
+    inputs:
+      - {id: admin_racontee, type: free_text, required: true}
+      - {id: facturation_outil, type: quick_replies, required: false,
+         question: "Tes factures, tu les fais avec…",
+         options: ["Un logiciel", "Excel/Word", "Un comptable", "À la main", "C'est le bazar"]}
+      - {id: impayes, type: quick_replies, required: false,
+         question: "Les retards de paiement, c'est…",
+         options: ["Rare", "Ça arrive", "Un vrai problème"]}
+    completion: [admin_racontee]
+    outputs:
+      report: [admin_finance_diagnosis]
+      onboarding: [admin_routines_candidates, connectors_candidates_finance]
+
+  - step_id: hr_team_organization
+    acte: plongee
+    label: Équipe & organisation
+    condition: "taille_equipe != 'Solo'"     # sauté en solo (branch acte I)
+    objectif: Coordination, plannings, transmission — les frictions d'équipe.
+    entry_message: >
+      Avec ton équipe : qu'est-ce qui te demande le plus d'énergie —
+      les plannings, la transmission des infos, autre chose ?
+    inputs:
+      - {id: equipe_racontee, type: free_text, required: true}
+      - {id: friction_equipe, type: quick_replies, required: false,
+         options: ["Plannings", "Communication interne", "Recrutement", "Formation", "Ça roule"]}
+    completion: [equipe_racontee]
+    outputs:
+      report: [team_organization_diagnosis]
+      onboarding: [team_context]
+
+  - step_id: digital_tools_data
+    acte: plongee
+    label: Outils, données & sécurité
+    objectif: La carte réelle des outils, les RUPTURES de flux, l'état des données.
+    entry_message: >
+      Tes outils au quotidien — même si c'est un cahier et des textos.
+      Tu utilises quoi, et qu'est-ce que tu ressaisis deux fois ?
+    inputs:
+      - {id: outils_racontes, type: free_text, required: true}
+      - {id: outils_confirm, type: checklist, required: true,
+         question: "Je coche ce que j'ai compris :",
+         options: 'from_recit + from_sector_pack'}
+      - {id: sauvegarde, type: quick_replies, required: false,
+         question: "Si ton ordi/téléphone meurt demain, tes données…",
+         options: ["Sont sauvegardées", "En partie", "Aïe", "Je ne sais pas"]}
+    completion: [">= 1 outil confirmé", ruptures_identifiées_ou_absentes]
+    outputs:
+      report: [tool_stack, flow_breaks, data_security_signals]
+      onboarding: [connectors_candidates]
+
+  - step_id: risks_limits
+    acte: plongee
+    label: Lignes rouges & limites
+    objectif: Ce que l'agent ne touchera JAMAIS — dit par le client.
+    entry_message: >
+      Question importante : qu'est-ce qui ne doit JAMAIS être automatisé ou
+      sortir de chez toi ? C'est toi qui fixes la ligne rouge.
+    inputs:
+      - {id: lignes_rouges, type: free_text, required: true}
+      - {id: donnees_sensibles, type: checklist, required: true,
+         options: ["Données santé", "Données mineurs", "Bancaire clients", "Paie/RH", "Rien de sensible"]}
+      - {id: validation_humaine, type: quick_replies, required: true,
+         question: "Un message qui part vers un client : l'agent l'envoie seul, ou tu valides tout au début ?",
+         options: ["Je valide tout au début", "Il envoie, je supervise", "Ça dépend du type"]}
+    completion: [lignes_rouges, donnees_sensibles, validation_humaine]
+    branches:
+      - {if: profession_reglementee || donnees_sante, then: message_limites_franches}
+    outputs:
+      report: [risk_register, compliance_notes]
+      onboarding: [forbidden_data, guardrails, human_gates_defaults]
+    fin_acte: validation_card_plongee      # « Ce qu'Omar a compris » n°2
+                                            # + restitution des trouvailles publiques UNE PAR UNE
+
+  # ══════════════ ACTE III — LIVRAISON ══════════════
+  - step_id: diagnosis
+    acte: livraison
+    label: Diagnostic partagé
+    objectif: >
+      Omar POSE le diagnostic (SWOT + matrice impact/effort) et le client
+      réagit — le diagnostic est co-signé, pas subi.
+    entry_message: >
+      Voilà mon diagnostic, en face à face. Dis-moi où je vise juste et où je me trompe.
+    inputs:
+      - id: swot_reaction
+        type: validation_card
+        required: true
+        card_sections: [forces, faiblesses, opportunites, menaces]
+        # Chaque section : 2-3 items max, sourcés (déclaré/vérifié/hypothèse), réaction par item
+      - id: matrice_reaction
+        type: validation_card
+        required: true
+        card: matrice_automatisation    # impact × effort × risque, 3-5 opportunités
+    completion: [swot_reaction, matrice_reaction]
+    outputs:
+      report: [swot_valide, automation_matrix]
+
+  - step_id: recommendations
+    acte: livraison
+    label: Recommandations & priorités
+    objectif: 3-5 recommandations classées PAR LE CLIENT + attentes non couvertes.
+    entry_message: "Mes recommandations. Classe celles qui te parlent — la plus urgente en premier."
+    inputs:
+      - {id: recos_validees, type: validation_card, required: true}
+      - {id: priorisation, type: rank, required: true}
+      - {id: attente_restante, type: free_text, required: false,
+         question: "Un truc dont tu rêves qu'on n'a pas mis là ?"}
+    completion: [">= 1 reco validée et classée"]
+    branches:
+      - {if: attente_irrealiste, then: honnetete_2026}
+    outputs:
+      report: [recommendations, quick_wins, plan_30j]
+      onboarding: [mission_candidates]
+      devis: [items_justifies]        # chaque item de devis DOIT pointer une reco validée
+
+  - step_id: validation
+    acte: livraison
+    label: Synthèse finale & suites
+    objectif: LA carte complète validée section par section, puis le client choisit sa suite.
+    entry_message: >
+      Dernière étape : vérifie-moi tout. Ensuite ton rapport est à toi,
+      quoi que tu décides.
+    inputs:
+      - id: synthese_finale
+        type: validation_card
+        required: true
+        card_sections: [identite, activite_modele, objectifs, irritants_prioritaires,
+                        marketing_ventes, admin_finance, outils_ruptures, lignes_rouges,
+                        swot, recommandations_classees]
+      - id: suite
+        type: quick_replies
+        required: false               # JAMAIS obligatoire — zéro forcing
+        question: "Tu veux quoi maintenant ?"
+        options: ["Chiffrer ça (devis)", "Préparer mon agent", "Parler à Alex", "Digérer d'abord"]
+    completion: [synthese_finale]
+    branches:
+      - {if: "suite == 'Chiffrer ça (devis)'", then: create_devis_from_audit}     # POST /api/devis {audit_id}
+      - {if: "suite == 'Préparer mon agent'", then: onboarding_prefilled}          # PAS un wizard vierge
+      - {if: "suite == 'Parler à Alex'", then: lead_alex_avec_rapport}
+      - {if: "suite == 'Digérer d'abord'", then: 'email_rapport + relance_unique_j3'}
+    outputs:
+      report: [client_validated_summary]
+      onboarding: [ALL_LOCKED]         # cette carte validée = source canonique
+      devis: [devis_source]
+
+evidence_contract:
+  version: business_tech.v1
+  required_fields: [origin, confidence, source_ref]
+  origins:
+    - id: declared_client
+      label: Déclaré par le client
+      code: D
+      rule: Peut alimenter diagnostic et irritants, mais reste distinct des faits vérifiés.
+    - id: verified_public
+      label: Vérifié sur source publique consentie
+      code: V
+      rule: Utilisable seulement si la source a été autorisée puis revalidée par le client.
+    - id: omar_hypothesis
+      label: Hypothèse Omar
+      code: H
+      rule: Toujours présentée comme hypothèse explicable, jamais comme fait.
+    - id: provided_document
+      label: Document fourni par le client
+      code: F
+      rule: Utilisable seulement si fourni/autorisé, cité comme document et non source publique.
+  report_rule: Chaque item sensible du rapport porte origin + confidence + source_ref.
+
+consent_contract:
+  version: business_tech.v1
+  refusal_policy: non_blocking
+  sources:
+    - {id: web_public, label: Recherche web publique, consent_key: public_web_search}
+    - {id: sirene_detail, label: Fiche SIRENE détaillée, consent_key: legal_registry_lookup}
+    - {id: site_web, label: Site web indiqué, consent_key: public_web_search}
+    - {id: fiche_google, label: Fiche Google / avis, consent_key: public_web_search}
+    - {id: reseaux, label: Réseaux sociaux publics, consent_key: social_media_lookup}
+    - {id: documents, label: Documents fournis, consent_key: document_analysis}
+  validation_rule: Chaque trouvaille publique est montrée une par une au client avant usage conclusif.
+  error_handling:
+    - {id: multiple_establishments, action: demander_confirmation_etablissement}
+    - {id: sirene_non_diffusible, action: continuer_sur_declaratif_sans_bloquer}
+    - {id: obsolete_public_data, action: marquer_obsolete_et_demander_correction}
+
+cyber_baseline_contract:
+  version: business_tech.v1
+  checks:
+    - backups
+    - access_control
+    - mfa_admin
+    - password_manager
+    - device_update
+    - sensitive_data_map
+  rule: Baseline hygiène seulement ; pas d'audit sécurité exhaustif ni promesse de conformité.
+
+regulatory_baseline_contract:
+  version: business_tech.v1
+  facturation_electronique_2027:
+    included: true
+    rule: Toujours signaler la préparation facturation électronique 2026-2027 si admin/facturation détectée.
+    limits: Information de cadrage, pas conseil fiscal/juridique.
+
+scoring_contract:
+  version: business_tech.v1
+  scores:
+    - id: cyber_hygiene_score
+      signals: [sauvegarde, donnees_sensibles, validation_humaine, outils_confirm]
+      why: Mesure une hygiène minimale avant automatisation.
+      limits: Heuristique issue de réponses structurées, pas scan technique.
+      how_to_improve: Sauvegarde, MFA, gestionnaire de mots de passe, cartographie des accès.
+    - id: operational_friction_score
+      signals: [semaine, top_caillou, admin_racontee, flow_breaks]
+      why: Priorise les irritants qui consomment du temps ou créent des erreurs.
+      limits: Dépend des estimations client.
+      how_to_improve: Mesurer fréquence, temps perdu, coût erreur.
+    - id: digital_data_ai_maturity_score
+      signals: [niveau_digital, outils_confirm, sauvegarde]
+      why: Calibre le rythme d'onboarding IA.
+      limits: Auto-déclaratif tant que non vérifié.
+      how_to_improve: Centraliser données, réduire double saisie, documenter routines.
+    - id: automation_value_score
+      signals: [recos_validees, priorisation, time_sinks]
+      why: Estime valeur métier des premières boucles d'automatisation.
+      limits: Ne vaut pas business case financier complet.
+      how_to_improve: Tester une boucle 7 jours avec métrique simple.
+    - id: automation_risk_score
+      signals: [lignes_rouges, donnees_sensibles, validation_humaine]
+      why: Empêche de vendre une automatisation trop risquée.
+      limits: Ne remplace pas revue juridique/sécurité.
+      how_to_improve: Définir gates humains, données interdites, logs et rollback.
+
+onboarding_contract:
+  version: business_tech.v1
+  required_fields: [role, mission, tone, channels, allowed_connectors, forbidden_data, human_gates, initial_routines, test_scenarios, success_criteria]
+  rule: L'agent_profile est dérivé de la synthèse validée, pas du transcript brut.
+
+devis_contract:            # devis justifié par audit validé
+  version: business_tech.v1
+  regle: >
+    Chaque ligne du devis porte sa justification issue de l'audit :
+    « {item} — recommandé parce que {reco_source} ({verbatim_ou_preuve}) ».
+    Une ligne sans justification d'audit est marquée « optionnel ».
+  required_line_fields: [catalog_id, recommendation_ref, evidence, required, confidence]
+  checkout_gate: validation_client_obligatoire
+
+report_contract:            # sections du rapport, mappées sur les outputs structurés
+  version: business_tech.v1
+  sections: [resume_executif, declarations_client, sources_verifiees, documents_fournis,
+             hypotheses_omar, diagnostic_business, diagnostic_tech, swot,
+             matrice_automatisation, quick_wins_7j, plan_action_30j,
+             recommandations_oa, limites_ne_pas_automatiser, prompts_a_copier,
+             onboarding_source, devis_source, prochaines_decisions]
+  regle: >
+    Chaque section est générée depuis les CHAMPS STRUCTURÉS des steps
+    (outputs.report), jamais depuis le transcript brut. Déclaré ≠ vérifié
+    ≠ hypothèse, marqués partout.
+
+v0_scope:
+  steps: [pacte, identity_public_context, activity_business_model, person_and_goals,
+          operations_week, admin_finance_purchasing, digital_tools_data, risks_limits,
+          diagnosis, recommendations, validation]
+  # marketing_sales et hr_team : questions clés fusionnées dans operations_week en V0
+  interactions: [free_text, quick_replies, validation_card, rank]
+  verticales: [bakery, plumber, generic_tpe]
+  sirene: oui                # api publique sans auth — le wahou de la V0
+  recherche_publique_web: non  # V1
