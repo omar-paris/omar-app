@@ -25,6 +25,7 @@ from audit_intelligence import (  # noqa: E402
     add_message as audit_add_message,
     build_devis_source as audit_build_devis_source,
     build_exports as audit_build_exports,
+    build_j1ter_documents as audit_build_j1ter_documents,
     build_onboarding_pack_v1 as audit_build_onboarding_pack_v1,
     build_public_research_result as audit_build_public_research_result,
     build_research_plan as audit_build_research_plan,
@@ -1379,10 +1380,24 @@ class ProposalHandler(BaseHTTPRequestHandler):
             self.send_json(200, {"ok": True, "audit": audit, "report": audit.get("report", {})})
             return
         if self.path.startswith("/api/audit-sessions/"):
-            sid = self.path[len("/api/audit-sessions/"):].split("?", 1)[0]
+            rest = self.path[len("/api/audit-sessions/"):].split("?", 1)[0]
+            parts = rest.split("/", 1)
+            sid = parts[0]
+            action = parts[1] if len(parts) > 1 else ""
             session = read_audit_session(self.data_dir, sid)
             if not session:
                 self.send_json(404, {"ok": False, "error": "audit_session_not_found"})
+                return
+            if action == "documents":
+                try:
+                    documents = audit_build_j1ter_documents(session)
+                except ValueError as exc:
+                    self.send_json(422, {"ok": False, "error": str(exc)})
+                    return
+                self.send_json(200, {"ok": True, "documents": documents})
+                return
+            if action:
+                self.send_json(404, {"ok": False, "error": "not_found"})
                 return
             self.send_json(200, {"ok": True, "session": session})
             return
@@ -1595,7 +1610,15 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 external_calls_attempted = False
                 dry_run = bool(payload.get("dry_run", False))
                 website = str(payload.get("website") or payload.get("site") or "").strip()
-                registry_query = str(payload.get("siret") or payload.get("sirene") or payload.get("company_public_name") or payload.get("public_name") or "").strip()
+                registry_query = str(
+                    payload.get("siret")
+                    or payload.get("sirene")
+                    or payload.get("company_public_name")
+                    or payload.get("public_name")
+                    or payload.get("location")
+                    or payload.get("address")
+                    or ""
+                ).strip()
                 permissions = plan.get("consent_snapshot", {}).get("permissions", {})
                 if website and permissions.get("public_web_search") and not dry_run:
                     external_calls_attempted = True

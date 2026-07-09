@@ -1,0 +1,257 @@
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+import audit_intelligence as ai  # noqa: E402
+
+
+def _answer_and_validate(session: dict, step_id: str, answers: dict) -> dict:
+    result = ai.add_message(session, json.dumps({"step_id": step_id, "answers": answers}, ensure_ascii=False))
+    session = result["session"]
+    validated = ai.validate_step(session, step_id)
+    assert validated["ok"], validated
+    return validated["session"]
+
+
+def _prepare_bakery_session_at_activity_model() -> dict:
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+    session = _answer_and_validate(session, "pacte", {"tutoiement": "Restons au vous", "rythme": "Droit au but"})
+    session = _answer_and_validate(session, "identity_public_context", {"nom_entreprise": "Boulangerie test Paris", "sirene_match": "À corriger"})
+    session = _answer_and_validate(session, "public_sources_consent", {"consents": {"web_public": True, "sirene_detail": True}})
+    return session
+
+
+def _prepare_bakery_session_at_operations_week() -> dict:
+    session = _prepare_bakery_session_at_activity_model()
+    session = _answer_and_validate(
+        session,
+        "activity_business_model",
+        {"recit_activite": "Boulangerie pâtisserie à Paris, vente en boutique", "type_clients": "Des particuliers", "taille_equipe": "6-20", "canaux_vente": "Sur place"},
+    )
+    session = _answer_and_validate(
+        session,
+        "person_and_goals",
+        {"objectifs_racontes": "Je veux gagner du temps sur les demandes clients", "niveau_digital": "Ça va"},
+    )
+    return session
+
+
+def test_j1ter_pacte_quick_start_records_required_answers_and_advances():
+    created = ai.create_session({"tree_id": "business_tech"})
+    session = created["session"]
+    assert session["current_step"] == "pacte"
+
+    result = ai.add_message(session, "OK, on commence")
+    session = result["session"]
+    validated = ai.validate_step(session, "pacte")
+
+    assert validated["ok"], validated
+    assert validated["session"]["current_step"] == "identity_public_context"
+    answers = validated["session"]["state"]["pacte"]["answers"]
+    assert answers["tutoiement"] == "Restons au vous"
+    assert answers["rythme"] == "Droit au but"
+
+
+def test_j1ter_public_research_consent_is_backend_state_not_front_fragile_yes():
+    created = ai.create_session({"tree_id": "business_tech"})
+    session = created["session"]
+
+    session = _answer_and_validate(
+        session,
+        "pacte",
+        {"tutoiement": "Restons au vous", "rythme": "Droit au but"},
+    )
+    session = _answer_and_validate(
+        session,
+        "identity_public_context",
+        {"nom_entreprise": "Boulangerie test Paris", "sirene_match": "À corriger"},
+    )
+
+    assert session["current_step"] == "public_sources_consent"
+    q = ai.next_question(session)
+    assert q["step"] == "public_sources_consent"
+    assert "sources" in q["question"].lower() or "autorise" in q["question"].lower()
+
+    result = ai.add_message(session, "Oui")
+    session = result["session"]
+
+    assert session["current_step"] == "public_sources_consent"
+    answers = session["state"]["public_sources_consent"]["answers"]
+    assert answers["consents"]["web_public"] is True
+    assert answers["consents"]["sirene_detail"] is True
+    assert session["runtime"]["source_consent_status"] == "authorized"
+    assert result["omar"]["step"] == "public_sources_consent"
+    assert any(action["intent"] == "confirm" for action in result["omar"]["actions"])
+
+
+def test_j1ter_broad_answer_tout_on_bakery_irritants_becomes_priority_not_repeat():
+    session = _prepare_bakery_session_at_operations_week()
+    assert session["current_step"] == "operations_week"
+    before = ai.next_question(session)
+
+    result = ai.add_message(session, "Tout")
+    session = result["session"]
+    after = result["omar"]
+
+    answers = session["state"]["operations_week"]["answers"]
+    assert answers["semaine"] == "Tout"
+    assert answers["interpreted_intent"] == "answer_broad"
+    assert answers["detected_irritants"] == ["horaires", "disponibilité", "commandes", "allergènes", "prix"]
+    assert after["question"] != before["question"]
+    assert "priorité" in after["question"].lower() or "premier" in after["question"].lower()
+    assert [action["intent"] for action in after["actions"]] == ["prioritize", "clarify", "explain"]
+
+
+def test_j1ter_vague_answer_beaucoup_on_tools_becomes_contextual_clarification():
+    session = _prepare_bakery_session_at_operations_week()
+    session = _answer_and_validate(
+        session,
+        "operations_week",
+        {"semaine": "Demandes clients, commandes, horaires", "top_caillou": "Commandes"},
+    )
+    session = _answer_and_validate(
+        session,
+        "admin_finance_purchasing",
+        {"admin_racontee": "Factures fournisseurs et caisse prennent du temps"},
+    )
+    assert session["current_step"] == "digital_tools_data"
+    before = ai.next_question(session)
+
+    result = ai.add_message(session, "Beaucoup")
+    session = result["session"]
+    after = result["omar"]
+
+    answers = session["state"]["digital_tools_data"]["answers"]
+    assert answers["outils_racontes"] == "Beaucoup"
+    assert answers["interpreted_intent"] == "answer_vague"
+    assert after["question"] != before["question"]
+    assert "lesquels" in after["question"].lower() or "commencer simple" in after["question"].lower()
+    assert any(action["intent"] == "choose_tool_family" for action in after["actions"])
+
+
+def test_j1ter_business_tech_questions_use_native_vouvoiement_without_broken_conjugation():
+    session = _prepare_bakery_session_at_operations_week()
+    first_ops = ai.next_question(session)["question"]
+    after_broad = ai.add_message(session, "Tout")["omar"]["question"]
+
+    session = _answer_and_validate(
+        session,
+        "operations_week",
+        {"semaine": "Demandes clients, commandes, horaires", "top_caillou": "Commandes"},
+    )
+    session = _answer_and_validate(
+        session,
+        "admin_finance_purchasing",
+        {"admin_racontee": "Factures fournisseurs et caisse prennent du temps"},
+    )
+    first_tools = ai.next_question(session)["question"]
+    after_vague = ai.add_message(session, "Beaucoup")["omar"]["question"]
+
+    displayed = "\n".join([first_ops, after_broad, first_tools, after_vague])
+    forbidden = ["vous fais", "vous veux", "vous aimerais", "vous utilises", "vous aurais", "vous as", "ressaisissezs", "ressaisissezsez", "ton ", " ta ", " tes "]
+    for fragment in forbidden:
+        assert fragment not in displayed, displayed
+    assert "vous faites" in displayed or "votre" in displayed
+
+
+
+def test_j1ter_documents_are_generated_from_structured_tree_outputs_not_raw_transcript():
+    session = _prepare_bakery_session_at_operations_week()
+    session = _answer_and_validate(
+        session,
+        "operations_week",
+        {"semaine": "Commandes clients, horaires, allergènes", "top_caillou": "Commandes"},
+    )
+    session = _answer_and_validate(
+        session,
+        "admin_finance_purchasing",
+        {"admin_racontee": "Factures fournisseurs et caisse prennent du temps"},
+    )
+    session = _answer_and_validate(
+        session,
+        "digital_tools_data",
+        {"outils_racontes": "Téléphone, WhatsApp, caisse", "outils_confirm": ["Téléphone", "WhatsApp", "Caisse"]},
+    )
+    session = _answer_and_validate(
+        session,
+        "risks_limits",
+        {"lignes_rouges": "Allergènes et paiements", "donnees_sensibles": ["Bancaire clients"], "validation_humaine": "Je valide tout au début"},
+    )
+
+    docs = ai.build_j1ter_documents(session)
+
+    assert docs["schema"] == "oa.j1ter.documents.v1"
+    assert docs["structured_audit"]["source"] == "audit_tree.business_tech.v1.yaml"
+    assert docs["structured_audit"]["profile"]["sector_id"] == "bakery"
+    assert "transcript" not in docs["manifest_business"].lower()
+    assert "boulangerie" in docs["manifest_business"].lower()
+    assert docs["owner_identity"]["digital_maturity"] == "Ça va"
+    assert docs["agent_profile"]["human_gates"] == ["Je valide tout au début"]
+    assert "Allergènes" in docs["local_constitution"]
+    assert docs["open_questions"]
+
+
+def test_j1ter_documents_endpoint_exposes_generated_artifacts(tmp_path):
+    import json
+    import os
+    import socket
+    import subprocess
+    import time
+    import urllib.request
+
+    def free_port() -> int:
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            return int(sock.getsockname()[1])
+
+    def request_json(method: str, url: str, payload: dict | None = None):
+        data = None if payload is None else json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=data, method=method, headers={"content-type": "application/json"})
+        with urllib.request.urlopen(req, timeout=4) as response:
+            return response.status, json.loads(response.read().decode("utf-8"))
+
+    port = free_port()
+    proc = subprocess.Popen(
+        ["python3", "src/proposal_server.py", "--host", "127.0.0.1", "--port", str(port), "--data-dir", str(tmp_path)],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env={**os.environ, "OA_PROPOSALS_TOKEN": "x" * 40},
+    )
+    try:
+        deadline = time.time() + 5
+        while time.time() < deadline:
+            try:
+                urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=0.2).read()
+                break
+            except Exception:
+                if proc.poll() is not None:
+                    out, err = proc.communicate(timeout=1)
+                    raise AssertionError(f"server exited early\nOUT={out}\nERR={err}")
+                time.sleep(0.05)
+        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions", {"tree_id": "business_tech"})
+        assert status == 201
+        sid = created["session"]["id"]
+        for step_id, answers in [
+            ("pacte", {"tutoiement": "Restons au vous", "rythme": "Droit au but"}),
+            ("identity_public_context", {"nom_entreprise": "Boulangerie API Paris", "sirene_match": "À corriger"}),
+            ("public_sources_consent", {"consents": {"web_public": True, "sirene_detail": True}}),
+            ("activity_business_model", {"recit_activite": "Boulangerie pâtisserie à Paris", "type_clients": "Des particuliers", "taille_equipe": "6-20", "canaux_vente": "Sur place"}),
+            ("person_and_goals", {"objectifs_racontes": "gagner du temps", "niveau_digital": "Ça va"}),
+        ]:
+            request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/message", {"message": json.dumps({"step_id": step_id, "answers": answers}, ensure_ascii=False)})
+            request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/validate-step", {"step": step_id})
+        status, docs = request_json("GET", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/documents")
+        assert status == 200
+        assert docs["ok"] is True
+        assert docs["documents"]["schema"] == "oa.j1ter.documents.v1"
+        assert docs["documents"]["structured_audit"]["profile"]["sector_id"] == "bakery"
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)

@@ -282,10 +282,11 @@ def test_activity_guided_buttons_advance_to_next_subquestion():
     ai.validate_step(session, "intro")
     first = ai.next_question(session, "activity")
     assert first["question"].startswith("Pour commencer")
-    assert "Traducteur freelance" in first["options"]
+    assert first["options"][0] == "Boulangerie / pâtisserie"
+    assert "Traducteur freelance" not in first["options"]
     assert "Solo" not in first["options"]
 
-    ai.add_message(session, "Traducteur freelance")
+    ai.add_message(session, "Boulangerie / pâtisserie")
     q2 = ai.next_question(session, "activity")
     assert q2["question"].startswith("Vous êtes combien")
     assert q2["options"] == ["Solo", "2-5", "6-20", "20+", "Je précise"]
@@ -297,7 +298,7 @@ def test_activity_guided_buttons_advance_to_next_subquestion():
     assert "1-3 ans" in q3["options"]
 
 
-def test_help_request_does_not_repeat_same_real_week_question():
+def test_unknown_time_spent_is_accepted_and_does_not_loop_on_same_question():
     created = ai.create_session()
     session = created["session"]
     ai.add_message(session, "Je suis traducteur freelance à Paris, je travaille solo, depuis 4 ans, clients professionnels, par recommandations.")
@@ -305,11 +306,27 @@ def test_help_request_does_not_repeat_same_real_week_question():
 
     q1 = ai.next_question(session, "real_week")
     assert "semaine dernière" in q1["question"]
-    ai.add_message(session, "Je ne sais pas")
+    ai.add_message(session, "Devis / propositions")
     q2 = ai.next_question(session, "real_week")
-    assert q2["question"].startswith("Je vous propose des pistes")
-    assert "Devis / propositions" in q2["options"]
+    assert "ordre de grandeur" in q2["question"] or "prioritaire" in q2["question"]
+    ai.add_message(session, "Je ne sais pas")
+    q3 = ai.next_question(session, "real_week")
+    assert session["answers"]["time_spent"] == "Je ne sais pas"
+    assert q3["step"] == "real_week"
+    assert q3["missing_fields"] == []
     assert q2["question"] != q1["question"]
+
+
+def test_bakery_real_week_uses_sector_question_and_not_generic_caillou():
+    created = ai.create_session()
+    session = created["session"]
+    ai.add_message(session, "Je suis boulangerie-pâtisserie à Paris, 9 personnes, créée il y a 8 ans, clients particuliers, vente en boutique.")
+    assert ai.validate_step(session, "activity")["ok"] is True
+
+    q = ai.next_question(session, "real_week")
+    assert q["sector_id"] == "bakery"
+    assert "demandes" in q["question"].lower() or "téléphone" in q["question"].lower()
+    assert "caillou" not in q["question"].lower()
 
 
 def test_activity_policy_handles_alex_transcript_placeholders_address_and_clarify():

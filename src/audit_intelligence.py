@@ -89,7 +89,7 @@ FALLBACK_QUESTIONS = {
     "sales_channel": "Comment les clients arrivent et achètent aujourd’hui : boutique, site, téléphone, email, recommandations, plateformes ?",
     "public_research_scope": "Si vous avez un site ou une fiche Google, donnez-moi le lien ou refusez simplement. Je n’utilise que ce que vous autorisez.",
     "repetitive_tasks": "Racontez-moi votre semaine dernière — la vraie. Qu’est-ce qui vous a pris du temps inutilement ?",
-    "time_spent": "Ce caillou revient combien de fois ou vous prend combien de temps par semaine ?",
+    "time_spent": "Parmi ces irritants, lequel est prioritaire pour commencer, et quel ordre de grandeur cela prend par semaine ? Plusieurs irritants sont possibles ; on choisit seulement le premier à traiter.",
     "tools": "Qu’utilisez-vous aujourd’hui — même si c’est juste téléphone, WhatsApp, cahier ou Excel ?",
     "flow_breaks": "Ce que vous ressaisissez deux fois, ou recopiez d’un outil à l’autre, c’est quoi ?",
     "sensitive_data": "Qu’est-ce qui ne doit jamais sortir ou être automatisé : données clients, santé, prix, paiements, juridique ?",
@@ -357,6 +357,13 @@ def enforce_vouvoiement_text(text: str) -> str:
         ("Tes ", "Vos "),
         ("c’est ta réalité", "c’est votre réalité"),
         ("C’est ta réalité", "C’est votre réalité"),
+        ("vous fais", "vous faites"),
+        ("vous veux", "vous voulez"),
+        ("vous aimerais", "vous aimeriez"),
+        ("vous utilises", "vous utilisez"),
+        ("vous ressaisis ", "vous ressaisissez "),
+        ("vous aurais", "vous auriez"),
+        ("vous as", "vous avez"),
     ]
     out = str(text or "")
     for old, new in replacements:
@@ -392,14 +399,14 @@ PRECISION_PLACEHOLDERS = {
 }
 
 FIELD_EXPLANATIONS = {
-    "business_activity": "Je cherche juste le métier réel, pas une catégorie parfaite. Exemple : pâtissier, salon de coiffure, traducteur freelance, restaurant italien, cabinet d’avocat.",
+    "business_activity": "Je cherche juste le métier réel, pas une catégorie parfaite. Exemple : boulangerie-pâtisserie, salon de coiffure, artisan bâtiment, restaurant italien, cabinet d’avocat.",
     "company_size": "Je cherche l’ordre de grandeur de l’équipe qui fait tourner l’activité : solo, 2-5, 6-20, ou plus. Une estimation suffit.",
     "company_age": "Je cherche l’ancienneté approximative, parce qu’une activité lancée cette année n’a pas les mêmes priorités qu’une maison installée depuis 10 ans.",
     "customer_type": "Je veux savoir pour qui vous travaillez vraiment : particuliers, professionnels, ou les deux. Ça change les opportunités utiles.",
     "sales_channel": "Je cherche le chemin d’arrivée des clients : boutique, téléphone, email, site, WhatsApp, recommandations, plateformes. Plusieurs réponses sont possibles.",
     "location": "Je cherche votre zone réelle : adresse, ville, quartier, rayon d’intervention, région, France entière ou à distance. Une adresse complète marche aussi.",
-    "repetitive_tasks": "Je cherche ce qui vous mange du temps dans une vraie semaine : devis, relances, messages, planning, factures, recherche d’infos, suivi client.",
-    "time_spent": "Je cherche un ordre de grandeur : tous les jours, chaque semaine, 1-2 h, 3-5 h, ou plus. Pas besoin d’être exact.",
+    "repetitive_tasks": "Je cherche ce qui vous mange du temps dans une vraie semaine : commandes, appels, devis, relances, messages, planning, factures, recherche d’infos, suivi client. Vous pouvez en citer plusieurs.",
+    "time_spent": "Je cherche un ordre de grandeur et une priorité : tous les jours, chaque semaine, 1-2 h, 3-5 h, ou plus. Si vous avez plusieurs sujets, dites lequel traiter en premier.",
 }
 
 
@@ -409,6 +416,8 @@ def classify_user_intent(text: str, expected_field: str | None = None) -> str:
         return "empty"
     if raw in PRECISION_PLACEHOLDERS:
         return "precision"
+    if expected_field == "time_spent" and raw in FIELD_OPTIONS.get("time_spent", []):
+        return "answer"
     hay = raw.casefold()
     if any(re.search(pattern, hay, re.I) for pattern in HELP_PATTERNS):
         return "help"
@@ -424,25 +433,25 @@ def is_answer_like(text: str, expected_field: str | None = None) -> bool:
 
 
 FIELD_OPTIONS = {
-    "business_activity": ["Traducteur freelance", "Artisan bâtiment", "Commerce / boutique", "Restaurant / food", "Conseil / formation", "Autre métier"],
+    "business_activity": ["Boulangerie / pâtisserie", "Commerce / boutique", "Restaurant / food", "Artisan bâtiment", "Cabinet / profession réglementée", "Autre métier"],
     "company_size": ["Solo", "2-5", "6-20", "20+", "Je précise"],
     "company_age": ["Moins d’un an", "1-3 ans", "4-10 ans", "Plus de 10 ans", "Reprise / transmission"],
     "customer_type": ["Particuliers", "Professionnels", "Les deux", "Je ne sais pas encore"],
     "sales_channel": ["Boutique / lieu physique", "Site ou formulaire", "Téléphone", "Email", "WhatsApp / SMS", "Recommandations", "Plateformes"],
     "location": ["Paris", "Île-de-France", "France entière", "À distance", "Je précise"],
-    "repetitive_tasks": ["Devis / propositions", "Relances clients", "Emails / messages", "Factures / administratif", "Planning / rendez-vous", "Recherche d'infos", "Montrez-moi des exemples"],
+    "repetitive_tasks": ["Commandes / demandes clients", "Devis / propositions", "Relances clients", "Emails / messages", "Factures / administratif", "Planning / rendez-vous", "Plusieurs sujets / je précise"],
     "time_spent": ["Tous les jours", "Chaque semaine", "1-2 h/semaine", "3-5 h/semaine", "Plus de 5 h/semaine", "Je ne sais pas"],
 }
 
 HELP_QUESTIONS = {
-    "business_activity": "Je vous aide. Dites simplement votre métier comme sur une carte de visite. Exemples : traducteur freelance, plombier, boulangerie, cabinet de conseil, boutique en ligne.",
+    "business_activity": "Je vous aide. Dites simplement votre métier comme sur une carte de visite. Exemples : boulangerie-pâtisserie, plombier, cabinet d’avocat, boutique en ligne, cabinet de conseil.",
     "company_size": "Pas besoin d'être précis : êtes-vous solo, 2 à 5, 6 à 20, ou plus ?",
     "company_age": "Une approximation suffit : activité lancée récemment, 1-3 ans, 4-10 ans, plus ancien, ou reprise ?",
     "customer_type": "Pensez à vos derniers clients : plutôt particuliers, professionnels, ou les deux ?",
     "sales_channel": "Pensez au dernier client signé : il est venu par recommandation, téléphone, email, boutique, site, plateforme, réseau ?",
     "location": "Indiquez seulement votre zone utile : ville, région, France entière, ou à distance.",
-    "repetitive_tasks": "Je vous propose des pistes. La semaine dernière, est-ce que vous avez perdu du temps sur devis/propositions, relances, emails, factures, planning, recherche d'informations, ou suivi client ?",
-    "time_spent": "Même à la louche : tous les jours, chaque semaine, 1-2 h, 3-5 h, ou plus de 5 h par semaine ?",
+    "repetitive_tasks": "Je vous propose des pistes. La semaine dernière, est-ce que vous avez perdu du temps sur commandes, appels, devis/propositions, relances, emails, factures, planning, recherche d'informations, ou suivi client ? Vous pouvez en citer plusieurs.",
+    "time_spent": "Même à la louche : tous les jours, chaque semaine, 1-2 h, 3-5 h, ou plus de 5 h par semaine ? Si plusieurs sujets ressortent, choisissez le premier à traiter.",
 }
 
 CONTEXTUAL_ANSWERS = {
@@ -474,6 +483,8 @@ CONTEXTUAL_ANSWERS = {
     "Factures / administratif": "Je perds du temps sur les factures ou l'administratif.",
     "Planning / rendez-vous": "Je perds du temps sur le planning ou les rendez-vous.",
     "Recherche d'infos": "Je perds du temps à chercher des informations.",
+    "Commandes / demandes clients": "Je perds du temps sur les commandes ou demandes clients.",
+    "Plusieurs sujets / je précise": "J’ai plusieurs irritants et je vais les préciser.",
     "Tous les jours": "Cela revient tous les jours.",
     "Chaque semaine": "Cela revient chaque semaine.",
     "1-2 h/semaine": "Cela prend environ 1 à 2 heures par semaine.",
@@ -491,7 +502,10 @@ def answer_matches_expected_field(raw_text: str, stored_text: str, expected_fiel
     if not expected_field:
         return False
     raw = re.sub(r"\s+", " ", str(raw_text or "")).strip()
-    if not raw or classify_user_intent(raw, expected_field) != "answer":
+    if not raw:
+        return False
+    intent = classify_user_intent(raw, expected_field)
+    if intent != "answer":
         return False
     if raw in FIELD_OPTIONS.get(expected_field, []):
         return True
@@ -546,6 +560,35 @@ def options_for_field(field: str | None) -> list[str]:
     return list(FIELD_OPTIONS.get(str(field or ""), []))
 
 
+def sector_question_for_missing_field(session: dict[str, Any], step: str, field: str | None) -> str | None:
+    """Use concrete sector questions before generic field fallbacks.
+
+    J1-bis: when the user says boulanger/boulangerie, the live audit must stop
+    feeling like a generic form and ask bakery-shaped questions immediately.
+    """
+    refs = load_sector_references()
+    sector_id = str(session.get("sector_id") or detect_sector(session_text(session), refs))
+    if sector_id != "bakery" or not field:
+        return None
+    blocks = (refs.get("bakery") or {}).get("question_blocks") or {}
+    mapping = {
+        ("real_week", "repetitive_tasks"): ("pain", 0),
+        ("real_week", "time_spent"): ("pain", 1),
+        ("tools", "tools"): ("tools", 0),
+        ("tools", "flow_breaks"): ("tools", 1),
+        ("data_limits", "sensitive_data"): ("risk", 1),
+        ("data_limits", "human_validation"): ("risk", 0),
+    }
+    key = mapping.get((step, field))
+    if not key:
+        return None
+    block_name, idx = key
+    block = blocks.get(block_name) or []
+    if idx < len(block):
+        return enforce_vouvoiement_text(str(block[idx]))
+    return None
+
+
 
 def next_question(session: dict[str, Any], step: str | None = None) -> dict[str, Any]:
     if _is_business_tech_tree_session(session):
@@ -576,7 +619,7 @@ def next_question(session: dict[str, Any], step: str | None = None) -> dict[str,
     elif step == "report":
         question = "Votre diagnostic est prêt. Il est à vous, quoi que vous décidiez ensuite."
     elif missing:
-        question = question_for_field(missing[0], session)
+        question = sector_question_for_missing_field(session, step, missing[0]) or question_for_field(missing[0], session)
     elif step == "activity":
         question = "J’ai assez d’éléments sur votre activité. Je passe à votre semaine réelle."
     elif auditbiz_payload and auditbiz_payload.get("interaction") == "open":
@@ -770,6 +813,12 @@ def _tree_answer_text(session: dict[str, Any]) -> str:
 
 
 def _tree_sector_id(session: dict[str, Any]) -> str:
+    state = session.get("state") or {}
+    activity_answers = ((state.get("activity_business_model") or {}).get("answers") or {}) if isinstance(state.get("activity_business_model"), dict) else {}
+    activity_text = " ".join(str(activity_answers.get(key) or "") for key in ["recit_activite", "type_clients", "canaux_vente"])
+    detected = detect_sector(activity_text) if activity_text.strip() else "generic_tpe"
+    if detected != "generic_tpe":
+        return detected
     return str(session.get("sector_id") or detect_sector(_tree_answer_text(session)))
 
 
@@ -805,6 +854,84 @@ def _tree_next_step_after(session: dict[str, Any], step_id: str) -> str | None:
 
 def _tree_output_value(input_id: str, answers: dict[str, Any], *, step_id: str) -> dict[str, Any]:
     return {"schema": "oa.audit-tree.output-field.v1", "source": "client_declared_or_validated", "source_step": step_id, "source_input": input_id, "value": answers}
+
+
+def _tree_contextual_actions(step_id: str, session: dict[str, Any], *, missing: list[str] | None = None) -> list[dict[str, str]]:
+    missing = missing or []
+    step_answers = ((session.get("state") or {}).get(step_id) or {}).get("answers") or {}
+    if step_id == "operations_week" and step_answers.get("interpreted_intent") == "answer_broad":
+        return [
+            {"id": "priority_orders", "label": "Commandes / demandes clients", "intent": "prioritize"},
+            {"id": "clarify_all", "label": "Je précise", "intent": "clarify"},
+            {"id": "explain_priority", "label": "Pourquoi choisir une priorité ?", "intent": "explain"},
+        ]
+    if step_id == "digital_tools_data" and step_answers.get("interpreted_intent") == "answer_vague":
+        return [
+            {"id": "tools_messages", "label": "Téléphone / messages", "intent": "choose_tool_family"},
+            {"id": "tools_cash", "label": "Caisse / facturation", "intent": "choose_tool_family"},
+            {"id": "tools_planning", "label": "Planning / commandes", "intent": "choose_tool_family"},
+            {"id": "tools_other", "label": "Je veux expliquer", "intent": "clarify"},
+        ]
+    if step_id == "public_sources_consent":
+        return [
+            {"id": "consent_public_sources", "label": "Oui, recherche publique autorisée", "intent": "confirm"},
+            {"id": "refuse_public_sources", "label": "Non, on continue sans recherche", "intent": "deny"},
+            {"id": "explain_sources", "label": "Quelles sources exactement ?", "intent": "explain"},
+        ]
+    if step_id == "pacte":
+        asked = "\n".join(str(item.get("question") or "") for item in session.get("asked_questions", []) if isinstance(item, dict))
+        if "En 20 minutes" in asked:
+            return [
+                {"id": "start", "label": "OK, on commence", "intent": "confirm"},
+                {"id": "verify_scope", "label": "Qu'est-ce que vous allez vérifier ?", "intent": "explain"},
+                {"id": "refuse_scope", "label": "Qu'est-ce que je peux refuser ?", "intent": "explain"},
+            ]
+    if missing:
+        return [
+            {"id": "answer", "label": "Je réponds", "intent": "answer"},
+            {"id": "example", "label": "Montrez-moi des exemples", "intent": "help"},
+            {"id": "skip", "label": "Je ne sais pas encore", "intent": "unknown"},
+        ]
+    return [
+        {"id": "confirm", "label": "Oui, c'est ça", "intent": "confirm"},
+        {"id": "modify", "label": "À corriger", "intent": "modify"},
+        {"id": "continue", "label": "Continuer", "intent": "continue"},
+    ]
+
+
+def _tree_interpret_contextual_free_text(step_id: str, text: str) -> dict[str, Any] | None:
+    hay = str(text or "").strip().casefold()
+    if step_id == "pacte":
+        if any(token in hay for token in ["ok", "on commence", "je réponds", "droit au but", "restons au vous", "vouvoiement"]):
+            return {"tutoiement": "Restons au vous", "rythme": "Droit au but", "pacte_text": text}
+    if step_id == "public_sources_consent":
+        yes_tokens = {"oui", "ok", "d'accord", "daccord", "vas-y", "go", "autorisé", "autorise", "j'autorise"}
+        no_tokens = {"non", "pas maintenant", "continue sans", "sans recherche", "je refuse"}
+        if hay in yes_tokens or any(token in hay for token in ["oui", "autorise", "vas-y", "ok pour chercher"]):
+            return {"consents": {"web_public": True, "sirene_detail": True, "site_web": False, "fiche_google": False, "reseaux": False}, "consent_text": text}
+        if hay in no_tokens or any(token in hay for token in ["sans recherche", "refuse", "pas maintenant"]):
+            return {"consents": {"web_public": False, "sirene_detail": False, "site_web": False, "fiche_google": False, "reseaux": False}, "consent_text": text}
+    if step_id == "operations_week" and hay in {"tout", "un peu tout", "tout ça", "tout ca"}:
+        return {
+            "semaine": text,
+            "interpreted_intent": "answer_broad",
+            "detected_irritants": ["horaires", "disponibilité", "commandes", "allergènes", "prix"],
+        }
+    if step_id == "digital_tools_data" and hay in {"beaucoup", "plein", "plein de choses", "pas mal", "beaucoup de choses"}:
+        return {
+            "outils_racontes": text,
+            "interpreted_intent": "answer_vague",
+        }
+    return None
+
+
+def _tree_contextual_followup_question(step_id: str, session: dict[str, Any]) -> str | None:
+    step_answers = ((session.get("state") or {}).get(step_id) or {}).get("answers") or {}
+    if step_id == "operations_week" and step_answers.get("interpreted_intent") == "answer_broad" and not step_answers.get("top_caillou"):
+        return "D'accord, donc plusieurs demandes reviennent. Si on commence par une seule priorité, laquelle vous soulagerait le plus en premier ?"
+    if step_id == "digital_tools_data" and step_answers.get("interpreted_intent") == "answer_vague" and not step_answers.get("outils_confirm"):
+        return "D'accord, il y en a beaucoup. Pour commencer simple : lesquels pèsent le plus aujourd'hui — téléphone/messages, caisse/factures, planning/commandes, réseaux sociaux ?"
+    return None
 
 
 def _persist_tree_outputs(session: dict[str, Any], step_id: str) -> None:
@@ -864,7 +991,7 @@ def business_tech_next_question(session: dict[str, Any], step: str | None = None
     step_data = steps[step_id]
     missing = _tree_missing_inputs(session, step_id)
     wanted_input = _tree_input_by_id(step_data, missing[0]) if missing else None
-    raw_question = str((wanted_input or {}).get("question") or step_data.get("entry_message") or step_data.get("objectif") or "Pouvez-vous préciser ce point ?")
+    raw_question = str(_tree_contextual_followup_question(step_id, session) or (wanted_input or {}).get("question") or step_data.get("entry_message") or step_data.get("objectif") or "Pouvez-vous préciser ce point ?")
     max_lines = int((session.get("runtime") or {}).get("policy", {}).get("message_max_lignes") or (tree.get("principles") or {}).get("message_max_lignes") or 3)
     interaction = str((wanted_input or {}).get("type") or ((step_data.get("inputs") or [{}])[0] or {}).get("type") or "free_text")
     if interaction not in TREE_V0_ALLOWED_INTERACTIONS:
@@ -872,16 +999,23 @@ def business_tech_next_question(session: dict[str, Any], step: str | None = None
     options = (wanted_input or {}).get("options") or []
     if not isinstance(options, list):
         options = []
-    return {"schema": "oa.audit-tree.next-question.v1", "tree_id": tree["tree_id"], "step": step_id, "label": step_data.get("label"), "acte": step_data.get("acte"), "objective": step_data.get("objectif"), "question": _limit_message_lines(enforce_vouvoiement_text(raw_question), max_lines), "interaction": interaction, "options": [enforce_vouvoiement_text(str(item)) for item in options], "completion": _tree_step_completion(session, step_id), "missing_inputs": missing, "sector_pack_relance": _tree_sector_pack_relance(session, step_id), "allowed_interactions_v0": list((tree.get("v0_scope") or {}).get("interactions") or sorted(TREE_V0_ALLOWED_INTERACTIONS)), "policy": {"regle_70_30": True, "message_max_lignes": max_lines, "profondeur_relance_max": 1, "no_llm_freeform": True}}
+    return {"schema": "oa.audit-tree.next-question.v1", "tree_id": tree["tree_id"], "step": step_id, "label": step_data.get("label"), "acte": step_data.get("acte"), "objective": step_data.get("objectif"), "question": _limit_message_lines(enforce_vouvoiement_text(raw_question), max_lines), "interaction": interaction, "options": [enforce_vouvoiement_text(str(item)) for item in options], "actions": _tree_contextual_actions(step_id, session, missing=missing), "completion": _tree_step_completion(session, step_id), "missing_inputs": missing, "sector_pack_relance": _tree_sector_pack_relance(session, step_id), "allowed_interactions_v0": list((tree.get("v0_scope") or {}).get("interactions") or sorted(TREE_V0_ALLOWED_INTERACTIONS)), "policy": {"regle_70_30": True, "message_max_lignes": max_lines, "profondeur_relance_max": 1, "no_llm_freeform": True}}
 
 
 def business_tech_add_message(session: dict[str, Any], text: str) -> dict[str, Any]:
     payload = _coerce_tree_answer_payload(text)
     step_id = str(payload.get("step_id") or session.get("current_step") or "pacte")
     now = _tree_now()
-    answers = payload.get("answers") if isinstance(payload.get("answers"), dict) else {"free_text": text}
+    raw_answers = payload.get("answers")
+    answers: dict[str, Any] = raw_answers if isinstance(raw_answers, dict) else {"free_text": text}
+    contextual = _tree_interpret_contextual_free_text(step_id, str(payload.get("raw_text") or text))
+    if contextual:
+        answers = contextual
     state = session.setdefault("state", {}).setdefault(step_id, {"answers": {}, "events": [], "sector_pack_depth": 0})
     state.setdefault("answers", {}).update(answers)
+    if step_id == "public_sources_consent" and isinstance(answers.get("consents"), dict):
+        permissions = answers["consents"]
+        session.setdefault("runtime", {})["source_consent_status"] = "authorized" if any(bool(v) for v in permissions.values()) else "refused"
     if "relance_pack" in answers:
         state["sector_pack_depth"] = min(1, int(state.get("sector_pack_depth") or 0) + 1)
     state.setdefault("events", []).append({"at": now, "event": "answers_recorded", "fields": sorted(answers)})
@@ -912,6 +1046,127 @@ def business_tech_validate_step(session: dict[str, Any], step: str | None = None
     if session["completion"]["complete"]:
         session["status"] = "complete"
     return {"ok": True, "session": session, "completion": completion, "next": business_tech_next_question(session, str(session.get("current_step") or step_id))}
+
+
+def build_j1ter_documents(session: dict[str, Any]) -> dict[str, Any]:
+    """Generate J1-ter founding documents from the business-tech tree state.
+
+    This is intentionally deterministic: no LLM, no transcript scraping. The tree is
+    the declarative source; session.state/outputs are the structured runtime state.
+    """
+    if not _is_business_tech_tree_session(session):
+        raise ValueError("build_j1ter_documents requires business_tech tree session")
+    state = session.get("state") or {}
+
+    def answers(step_id: str) -> dict[str, Any]:
+        return ((state.get(step_id) or {}).get("answers") or {}) if isinstance(state.get(step_id), dict) else {}
+
+    identity = answers("identity_public_context")
+    consent = answers("public_sources_consent")
+    activity = answers("activity_business_model")
+    person = answers("person_and_goals")
+    ops = answers("operations_week")
+    admin = answers("admin_finance_purchasing")
+    tools = answers("digital_tools_data")
+    risks = answers("risks_limits")
+
+    sector_id = _tree_sector_id(session)
+    profile = {
+        "sector_id": sector_id,
+        "company_name": identity.get("nom_entreprise"),
+        "activity": activity.get("recit_activite"),
+        "customers": activity.get("type_clients"),
+        "team_size": activity.get("taille_equipe"),
+        "sales_channels": activity.get("canaux_vente"),
+        "public_source_consents": consent.get("consents") or {},
+    }
+    owner_identity = {
+        "role": "Dirigeant / gérant",
+        "goals": person.get("objectifs_racontes"),
+        "digital_maturity": person.get("niveau_digital"),
+        "preferred_style": "questions simples, validation claire, sans jargon",
+    }
+    human_gate = risks.get("validation_humaine") or "Validation humaine avant action externe sensible"
+    agent_profile = {
+        "role": "assistant IA opérationnel",
+        "tone": "simple, concret, prudent",
+        "missions": [ops.get("top_caillou") or "réduire les demandes répétitives"],
+        "channels": ["AppOmar / Hub", "brouillons validables"],
+        "human_gates": [human_gate],
+        "forbidden_data": risks.get("donnees_sensibles") or [],
+    }
+    declared = [
+        value for value in [
+            profile.get("company_name"),
+            profile.get("activity"),
+            profile.get("customers"),
+            profile.get("sales_channels"),
+            person.get("objectifs_racontes"),
+            ops.get("semaine"),
+            admin.get("admin_racontee"),
+            tools.get("outils_racontes"),
+            risks.get("lignes_rouges"),
+        ] if value
+    ]
+    unknowns = []
+    for label, value in {
+        "année de création de l'activité": activity.get("annee_creation"),
+        "année de début d'expérience métier": person.get("annee_experience_metier"),
+        "formation / apprentissage": person.get("formation_metier"),
+        "adresse ou zone précise": activity.get("location"),
+    }.items():
+        if value in (None, "", []):
+            unknowns.append(label)
+    structured_audit = {
+        "schema": "oa.structured_audit.j1ter.v1",
+        "source": "audit_tree.business_tech.v1.yaml",
+        "session_id": session.get("id"),
+        "profile": profile,
+        "owner_identity": owner_identity,
+        "business_maturity": {
+            "objective": person.get("objectifs_racontes"),
+            "pressure_points": ops.get("detected_irritants") or [ops.get("semaine")] if ops.get("semaine") else [],
+            "tools": tools.get("outils_confirm") or tools.get("outils_racontes"),
+        },
+        "risk_and_control": {
+            "lines_red": risks.get("lignes_rouges"),
+            "sensitive_data": risks.get("donnees_sensibles") or [],
+            "human_gates": [human_gate],
+        },
+        "proof": {
+            "declared": declared,
+            "verified_public": [],
+            "hypotheses": ["Première boucle recommandée : traiter l'irritant prioritaire en dry-run validé."],
+            "unknowns": unknowns,
+        },
+    }
+    sector_label = "boulangerie/pâtisserie" if sector_id == "bakery" else sector_id.replace("_", " ")
+    manifest_business = "\n".join([
+        f"# Manifeste business — {profile.get('company_name') or 'client'}",
+        "",
+        f"Activité comprise : {profile.get('activity') or sector_label}.",
+        f"Clients / canaux : {profile.get('customers') or 'à préciser'} — {profile.get('sales_channels') or 'à préciser'}.",
+        f"Objectif dirigeant : {person.get('objectifs_racontes') or 'à préciser'}.",
+        f"Ligne rouge : {risks.get('lignes_rouges') or 'à préciser'}.",
+    ])
+    local_constitution = "\n".join([
+        "# Pré-constitution locale",
+        "",
+        f"Source déclarative : audit_tree.business_tech.v1.yaml / session {session.get('id')}.",
+        f"Agent proposé : {agent_profile['role']}.",
+        f"Validation humaine : {human_gate}.",
+        f"Données/lignes rouges : {risks.get('lignes_rouges') or 'à préciser'}.",
+    ])
+    return {
+        "schema": "oa.j1ter.documents.v1",
+        "session_id": session.get("id"),
+        "structured_audit": structured_audit,
+        "manifest_business": manifest_business,
+        "owner_identity": owner_identity,
+        "agent_profile": agent_profile,
+        "local_constitution": local_constitution,
+        "open_questions": unknowns,
+    }
 
 
 CONSENT_KEYS = [
