@@ -71,7 +71,7 @@ def test_business_tech_tree_session_persists_structured_outputs_and_branches_hr_
     created = ai.create_session({"tree_id": "business_tech"})
     session = created["session"]
     answers = {
-        "pacte": {"tutoiement": "Restons au vous", "rythme": "Droit au but", "temps_dispo": "20 min"},
+        "pacte": {"sauvegarde_choix": "Continuer sans compte"},
         "identity_public_context": {"nom_entreprise": "DU PAIN ET DES IDEES Paris", "sirene_match": "C'est bien moi"},
         "public_sources_consent": {"consents": {"web_public": True, "sirene_detail": True, "site_web": False, "fiche_google": False, "reseaux": False}},
         "activity_business_model": {"recit_activite": "Boulangerie à Paris", "type_clients": "Des particuliers", "taille_equipe": "Solo", "canaux_vente": "Sur place"},
@@ -150,9 +150,9 @@ def test_audit_session_endpoint_uses_tree_runtime_when_requested(tmp_path):
         sid = created["session"]["id"]
         assert created["session"]["schema"] == "oa_audit_session.business_tech.v1"
         assert len(created["omar"]["question"].splitlines()) <= 3
-        status, posted = request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/message", {"message": json.dumps({"step_id": "pacte", "answers": {"tutoiement": "Restons au vous", "rythme": "Droit au but"}}, ensure_ascii=False)})
+        status, posted = request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/message", {"message": json.dumps({"step_id": "pacte", "answers": {"sauvegarde_choix": "Continuer sans compte"}}, ensure_ascii=False)})
         assert status == 200
-        assert posted["session"]["state"]["pacte"]["answers"]["rythme"] == "Droit au but"
+        assert posted["session"]["state"]["pacte"]["answers"]["sauvegarde_choix"] == "Continuer sans compte"
         assert posted["omar"]["step"] == "pacte"
     finally:
         proc.terminate()

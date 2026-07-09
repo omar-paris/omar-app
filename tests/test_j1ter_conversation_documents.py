@@ -20,7 +20,7 @@ def _answer_and_validate(session: dict, step_id: str, answers: dict) -> dict:
 
 def _prepare_bakery_session_at_activity_model() -> dict:
     session = ai.create_session({"tree_id": "business_tech"})["session"]
-    session = _answer_and_validate(session, "pacte", {"tutoiement": "Restons au vous", "rythme": "Droit au but"})
+    session = _answer_and_validate(session, "pacte", {"sauvegarde_choix": "Continuer sans compte"})
     session = _answer_and_validate(session, "identity_public_context", {"nom_entreprise": "Boulangerie test Paris", "sirene_match": "À corriger"})
     session = _answer_and_validate(session, "public_sources_consent", {"consents": {"web_public": True, "sirene_detail": True}})
     return session
@@ -46,13 +46,14 @@ def test_j1ter_pacte_quick_start_records_required_answers_and_advances():
     session = created["session"]
     assert session["current_step"] == "pacte"
 
-    result = ai.add_message(session, "OK, on commence")
+    result = ai.add_message(session, "Continuer sans compte")
     session = result["session"]
     validated = ai.validate_step(session, "pacte")
 
     assert validated["ok"], validated
     assert validated["session"]["current_step"] == "identity_public_context"
     answers = validated["session"]["state"]["pacte"]["answers"]
+    assert answers["sauvegarde_choix"] == "Continuer sans compte"
     assert answers["tutoiement"] == "Restons au vous"
     assert answers["rythme"] == "Droit au but"
 
@@ -60,7 +61,7 @@ def test_j1ter_pacte_quick_start_records_required_answers_and_advances():
 def test_j1ter_identity_free_text_records_company_name_and_advances_like_live_user():
     created = ai.create_session({"tree_id": "business_tech"})
     session = created["session"]
-    session = _answer_and_validate(session, "pacte", {"tutoiement": "Restons au vous", "rythme": "Droit au but"})
+    session = _answer_and_validate(session, "pacte", {"sauvegarde_choix": "Continuer sans compte"})
 
     result = ai.add_message(session, "Boulangerie Dupont à Paris 11e")
     session = result["session"]
@@ -75,7 +76,7 @@ def test_j1ter_identity_free_text_records_company_name_and_advances_like_live_us
 def test_j1ter_natural_free_text_flow_completes_and_generates_documents_like_live_smoke():
     session = ai.create_session({"tree_id": "business_tech"})["session"]
     natural_answers = [
-        ("pacte", "OK, on commence"),
+        ("pacte", "Continuer sans compte"),
         ("identity_public_context", "Boulangerie Dupont à Paris 11e"),
         ("public_sources_consent", "Oui pour les sources publiques, pas de réseaux sociaux"),
         ("activity_business_model", "Boulangerie artisanale, vente boutique, particuliers du quartier, équipe de 6 personnes, sandwichs midi, pâtisseries le week-end"),
@@ -113,7 +114,7 @@ def test_j1ter_public_research_consent_is_backend_state_not_front_fragile_yes():
     session = _answer_and_validate(
         session,
         "pacte",
-        {"tutoiement": "Restons au vous", "rythme": "Droit au but"},
+        {"sauvegarde_choix": "Continuer sans compte"},
     )
     session = _answer_and_validate(
         session,
@@ -288,7 +289,7 @@ def test_j1ter_documents_endpoint_exposes_generated_artifacts(tmp_path):
         assert status == 201
         sid = created["session"]["id"]
         for step_id, answers in [
-            ("pacte", {"tutoiement": "Restons au vous", "rythme": "Droit au but"}),
+            ("pacte", {"sauvegarde_choix": "Continuer sans compte"}),
             ("identity_public_context", {"nom_entreprise": "Boulangerie API Paris", "sirene_match": "À corriger"}),
             ("public_sources_consent", {"consents": {"web_public": True, "sirene_detail": True}}),
             ("activity_business_model", {"recit_activite": "Boulangerie pâtisserie à Paris", "type_clients": "Des particuliers", "taille_equipe": "6-20", "canaux_vente": "Sur place"}),

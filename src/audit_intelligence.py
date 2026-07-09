@@ -879,13 +879,11 @@ def _tree_contextual_actions(step_id: str, session: dict[str, Any], *, missing: 
             {"id": "explain_sources", "label": "Quelles sources exactement ?", "intent": "explain"},
         ]
     if step_id == "pacte":
-        asked = "\n".join(str(item.get("question") or "") for item in session.get("asked_questions", []) if isinstance(item, dict))
-        if "En 20 minutes" in asked:
-            return [
-                {"id": "start", "label": "OK, on commence", "intent": "confirm"},
-                {"id": "verify_scope", "label": "Qu'est-ce que vous allez vérifier ?", "intent": "explain"},
-                {"id": "refuse_scope", "label": "Qu'est-ce que je peux refuser ?", "intent": "explain"},
-            ]
+        return [
+            {"id": "save", "label": "Se connecter pour sauvegarder", "intent": "save"},
+            {"id": "continue_without_account", "label": "Continuer sans compte", "intent": "confirm"},
+            {"id": "more_info", "label": "En savoir plus", "intent": "explain"},
+        ]
     if missing:
         return [
             {"id": "answer", "label": "Je réponds", "intent": "answer"},
@@ -902,8 +900,10 @@ def _tree_contextual_actions(step_id: str, session: dict[str, Any], *, missing: 
 def _tree_interpret_contextual_free_text(step_id: str, text: str) -> dict[str, Any] | None:
     hay = str(text or "").strip().casefold()
     if step_id == "pacte":
-        if any(token in hay for token in ["ok", "on commence", "je réponds", "droit au but", "restons au vous", "vouvoiement"]):
-            return {"tutoiement": "Restons au vous", "rythme": "Droit au but", "pacte_text": text}
+        if any(token in hay for token in ["continuer sans compte", "on commence", "ok", "go"]):
+            return {"sauvegarde_choix": "Continuer sans compte", "tutoiement": "Restons au vous", "rythme": "Droit au but", "pacte_text": text}
+        if any(token in hay for token in ["sauvegarder", "connecter", "compte"]):
+            return {"sauvegarde_choix": "Se connecter pour sauvegarder", "tutoiement": "Restons au vous", "rythme": "Droit au but", "pacte_text": text}
     if step_id == "identity_public_context" and hay:
         return {"nom_entreprise": str(text or "").strip()}
     if step_id == "activity_business_model" and hay:
