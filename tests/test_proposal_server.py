@@ -686,7 +686,7 @@ def test_rigorous_audit_persists_consents_sources_devis_source_and_delete(tmp_pa
         proc.terminate()
         proc.wait(timeout=3)
 
-def test_devis_requires_user_validation_before_checkout_then_reports_unconfigured_paypal(tmp_path):
+def test_devis_requires_user_validation_before_checkout_then_reports_unconfigured_payment_provider(tmp_path):
     proc, port = start_server(tmp_path)
     try:
         status, created = request_json("POST", f"http://127.0.0.1:{port}/api/devis", {"items": ["formule-starter", "presta-onboarding"]})
@@ -728,9 +728,9 @@ def test_devis_requires_user_validation_before_checkout_then_reports_unconfigure
         except urllib.error.HTTPError as exc:
             body = json.loads(exc.read().decode("utf-8"))
             assert exc.code == 503
-            assert body["error"] == "paypal_non_configure"
-            assert body["payment_provider_target"] == "paypal"
-            assert body["legacy_provider_disabled"] == "stripe"
+            assert body["error"] == "payment_provider_unconfigured"
+            assert body["payment_provider_target"] == "not_configured"
+            assert body["legacy_provider_disabled"] is True
             assert body["total_mensuel_eur"] == 49
             assert body["total_unique_eur"] == 150
     finally:

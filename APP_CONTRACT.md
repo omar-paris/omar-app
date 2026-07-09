@@ -20,7 +20,7 @@
 
 Primary job-to-be-done:
 
-> Transformer un prospect en diagnostic utile via audit conversationnel public, puis en client enregistré pour sauvegarde/email, devis sécurisé, paiement PayPal cible, onboarding et agent_spec. Le devis est aval de l’audit, jamais le centre de l’audit.
+> Transformer un prospect en diagnostic utile via audit conversationnel public, puis en client enregistré pour sauvegarde/email, devis sécurisé, paiement sécurisé cible, onboarding et agent_spec. Le devis est aval de l’audit, jamais le centre de l’audit.
 
 ## Audience
 
@@ -51,7 +51,7 @@ Primary job-to-be-done:
 
 /devis/
   Composez votre solution : formule + modules + prestations.
-  Accès obligatoire après enregistrement/authentification. Autosave continu, lien repreneur, paiement sécurisé cible PayPal. Le chemin Stripe existant est legacy technique à remplacer, pas la cible produit.
+  Accès obligatoire après enregistrement/authentification. Autosave continu, lien repreneur, paiement sécurisé cible. Le chemin Stripe existant est legacy technique à remplacer, pas la cible produit.
 
 /sav/
   Support, bugs, incidents, demandes, feedback. Diagnostic VPS read-only.
@@ -118,12 +118,12 @@ Persistance/reprise (issue #35) :
 
 ### Devis (V0.6.0)
 
-Devis = sélection catalogue → devis JSON/PDF → paiement sécurisé cible PayPal. Le code Stripe présent est legacy et doit être remplacé par PayPal avant promesse live.
+Devis = sélection catalogue → devis JSON/PDF → paiement sécurisé cible. Le code Stripe présent est legacy et doit être remplacé par un provider validé avant promesse live.
 
 - Produits du `catalog.json` : formules (Starter 49€, Pro 99€, Sur-mesure), modules, prestations.
 - API accepte les items simples (`"formule-starter"`) et quantifiés (`{"id":"formule-starter","qty":2}`).
 - Export DIY minimal : `GET /api/devis/<id>.pdf` renvoie un PDF téléchargeable sans dépendance externe.
-- Aucun coût réel : `paid_actions=none`; PayPal doit valider/sécuriser le paiement avant activation réelle. Tant que PayPal n’est pas configuré, le checkout doit renvoyer un blocage explicite, pas un faux paiement.
+- Aucun coût réel : `paid_actions=none`; Le provider sécurisé doit valider le paiement avant activation réelle. Tant que le provider sécurisé n’est pas configuré, le checkout doit renvoyer un blocage explicite, pas un faux paiement.
 - Statut `paid_test` pour simulation de paiement réussi.
 
 ### Provisioning dry-run (V0.6.0)

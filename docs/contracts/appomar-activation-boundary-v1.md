@@ -33,7 +33,7 @@ Règle v0:
 ```txt
 - Le contrat technique peut prévoir les points de sortie `devis`, `checkout`, `validation`, `onboarding`.
 - Le wording public et l'ordre payant exact ne sont pas modifiés sans GO business explicite.
-- L'ancien Stripe reste legacy; PayPal / coupons / bons / paiement 1er mois avant activation réelle restent des options commerciales à valider dans le tunnel public.
+- L'ancien Stripe reste legacy; provider de paiement / coupons / bons / paiement 1er mois avant activation réelle restent des options commerciales à valider dans le tunnel public.
 ```
 
 Donc la carte 3 débloque les cartes tunnel en écrivant les limites et contrats, pas en publiant un nouveau parcours payant.

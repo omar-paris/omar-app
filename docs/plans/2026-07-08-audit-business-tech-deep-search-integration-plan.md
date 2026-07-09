@@ -11,7 +11,7 @@
 - Inscription proposée au début pour suivre/sauvegarder, mais non obligatoire pour auditer.
 - À la fin, proposer sauvegarde + envoi email si la personne n’est pas encore enregistrée.
 - Devis réservé aux personnes enregistrées/authentifiées.
-- Paiement sécurisé cible PayPal ; Stripe est legacy technique à remplacer, pas la promesse produit.
+- Paiement sécurisé cible; le provider exact est à valider/configurer avant promesse produit.
 - Fable/Deep Search sont des matériaux à digérer en améliorations, pas des artefacts à supprimer ni à publier bruts.
 
 **Tech Stack:** Python backend `src/proposal_server.py` / audit intelligence, YAML audit tree, pytest, docs markdown.

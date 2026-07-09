@@ -101,15 +101,16 @@ def test_audit_page_is_v4_minimal_conversation_not_cockpit_or_static_form():
     assert "<form id=\"audit-form\"" not in text
 
 
-def test_devis_page_declares_registered_paypal_target():
+def test_devis_page_declares_registered_payment_blocked_target():
     build_site()
     text = html(PUBLIC / "devis" / "index.html").lower()
     for term in [
         "accès devis réservé aux personnes enregistrées",
-        "paiement sécurisé cible paypal",
-        "continuer vers paypal",
+        "paiement sécurisé non configuré",
+        "continuer vers le paiement sécurisé",
         "aucun provisioning sans validation humaine",
-        "paiement sécurisé paypal en attente de configuration",
+        "paiement sécurisé en attente de configuration",
+        "paiement en attente",
     ]:
         assert term in text
 
@@ -354,3 +355,31 @@ def test_caddy_keeps_audit_public_but_devis_and_changelog_authenticated():
     assert "Tout le portail (/, /devis/, /onboarding/, /sav/, /compte/, /aide/, /changelog/, /admin/…)" in caddy
     assert "handle /devis*" not in caddy
     assert "handle /changelog*" not in caddy
+
+
+def test_devis_page_does_not_claim_payment_validated_when_provider_unconfigured():
+    build_site()
+    text = html(PUBLIC / "devis" / "index.html").lower()
+    assert "paiement validé" not in text
+    assert "continuer vers paypal" not in text
+    assert "paypal cible" not in text
+
+
+def test_public_payment_copy_does_not_publish_specific_provider_target():
+    build_site()
+    public_paths = [
+        PUBLIC / "index.html",
+        PUBLIC / "audit" / "index.html",
+        PUBLIC / "devis" / "index.html",
+        PUBLIC / "aide" / "index.html",
+        PUBLIC / "compte" / "index.html",
+        PUBLIC / "onboarding" / "index.html",
+        PUBLIC / "api" / "appomar-lifecycle.json",
+    ]
+    joined = "\n".join(p.read_text(encoding="utf-8").lower() for p in public_paths)
+    assert "paypal" not in joined
+    assert "stripe test" not in joined
+    assert "paiement test" not in joined
+    assert "paid_test" not in joined
+    assert "paiement validé" not in joined
+    assert "portail client stripe" not in joined

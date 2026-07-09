@@ -117,7 +117,7 @@ PAGES = {
     "/": {
         "title": "Omar App — portail client OA",
         "eyebrow": "CORE OA · Portail client/prospect",
-        "summary": "Transformer un prospect en diagnostic utile : audit conversationnel public, sauvegarde/email optionnels, puis devis authentifié et paiement sécurisé PayPal avant activation réelle.",
+        "summary": "Transformer un prospect en diagnostic utile : audit conversationnel public, sauvegarde/email optionnels, puis devis authentifié et paiement sécurisé avant activation réelle.",
         "sections": [
             ("Parcours V0", ["1. Comprendre le besoin", "2. Proposer une configuration OA Start", "3. Préparer installation et support", "4. Suivre le client dans QG/Lab"]),
             ("Statut", ["Skeleton V0 local-first", "Pas encore de paiement réel", "Pas encore d’OAuth réel", "Nango reste L2 pour le moment"]),
@@ -155,10 +155,10 @@ PAGES = {
     },
     "/devis/": {
         "title": "Devis — composer l'offre OA",
-        "eyebrow": "Devis authentifié / PayPal cible",
-        "summary": "Le devis est réservé aux personnes enregistrées. Il transforme l'audit/onboarding en sélection de formules et options ; paiement sécurisé cible PayPal, aucun provisioning sans validation humaine.",
+        "eyebrow": "Devis authentifié / paiement sécurisé",
+        "summary": "Le devis est réservé aux personnes enregistrées. Il transforme l'audit/onboarding en sélection de formules et options ; paiement sécurisé, aucun provisioning sans validation humaine.",
         "sections": [
-            ("Flux", ["Audit public possible sans compte", "Sauvegarde/email via inscription", "Accès devis réservé aux personnes enregistrées", "Continuer vers PayPal quand le provider est configuré", "paid_actions=none tant que PayPal n'est pas configuré"]),
+            ("Flux", ["Audit public possible sans compte", "Sauvegarde/email via inscription", "Accès devis réservé aux personnes enregistrées", "Continuer vers le paiement quand le provider est configuré", "paid_actions=none tant que le paiement n'est pas configuré"]),
             ("Offre", ["Prix à partir de", "Coupons/bons/remises pilotes", "Option PC accompagnée", "VPS ou hybride selon profil"]),
         ],
     },
@@ -167,7 +167,7 @@ PAGES = {
         "eyebrow": "FAQ et prochaines étapes",
         "summary": "Aide courte pour prospects et clients : onboarding, devis, paiement du premier mois, option PC, SAV et compte.",
         "sections": [
-            ("Questions fréquentes", ["Que se passe-t-il après l'onboarding ?", "Quand paie-t-on le premier mois ?", "Comment fonctionne l'option PC ?", "Que veut dire paiement test ?"]),
+            ("Questions fréquentes", ["Que se passe-t-il après l'onboarding ?", "Quand paie-t-on le premier mois ?", "Comment fonctionne l'option PC ?", "Quand le paiement sécurisé est-il activé ?"]),
             ("Support", ["SAV depuis /sav/", "Compte client isolé", "Validation humaine avant actions risquées"]),
         ],
     },

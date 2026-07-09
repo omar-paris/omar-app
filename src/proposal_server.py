@@ -1855,9 +1855,9 @@ class ProposalHandler(BaseHTTPRequestHandler):
 
 
     def handle_checkout(self) -> None:
-        """Lance le paiement sécurisé d'un devis. Cible produit: PayPal.
-        Tant que PayPal n'est pas configuré, renvoie un 503 explicite et ne simule
-        jamais un faux paiement."""
+        """Lance le paiement sécurisé d'un devis.
+        Tant que le provider de paiement n'est pas configuré, renvoie un 503
+        explicite et ne simule jamais un faux paiement."""
         try:
             length = int(self.headers.get("content-length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
@@ -1872,11 +1872,11 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if devis.get("statut") != "user_validated":
             self.send_json(409, {"ok": False, "error": "devis_not_validated", "message": "Le devis doit être lu et validé explicitement par le client avant checkout.", "devis_id": did, "statut": devis.get("statut")})
             return
-        self.send_json(503, {"ok": False, "error": "paypal_non_configure",
-                             "message": "Paiement sécurisé PayPal en attente de configuration.",
+        self.send_json(503, {"ok": False, "error": "payment_provider_unconfigured",
+                             "message": "Paiement sécurisé en attente de configuration.",
                              "devis_id": did,
-                             "payment_provider_target": "paypal",
-                             "legacy_provider_disabled": "stripe",
+                             "payment_provider_target": "not_configured",
+                             "legacy_provider_disabled": True,
                              "total_mensuel_eur": devis["total_mensuel_eur"],
                              "total_unique_eur": devis.get("total_unique_eur", 0)})
         return
