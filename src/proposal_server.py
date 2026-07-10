@@ -62,6 +62,8 @@ AUDIT_ID_RE = re.compile(r"^audit-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$")
 AUDIT_SESSION_ID_RE = re.compile(r"^audit-session-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$")
 ONBOARDING_ID_RE = re.compile(r"^onboarding-[A-Za-z0-9_-]{43}$")
 SECRET_PATTERNS = ["HCLOUD_TOKEN", "Authorization", "Bearer ", "sk-"]
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+DEFAULT_LEAD_NOTIFY_TO = "alexwillemetz@gmail.com"
 ALLOWED_VAULT_FIELDS = {
     "secret/stripe/test": {"STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"},
     "secret/stripe/live": {"STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"},
@@ -838,6 +840,71 @@ def read_audit_session(data_dir: Path, sid: str) -> dict[str, Any] | None:
         return None
     path = _audit_session_path(data_dir, sid)
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def _audit_prospect_email_header(headers: Any) -> str:
+    """Email prospect injecté par oauth2-proxy-open via Caddy forward_auth."""
+    email = str(headers.get("X-Auth-Request-Email", "") or "").strip().lower()
+    return email if EMAIL_RE.match(email) else ""
+
+
+def _audit_lead_path(data_dir: Path, audit_id: str) -> Path:
+    return data_dir / "leads" / f"lead-{audit_id}.json"
+
+
+def _clean_lead_value(value: str, limit: int = 1200) -> str:
+    return (value or "").replace("\x00", "").strip()[:limit]
+
+
+def write_audit_lead(data_dir: Path, audit: dict[str, Any], *, source_session_id: str = "") -> dict[str, Any] | None:
+    """Écrit un lead audit local, sans email sortant ni paiement/provisioning."""
+    input_payload = audit.get("input") or {}
+    prospect_email = str(input_payload.get("prospect_email") or "").strip().lower()
+    fallback_email = str(input_payload.get("email") or "").strip().lower()
+    email = prospect_email if EMAIL_RE.match(prospect_email) else (fallback_email if EMAIL_RE.match(fallback_email) else "")
+    if not email:
+        return None
+    aid = str(audit.get("id") or "")
+    report = audit.get("report") or {}
+    devis_source = audit.get("devis_source") or {}
+    lead = {
+        "created_at": audit.get("created_at") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "name": _clean_lead_value(str(input_payload.get("name") or input_payload.get("company_public_name") or "Prospect audit IA"), 200),
+        "email": email,
+        "phone": _clean_lead_value(str(input_payload.get("phone") or ""), 80),
+        "business": _clean_lead_value(str(input_payload.get("activity") or report.get("title") or "Audit IA Omar"), 300),
+        "message": _clean_lead_value(str(report.get("summary") or "Rapport audit IA généré, devis à valider proposé."), 2000),
+        "source": "app.omar.paris/audit",
+        "client_ip": "oauth2-proxy-open",
+        "notify_to": DEFAULT_LEAD_NOTIFY_TO,
+        "audit_id": aid,
+        "audit_session_id": source_session_id or input_payload.get("audit_session_id") or "",
+        "devis_source": devis_source,
+        "lead_type": "audit_report_devis",
+        "safety": {"paid_actions": "none", "provisioning": "none"},
+    }
+    leads_dir = data_dir / "leads"
+    leads_dir.mkdir(parents=True, exist_ok=True)
+    target = _audit_lead_path(data_dir, aid)
+    target.write_bytes(json_bytes(lead))
+    return {"mode": "local_json", "path": f"var/leads/{target.name}", "email": email}
+
+
+def _devis_client_from_payload(payload: dict[str, Any], audit: dict[str, Any] | None) -> dict[str, Any]:
+    raw_client = payload.get("client") if isinstance(payload.get("client"), dict) else {}
+    client: dict[str, Any] = raw_client if isinstance(raw_client, dict) else {}
+    email = str(client.get("email") or "").strip().lower()
+    if not EMAIL_RE.match(email):
+        audit_input = (audit or {}).get("input") or {}
+        for candidate in (audit_input.get("prospect_email"), audit_input.get("email")):
+            candidate = str(candidate or "").strip().lower()
+            if EMAIL_RE.match(candidate):
+                email = candidate
+                break
+    out = {k: v for k, v in client.items() if k != "email"}
+    if email:
+        out["email"] = email
+    return out
 
 
 # --- Audit conversationnel via agent Hermes (Fable 2, 2026-07-02, GO Alex) ---
@@ -1688,8 +1755,12 @@ class ProposalHandler(BaseHTTPRequestHandler):
             for pattern in SECRET_PATTERNS:
                 if pattern in raw:
                     raise ValueError(f"secret-like literal forbidden: {pattern}")
-            created = audit_create_session(payload)
-            session = write_audit_session(self.data_dir, created["session"])
+            prospect_email = _audit_prospect_email_header(self.headers)
+            created = audit_create_session({**payload, "prospect_email": prospect_email} if prospect_email else payload)
+            session = created["session"]
+            if prospect_email:
+                session["prospect"] = {"email": prospect_email, "source": "X-Auth-Request-Email"}
+            session = write_audit_session(self.data_dir, session)
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
             self.send_json(422, {"ok": False, "error": str(exc)})
             return
@@ -1839,6 +1910,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 raw_answers = session.get("answers")
                 answers: dict[str, Any] = raw_answers if isinstance(raw_answers, dict) else {}
                 structured_fields = {**answers}
+                prospect_email = str((session.get("prospect") or {}).get("email") or _audit_prospect_email_header(self.headers) or "").strip().lower()
                 if isinstance(payload.get("structured_fields"), dict):
                     structured_fields.update(payload["structured_fields"])
                 for legacy_key, structured_key in {
@@ -1866,11 +1938,18 @@ class ProposalHandler(BaseHTTPRequestHandler):
                     "sector_id": session.get("sector_id"),
                     "interface": "audit_cockpit_conversationnel_sectoriel.business_tech.v1",
                     "source_policy": "structured_fields_only_no_raw_conversation_log",
+                    "audit_session_id": session.get("id"),
+                    "prospect_email": prospect_email,
+                    "email": prospect_email or str(payload.get("email") or ""),
                 }
                 audit = safe_write_audit(self.data_dir, payload)
+                lead = write_audit_lead(self.data_dir, audit, source_session_id=str(session.get("id") or ""))
+                if lead:
+                    audit["lead"] = lead
+                    (self.data_dir / "audits" / f"{audit['id']}.json").write_bytes(json_bytes(audit))
                 share = audit_share_payload(audit)
                 session = write_audit_session(self.data_dir, append_telemetry_event(session, make_report_created(session, audit=audit, share=share)))
-                self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share, "session": session})
+                self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share, "session": session, "lead": audit.get("lead")})
                 return
             self.send_json(404, {"ok": False, "error": "unknown_audit_session_action"})
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
@@ -1886,11 +1965,18 @@ class ProposalHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("payload must be object")
+            prospect_email = _audit_prospect_email_header(self.headers)
+            if prospect_email:
+                payload = {**payload, "prospect_email": prospect_email, "email": prospect_email}
             audit = safe_write_audit(self.data_dir, payload)
+            lead = write_audit_lead(self.data_dir, audit)
+            if lead:
+                audit["lead"] = lead
+                (self.data_dir / "audits" / f"{audit['id']}.json").write_bytes(json_bytes(audit))
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
             self.send_json(422, {"ok": False, "error": str(exc)})
             return
-        self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", [])})
+        self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "lead": audit.get("lead")})
 
     def handle_devis(self) -> None:
         """Crée un devis depuis une sélection de produits du catalogue (app#24/qg#28).
@@ -1971,6 +2057,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
             devis = {**existing, "lignes": lignes, "total_mensuel_eur": mensuel,
                      "total_unique_eur": unique,
                      "audit_id": payload.get("audit_id") or existing.get("audit_id"),
+                     "client": _devis_client_from_payload(payload, audit) or existing.get("client", {}),
                      "devis_source": devis_source or existing.get("devis_source"),
                      "justification": build_devis_justification(lignes, devis_source),
                      "statut": "a_valider" if existing.get("statut") in {"brouillon", "a_valider"} else existing.get("statut"),
@@ -1979,7 +2066,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
             did = f"devis-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
             devis = {
                 "id": did, "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "client": payload.get("client", {}), "lignes": lignes,
+                "client": _devis_client_from_payload(payload, audit), "lignes": lignes,
                 "total_mensuel_eur": mensuel, "total_unique_eur": unique,
                 "devise": "EUR", "statut": "a_valider",
                 "audit_id": payload.get("audit_id"),
