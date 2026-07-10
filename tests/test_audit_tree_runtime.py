@@ -6,6 +6,7 @@ import socket
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -135,6 +136,92 @@ def test_business_tech_sector_pack_relance_is_depth_limited():
     assert q2["sector_pack_relance"] is None
 
 
+def test_business_tech_critique_feedback_does_not_validate_as_business_answer():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+    session = ai.add_message(session, "Continuer sans compte")["session"]
+    session = ai.validate_step(session, "pacte")["session"]
+    session = ai.add_message(session, "La Fournée des Traditions 56 Rue Grande, 13390 Auriol")["session"]
+    session = ai.validate_step(session, "identity_public_context")["session"]
+    session = ai.add_message(session, "Non, on continue sans recherche")["session"]
+    session = ai.validate_step(session, "public_sources_consent")["session"]
+    assert "concurrence proche" in ai.next_question(session)["question"]
+
+    critique = (
+        "Il faut que tu me poses des vraies questions. Là tu n'as pas un vrai récit, "
+        "tu dois regarder la ville d'Auriol, la concurrence directe, les horaires, "
+        "le chiffre d'affaires et tu dois utiliser le vocabulaire artisan."
+    )
+    result = ai.add_message(session, critique)
+    session = result["session"]
+
+    answers = session["state"].get("activity_business_model", {}).get("answers", {})
+    assert "recit_activite" not in answers
+    assert session["feedback"][0]["kind"] == "product_critique"
+    assert result["omar"]["interaction"] == "validation_card"
+    assert "je vous ai mal accompagné" in result["omar"]["question"].lower()
+
+    validation = ai.validate_step(session, "activity_business_model")
+    assert validation["ok"] is False
+    assert validation["error"] == "step_incomplete"
+    assert "recit_activite" in validation["completion"]["missing_inputs"]
+
+
+def test_business_tech_product_feedback_after_answer_blocks_auto_validation_until_repaired():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+    for text, step in [
+        ("Continuer sans compte", "pacte"),
+        ("La Fournée des Traditions 56 Rue Grande, 13390 Auriol", "identity_public_context"),
+        ("Non, on continue sans recherche", "public_sources_consent"),
+    ]:
+        session = ai.add_message(session, text)["session"]
+        session = ai.validate_step(session, step)["session"]
+
+    session = ai.add_message(session, "Boulangerie-pâtisserie de quartier à Auriol, 4 personnes, boutique et commandes spéciales.")["session"]
+    assert ai.validate_step(session, "activity_business_model")["ok"] is True
+    # Rewind current step to simulate the live bug: a valid business answer exists,
+    # then the user critiques the flow; validation must not silently pass.
+    session["current_step"] = "activity_business_model"
+    session = ai.add_message(session, "Tes questions sont désagréables, tu passes à la question suivante et le mot récit ne va pas.")["session"]
+    validation = ai.validate_step(session, "activity_business_model")
+    assert validation["ok"] is False
+    assert validation["error"] == "product_feedback_unresolved"
+    assert validation["completion"]["blocked_by_feedback"] is True
+
+    session = ai.add_message(session, "Réponse métier réparée : boulangerie-pâtisserie à Auriol, 4 personnes, CA modeste, flux quartier, commandes week-end.")["session"]
+    assert ai.validate_step(session, "activity_business_model")["ok"] is True
+
+
+def test_business_tech_replays_alex_live_transcript_as_feedback_not_completed_session():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+    transcript = [
+        ("Continuer sans compte", "pacte"),
+        ("La Fournée des Traditions 56 Rue Grande, 13390 Auriol", "identity_public_context"),
+        ("Oui, recherche publique autorisée", "public_sources_consent"),
+        ("Valider les informations publiques et le récit Omar", "public_sources_consent"),
+        ("Il faut que ici tu me poses des questions, tu n'as pas un vrai récit, tu dois regarder la ville d'Auriol, la concurrence directe, les horaires, l'équipe et le chiffre d'affaires.", "activity_business_model"),
+        ("Le problème c'est que là tu me dis et vous là dedans, tu devrais simplement faire une phrase pour résumer et enchaîner en transition logique.", "activity_business_model"),
+        ("C'est horrible, tu dis cette boîte, je suis un artisan, il faut vraiment que tu utilises le vocabulaire de notre cible.", "activity_business_model"),
+    ]
+    for text, expected_step in transcript:
+        assert session["current_step"] == expected_step
+        session = ai.add_message(session, text)["session"]
+        validation = ai.validate_step(session, expected_step)
+        if expected_step == "public_sources_consent" and validation.get("error") == "public_research_required":
+            session.setdefault("public_research", []).append({
+                "created_at": "2026-07-10T00:00:00Z",
+                "result": {"schema": "oa_public_research_result.v1", "status": "not_started", "facts": [], "not_executed": [{"label": "SIRENE/SIRET", "reason": "not_fetched_yet"}]},
+            })
+            validation = ai.validate_step(session, expected_step)
+        if validation.get("ok"):
+            session = validation["session"]
+
+    assert session["status"] == "running"
+    assert session["current_step"] == "activity_business_model"
+    assert "activity_business_model" not in session.get("validated_steps", [])
+    assert len(session.get("feedback", [])) >= 3
+    assert session["state"].get("activity_business_model", {}).get("answers", {}) == {}
+
+
 def free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -178,6 +265,21 @@ def test_audit_session_endpoint_uses_tree_runtime_when_requested(tmp_path):
         assert status == 200
         assert posted["session"]["state"]["pacte"]["answers"]["sauvegarde_choix"] == "Continuer sans compte"
         assert posted["omar"]["step"] == "pacte"
+
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/report",
+            data=json.dumps({"activity": "Boulangerie", "repetitive_tasks": "demandes clients"}).encode("utf-8"),
+            method="POST",
+            headers={"content-type": "application/json"},
+        )
+        try:
+            urllib.request.urlopen(req, timeout=3)
+            raise AssertionError("incomplete business_tech session generated a fake report")
+        except urllib.error.HTTPError as exc:
+            body = json.loads(exc.read().decode("utf-8"))
+            assert exc.code == 409
+            assert body["ok"] is False
+            assert body["error"] == "audit_session_incomplete"
     finally:
         proc.terminate()
         proc.wait(timeout=3)

@@ -175,6 +175,14 @@ def test_report_created_records_opaque_audit_id_only(tmp_path):
     try:
         _, created = request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions", {"tree_id": "business_tech"})
         sid = created["session"]["id"]
+        # Le rapport business_tech est maintenant bloqué tant que la session n'est
+        # pas complète. Ce test ne vérifie pas le moteur conversationnel, seulement
+        # que l'événement report_created reste opaque une fois le gate passé.
+        session_path = tmp_path / "audit_sessions" / f"{sid}.json"
+        session = json.loads(session_path.read_text(encoding="utf-8"))
+        session["status"] = "complete"
+        session["completion"] = {"complete": True, "completion_pct": 100, "required_steps": [], "validated_steps": []}
+        session_path.write_text(json.dumps(session, ensure_ascii=False), encoding="utf-8")
         status, data = request_json(
             "POST",
             f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/report",

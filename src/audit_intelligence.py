@@ -36,7 +36,7 @@ FIELD_LABELS = {
 }
 
 FIELD_PATTERNS = {
-    "business_activity": [r"\b(boulanger|boulangerie|p[âa]tissier|p[âa]tissi[èe]re|p[âa]tisserie|restaurant|plombier|chauffagiste|rénovation|renovation|électricien|electricien|fleuriste|avocat|patrimoine|marketing|secr[ée]taire|traducteur|traductrice|traduction|freelance|consultant|consultante|coach|formateur|formatrice|commerce|boutique)\b", r"je suis", r"nous sommes", r"mon activité", r"mon métier"],
+    "business_activity": [r"\b(boulanger|boulangerie|fournée|fournee|p[âa]tissier|p[âa]tissi[èe]re|p[âa]tisserie|restaurant|plombier|chauffagiste|rénovation|renovation|électricien|electricien|fleuriste|avocat|patrimoine|marketing|secr[ée]taire|traducteur|traductrice|traduction|freelance|consultant|consultante|coach|formateur|formatrice|commerce|boutique)\b", r"je suis", r"nous sommes", r"mon activité", r"mon métier"],
     "location": [r"\b(à|a|près de|pres de)\s+[A-ZÉÈÀÂÎÔÛa-zéèàâêîôûç-]{2,}", r"\b\d{1,4}\s+(rue|avenue|av\.?|boulevard|bd|chemin|route|place|impasse)\b", r"\b\d{5}\s+[A-ZÉÈÀÂÎÔÛa-zéèàâêîôûç-]{2,}", r"\b(lille|paris|lyon|marseille|bordeaux|nantes|toulouse|nice|clichy|roubaix|orly)\b"],
     "company_size": [r"\b\d+\s*(personnes?|salari[ée]s?|collaborateurs?|associ[ée]s?|employ[ée]s?)\b", r"\bsolo\b", r"\bind[ée]pendant\b", r"\béquipe\b"],
     "company_age": [r"\b\d+\s*(ans?|ann[ée]es?)\b", r"cré[ée]e?\s+il y a", r"reprise", r"\blanc[ée]e?\b", r"\blancement\b", r"depuis\s+\d+", r"moins d.un an", r"plus de 10 ans"],
@@ -778,6 +778,117 @@ def _coerce_tree_answer_payload(text: str) -> dict[str, Any]:
     return {"answers": {"value": parsed}, "raw_text": raw}
 
 
+def _tree_detect_product_feedback(text: str) -> dict[str, Any] | None:
+    """Detect user critique about the audit/product, not business facts.
+
+    This is a deterministic guardrail for the public audit: if the user is saying
+    “your question/flow/report is wrong”, we must not persist that sentence as a
+    bakery activity, weekly pain, or risk answer. It becomes product feedback and
+    the current step remains incomplete until a real business answer is provided.
+    """
+    raw = re.sub(r"\s+", " ", str(text or "")).strip()
+    if not raw:
+        return None
+    hay = raw.casefold()
+    critique_markers = [
+        "tu ne", "tu n'", "tu n’", "tes questions", "ta question", "vos questions",
+        "tu dois", "tu devrais", "il faut que tu", "tu réponds même pas", "tu passes à la question",
+        "c'est horrible", "c’est horrible", "désagréable", "désagréables", "nul", "nulle",
+        "ça ne sert à rien", "ne sert à rien", "bouton", "ne fait rien", "vocabulaire",
+        "rapport tronqué", "je peux même pas", "je ne peux même pas",
+        "de quoi tu me parles", "comme un voisin", "boîte", "cette boîte",
+    ]
+    product_terms = [
+        "question", "questions", "audit", "rapport", "diagnostic", "récit", "recit", "bouton",
+        "vocabulaire", "transition", "tu", "omar", "page", "chat", "écran", "ecran",
+    ]
+    if any(marker in hay for marker in critique_markers) and any(term in hay for term in product_terms):
+        return {
+            "kind": "product_critique",
+            "severity": "blocking",
+            "verbatim": raw,
+            "signals": [marker for marker in critique_markers if marker in hay][:8],
+        }
+    return None
+
+
+def _tree_latest_feedback_blocks_step(session: dict[str, Any], step_id: str) -> dict[str, Any] | None:
+    """Return latest unresolved product feedback for a step, if it should block validation."""
+    latest_feedback: dict[str, Any] | None = None
+    latest_feedback_index = -1
+    latest_answer_index = -1
+    for index, msg in enumerate(session.get("messages", []) or []):
+        if str(msg.get("step") or "") != step_id:
+            continue
+        if msg.get("intent") == "product_feedback":
+            latest_feedback = {"step": step_id, "at": str(msg.get("at") or ""), "verbatim": msg.get("text")}
+            latest_feedback_index = index
+        else:
+            latest_answer_index = index
+    if latest_feedback and latest_feedback_index > latest_answer_index:
+        for item in reversed(session.get("feedback", []) or []):
+            if str(item.get("step") or "") == step_id and str(item.get("at") or "") == latest_feedback.get("at"):
+                return item
+        return latest_feedback
+    return None
+
+
+def _tree_feedback_repair_question(feedback: dict[str, Any], step_id: str) -> str:
+    if step_id == "activity_business_model":
+        return (
+            "Je vous ai mal accompagné : je ne vais pas enregistrer cette critique comme une réponse métier. "
+            "Je reprends concrètement : votre établissement, son quartier, sa concurrence directe, l’équipe, les horaires et le chiffre d’affaires relatif sont à cadrer. "
+            "Pour repartir proprement, décrivez en une phrase l’activité réelle et ce qu’il faut absolument comprendre sur votre boulangerie."
+        )
+    if step_id == "public_sources_consent":
+        return (
+            "Je garde votre correction à part : une recherche publique doit montrer des faits sourcés ou dire clairement qu’elle n’a pas été exécutée. "
+            "Voulez-vous corriger l’identité/source, ignorer ces sources, ou relancer la recherche ?"
+        )
+    return (
+        "Je garde votre remarque comme critique du parcours, pas comme réponse métier. "
+        "Je reformule avant de continuer : qu’est-ce que je dois comprendre concrètement pour cette étape ?"
+    )
+
+
+def _tree_sector_specific_question(session: dict[str, Any], step_id: str, missing: list[str]) -> str | None:
+    """Replace generic prompts with sector-aware consultant questions when enough context exists."""
+    sector_id = _tree_sector_id(session)
+    if sector_id != "bakery":
+        return None
+    if step_id == "activity_business_model" and "recit_activite" in missing:
+        return (
+            "Je vais cadrer votre boulangerie comme un consultant : emplacement, flux client, concurrence proche, horaires, équipe et ordre de grandeur de CA. "
+            "Décrivez d’abord votre activité réelle : boutique, pâtisserie/snacking, commandes, clients principaux, équipe et zone de chalandise."
+        )
+    if step_id == "person_and_goals" and "objectifs_racontes" in missing:
+        return (
+            "Je résume avant de vous demander la suite : on parle d’un commerce de bouche local, avec enjeux de flux, marge, équipe et régularité. "
+            "Pour vous, c’est surtout un sujet de rentabilité quotidienne, de patrimoine, d’investissement, de temps libéré, ou de transmission ?"
+        )
+    if step_id == "operations_week" and "semaine" in missing:
+        return (
+            "Entrons dans le concret boulangerie : production, achats, invendus, commandes, horaires, équipe, admin ou commercial. "
+            "Sur une vraie semaine, où perdez-vous le plus de temps ou de marge ?"
+        )
+    if step_id == "admin_finance_purchasing" and "admin_racontee" in missing:
+        return (
+            "Côté pilotage : achats farine/beurre/emballages, factures, impayés, caisse, marge par famille produit et trésorerie. "
+            "Quel sujet est le plus flou ou coûteux aujourd’hui ?"
+        )
+    if step_id == "digital_tools_data" and "outils_racontes" in missing:
+        return (
+            "Cartographions vos outils : caisse, commandes téléphone/WhatsApp/email, planning production, factures, Google Business, avis et réseaux. "
+            "Qu’est-ce qui est déjà outillé, et qu’est-ce qui se ressaisit encore à la main ?"
+        )
+    if step_id == "risks_limits" and "lignes_rouges" in missing:
+        return (
+            "Fixons les limites métier : allergènes, prix, commandes événementielles, avis négatifs, hygiène/HACCP et réponses client. "
+            "Qu’est-ce qui doit toujours rester validé par vous ou l’équipe ?"
+        )
+    return None
+
+
 def _tree_step_required_inputs(step: dict[str, Any]) -> list[str]:
     return [str(item.get("id")) for item in step.get("inputs", []) or [] if isinstance(item, dict) and item.get("required", False) and item.get("id")]
 
@@ -898,8 +1009,10 @@ def _tree_answer_text(session: dict[str, Any]) -> str:
 def _tree_sector_id(session: dict[str, Any]) -> str:
     state = session.get("state") or {}
     activity_answers = ((state.get("activity_business_model") or {}).get("answers") or {}) if isinstance(state.get("activity_business_model"), dict) else {}
+    identity_answers = ((state.get("identity_public_context") or {}).get("answers") or {}) if isinstance(state.get("identity_public_context"), dict) else {}
     activity_text = " ".join(str(activity_answers.get(key) or "") for key in ["recit_activite", "type_clients", "canaux_vente"])
-    detected = detect_sector(activity_text) if activity_text.strip() else "generic_tpe"
+    identity_text = str(identity_answers.get("nom_entreprise") or "")
+    detected = detect_sector(" ".join([identity_text, activity_text]).strip()) if (identity_text or activity_text).strip() else "generic_tpe"
     if detected != "generic_tpe":
         return detected
     return str(session.get("sector_id") or detect_sector(_tree_answer_text(session)))
@@ -1044,7 +1157,7 @@ def _tree_contextual_followup_question(step_id: str, session: dict[str, Any]) ->
     if step_id == "operations_week" and step_answers.get("interpreted_intent") == "answer_broad" and not step_answers.get("top_caillou"):
         return "D'accord, donc plusieurs demandes reviennent. Si on commence par une seule priorité, laquelle vous soulagerait le plus en premier ?"
     if step_id == "digital_tools_data" and step_answers.get("interpreted_intent") == "answer_vague" and not step_answers.get("outils_confirm"):
-        return "D'accord, il y en a beaucoup. Pour commencer simple : lesquels pèsent le plus aujourd'hui — téléphone/messages, caisse/factures, planning/commandes, réseaux sociaux ?"
+        return "D'accord, il y en a beaucoup. Pour commencer simple dans votre activité : lesquels pèsent le plus aujourd'hui — téléphone/messages, caisse/factures, planning/commandes, réseaux sociaux ?"
     return None
 
 
@@ -1113,7 +1226,8 @@ def business_tech_next_question(session: dict[str, Any], step: str | None = None
     step_data = steps[step_id]
     missing = _tree_missing_inputs(session, step_id)
     wanted_input = _tree_input_by_id(step_data, missing[0]) if missing else None
-    raw_question = str(_tree_contextual_followup_question(step_id, session) or (wanted_input or {}).get("question") or step_data.get("entry_message") or step_data.get("objectif") or "Pouvez-vous préciser ce point ?")
+    sector_question = _tree_sector_specific_question(session, step_id, missing) if missing else None
+    raw_question = str(sector_question or _tree_contextual_followup_question(step_id, session) or (wanted_input or {}).get("question") or step_data.get("entry_message") or step_data.get("objectif") or "Pouvez-vous préciser ce point ?")
     max_lines = int((session.get("runtime") or {}).get("policy", {}).get("message_max_lignes") or (tree.get("principles") or {}).get("message_max_lignes") or 3)
     interaction = str((wanted_input or {}).get("type") or ((step_data.get("inputs") or [{}])[0] or {}).get("type") or "free_text")
     if interaction not in TREE_V0_ALLOWED_INTERACTIONS:
@@ -1134,7 +1248,33 @@ def business_tech_add_message(session: dict[str, Any], text: str) -> dict[str, A
     # arrives without an explicit `answers` object. It is still contextual free
     # text and must be interpreted against the current step before validation.
     is_plain_free_text = isinstance(answers, dict) and set(answers) == {"free_text"}
-    contextual = _tree_interpret_contextual_free_text(step_id, str(payload.get("raw_text") or text)) if is_plain_free_text else None
+    raw_text = str(payload.get("raw_text") or text)
+    feedback = _tree_detect_product_feedback(raw_text) if is_plain_free_text else None
+    if feedback:
+        feedback = {**feedback, "step": step_id, "at": now}
+        session.setdefault("feedback", []).append(feedback)
+        session.setdefault("messages", []).append({"role": "client", "text": raw_text, "step": step_id, "intent": "product_feedback", "at": now})
+        session.setdefault("runtime", {})["last_product_feedback"] = feedback
+        missing = _tree_missing_inputs(session, step_id)
+        question = _limit_message_lines(_tree_feedback_repair_question(feedback, step_id), int((session.get("runtime") or {}).get("policy", {}).get("message_max_lignes") or 3))
+        q = {
+            **business_tech_next_question(session, step_id),
+            "question": question,
+            "interaction": "validation_card",
+            "options": ["Reprendre proprement", "Corriger l’identité", "Je formule la vraie réponse"],
+            "actions": [
+                {"id": "restart_step", "label": "Reprendre proprement", "intent": "repair"},
+                {"id": "modify_identity", "label": "Corriger l’identité", "intent": "modify"},
+                {"id": "answer_business", "label": "Je formule la vraie réponse", "intent": "answer"},
+            ],
+            "feedback": feedback,
+            "completion": {**_tree_step_completion(session, step_id), "ready": False, "missing_inputs": missing},
+            "missing_inputs": missing,
+        }
+        session.setdefault("asked_questions", []).append({"step": step_id, "question": q["question"], "at": now, "feedback_repair": True})
+        return {"session": session, "omar": q}
+
+    contextual = _tree_interpret_contextual_free_text(step_id, raw_text) if is_plain_free_text else None
     if contextual:
         answers = contextual
     state = session.setdefault("state", {}).setdefault(step_id, {"answers": {}, "events": [], "sector_pack_depth": 0})
@@ -1145,7 +1285,7 @@ def business_tech_add_message(session: dict[str, Any], text: str) -> dict[str, A
     if "relance_pack" in answers:
         state["sector_pack_depth"] = min(1, int(state.get("sector_pack_depth") or 0) + 1)
     state.setdefault("events", []).append({"at": now, "event": "answers_recorded", "fields": sorted(answers)})
-    session.setdefault("messages", []).append({"role": "client", "text": str(payload.get("raw_text") or text), "step": step_id, "at": now})
+    session.setdefault("messages", []).append({"role": "client", "text": raw_text, "step": step_id, "at": now})
     session["sector_id"] = _tree_sector_id(session)
     session.setdefault("runtime", {})["skipped_steps"] = sorted(_tree_skip_rules(session))
     q = business_tech_next_question(session, step_id)
@@ -1158,6 +1298,10 @@ def business_tech_validate_step(session: dict[str, Any], step: str | None = None
     completion = _tree_step_completion(session, step_id)
     if not completion["ready"]:
         return {"ok": False, "error": "step_incomplete", "completion": completion, "omar": business_tech_next_question(session, step_id)}
+    blocking_feedback = _tree_latest_feedback_blocks_step(session, step_id)
+    if blocking_feedback:
+        completion = {**completion, "ready": False, "blocked_by_feedback": True}
+        return {"ok": False, "error": "product_feedback_unresolved", "completion": completion, "feedback": blocking_feedback, "omar": {**business_tech_next_question(session, step_id), "question": _tree_feedback_repair_question(blocking_feedback, step_id), "interaction": "validation_card", "feedback": blocking_feedback}}
     research_block = _tree_public_research_block(step_id, session)
     if research_block:
         return research_block
