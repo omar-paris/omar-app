@@ -163,7 +163,7 @@ def test_business_tech_next_question_exposes_agent_frame_and_business_analysis()
     assert "agent_frame" in q
 
 
-def test_business_tech_build_agent_brief_uses_all_acquired_data_without_mixing_sources():
+def _complete_bakery_consulting_session() -> dict:
     session = ai.create_session({"tree_id": "business_tech"})["session"]
     answers = {
         "pacte": "Continuer sans compte",
@@ -181,6 +181,11 @@ def test_business_tech_build_agent_brief_uses_all_acquired_data_without_mixing_s
         validation = ai.validate_step(session, step)
         assert validation["ok"], validation
         session = validation["session"]
+    return session
+
+
+def test_business_tech_build_agent_brief_uses_all_acquired_data_without_mixing_sources():
+    session = _complete_bakery_consulting_session()
 
     brief = ai.build_agent_brief(session)
     assert brief["schema"] == "oa.omar-agent-brief.v1"
@@ -195,6 +200,67 @@ def test_business_tech_build_agent_brief_uses_all_acquired_data_without_mixing_s
     assert brief["agent_operating_contract"]["mode"] == "draft_agent_after_audit"
     assert brief["agent_operating_contract"]["allowed_actions"]
     assert brief["agent_operating_contract"]["forbidden_actions"]
+
+
+def test_business_tech_premium_consulting_report_follows_deep_search_appomar_contract():
+    session = _complete_bakery_consulting_session()
+
+    report = ai.build_premium_consulting_report(session)
+
+    assert report["schema"] == "oa.premium-consulting-report.v1"
+    assert report["method"]["reference_doc"].endswith("2026-07-08-audit-business-tech-appomar-deep-search-result.md")
+    assert {"France Num", "Bpifrance", "ANSSI", "CNIL"} <= set(report["method"]["frameworks"])
+    assert [d["id"] for d in report["diagnostic_dimensions"]] == [
+        "identity_official_context",
+        "business_model_value_proposition",
+        "operations_week_mental_load",
+        "cyber_hygiene_minimal",
+        "digital_ai_maturity_subjective",
+        "customer_acquisition_journey",
+        "admin_finance_e_invoicing",
+        "team_organization",
+        "data_ai_readiness_objective",
+    ]
+    assert all({"id", "integration_level", "target_indicators", "maturity_level", "evidence", "implication", "next_test"} <= set(d) for d in report["diagnostic_dimensions"])
+    assert report["scores"]["schema"] == "oa.audit-scores.explainable.v1"
+    assert set(report["scores"]["indices"]) == {"cyber_hygiene", "operational_friction", "digital_ai_maturity"}
+    assert all({"score", "why", "limits", "how_to_improve"} <= set(index) for index in report["scores"]["indices"].values())
+    assert report["traceability"]["schema"] == "oa.audit-traceability.dvfh.v1"
+    assert report["traceability"]["declared_client"]
+    assert report["traceability"]["verified_public"] == []
+    assert report["traceability"]["hypotheses_omar"]
+    assert report["traceability"]["unknowns_or_future_checks"]
+    assert len(report["final_report_outline"]) == 17
+    assert len(report["final_report_sections"]) == 17
+    assert [section["title"] for section in report["final_report_sections"]] == report["final_report_outline"]
+    assert all({"id", "title", "status", "source_buckets", "content", "evidence", "limits", "next_action"} <= set(section) for section in report["final_report_sections"])
+    assert any(section["id"] == "automation_matrix" and section["content"].get("items") for section in report["final_report_sections"])
+    automation_text = json.dumps(next(section for section in report["final_report_sections"] if section["id"] == "automation_matrix"), ensure_ascii=False).casefold()
+    assert "commande" in automation_text or "allerg" in automation_text or "avis google" in automation_text
+    assert any(section["id"] == "quick_wins_7_days" and len(section["content"].get("actions", [])) >= 3 for section in report["final_report_sections"])
+    assert report["conversation_depth_contract"]["schema"] == "oa.audit-step-depth-contract.v1"
+    assert len(report["conversation_depth_contract"]["steps"]) >= 14
+    assert all({"step_id", "goal", "expected_evidence", "validation_criteria", "repair_behaviors", "report_impact"} <= set(step) for step in report["conversation_depth_contract"]["steps"])
+    assert report["agent_profile"]["status"] == "draft_pending_human_validation"
+    assert report["agent_profile"]["mission"]["success_criteria"]
+    assert report["devis_model"]["non_intrusive"] is True
+    assert all({"reference", "recommendation_source", "proof_required", "benefit_expected", "prerequisites", "limits", "human_gate", "status"} <= set(item) for item in report["devis_model"]["line_items"])
+    narrative = report["executive_narrative"]
+    assert isinstance(narrative, str)
+    assert len(narrative.split("\n\n")) >= 5
+    assert "La Fournée" in narrative
+    assert "France Num" in narrative
+    assert "ANSSI" in narrative
+    assert "CNIL" in narrative
+    assert "facturation électronique" in narrative
+    assert "déclar" in narrative.casefold()
+    assert "hypothèse" in narrative.casefold()
+    assert "allerg" in narrative.casefold()
+    assert "- " not in narrative
+
+    docs = ai.build_j1ter_documents(session)
+    assert docs["premium_consulting_report"]["schema"] == "oa.premium-consulting-report.v1"
+    assert "RAPPORT DE DIAGNOSTIC BUSINESS & TECH" in docs["premium_consulting_markdown"]
 
 
 def test_business_tech_critique_feedback_does_not_validate_as_business_answer():

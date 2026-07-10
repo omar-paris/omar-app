@@ -1408,6 +1408,433 @@ def build_audit_agent_frame(session: dict[str, Any], step_id: str) -> dict[str, 
     }
 
 
+PREMIUM_CONSULTING_REFERENCE_DOC = "docs/research/2026-07-08-audit-business-tech-appomar-deep-search-result.md"
+
+PREMIUM_CONSULTING_DIMENSIONS = [
+    {
+        "id": "identity_official_context",
+        "label": "Identité et contexte officiel",
+        "integration_level": "V0",
+        "target_indicators": ["raison sociale", "code NAF", "effectifs", "adresse administrative"],
+        "step_ids": ["identity_public_context", "public_sources_consent"],
+        "implication": "La carte d'identité réduit l'effort de saisie et évite de recommander sur une entreprise mal identifiée.",
+        "next_test": "Présenter une carte d'identité D/V/H/F et faire corriger le client si la source publique diverge.",
+    },
+    {
+        "id": "business_model_value_proposition",
+        "label": "Modèle économique et proposition de valeur",
+        "integration_level": "V0",
+        "target_indicators": ["typologie de clientèle", "saisonnalité", "complexité de l'offre", "canaux de vente"],
+        "step_ids": ["activity_business_model", "person_and_goals"],
+        "implication": "Le diagnostic doit rattacher les recommandations au modèle de revenus réel, pas à une envie générique d'IA.",
+        "next_test": "Faire valider l'offre, la clientèle, le flux dominant et l'objectif dirigeant avant toute recommandation.",
+    },
+    {
+        "id": "operations_week_mental_load",
+        "label": "Semaine réelle et charge mentale",
+        "integration_level": "V0",
+        "target_indicators": ["temps perdu", "tâches répétitives", "charge émotionnelle", "processus chronophages"],
+        "step_ids": ["operations_week"],
+        "implication": "La meilleure première boucle IA doit partir de la friction hebdomadaire vécue, pas d'une matrice théorique.",
+        "next_test": "Quantifier une semaine témoin : heures perdues, fréquence, ressaisie et irritant émotionnel.",
+    },
+    {
+        "id": "cyber_hygiene_minimal",
+        "label": "Hygiène cyber minimale",
+        "integration_level": "V0",
+        "target_indicators": ["sauvegarde 3-2-1", "MFA", "coffre-fort de mots de passe", "mises à jour"],
+        "step_ids": ["digital_tools_data", "risks_limits"],
+        "implication": "Même une TPE doit recevoir un diagnostic cyber pragmatique formulé en continuité d'activité, pas en peur.",
+        "next_test": "Demander ce qui se passe si le téléphone ou l'ordinateur principal meurt demain matin.",
+    },
+    {
+        "id": "digital_ai_maturity_subjective",
+        "label": "Maturité numérique et IA subjective",
+        "integration_level": "V0",
+        "target_indicators": ["outils de communication", "logiciels de gestion", "usages IA", "appétence au changement"],
+        "step_ids": ["person_and_goals", "digital_tools_data"],
+        "implication": "L'acceptabilité de l'agent dépend autant du rapport du dirigeant au digital que de la faisabilité technique.",
+        "next_test": "Comparer ce que le dirigeant dit savoir faire et ce que les outils permettent réellement.",
+    },
+    {
+        "id": "customer_acquisition_journey",
+        "label": "Parcours client et acquisition",
+        "integration_level": "V1",
+        "target_indicators": ["fiche Google", "site internet", "formulaires", "avis", "délai de réponse"],
+        "step_ids": ["marketing_sales", "public_sources_consent"],
+        "implication": "L'audit enrichi doit relier visibilité, demande entrante et conversion, surtout pour les commerces locaux.",
+        "next_test": "Rejouer une demande client depuis Google/site/téléphone jusqu'au prochain pas proposé.",
+    },
+    {
+        "id": "admin_finance_e_invoicing",
+        "label": "Gestion administrative, finance et facturation électronique",
+        "integration_level": "V1",
+        "target_indicators": ["devis", "facturation", "relances impayés", "préparation facture électronique 2027"],
+        "step_ids": ["admin_finance_purchasing"],
+        "implication": "La réforme de facturation électronique 2027 est un levier d'engagement utile si elle reste pédagogique et actionnable.",
+        "next_test": "Identifier l'outil de facturation, les relances et l'écart avec une facture électronique compatible.",
+    },
+    {
+        "id": "team_organization",
+        "label": "Équipe et organisation RH",
+        "integration_level": "V2",
+        "target_indicators": ["plannings", "transmission consignes", "accès collaborateurs", "formation"],
+        "step_ids": ["hr_team_organization"],
+        "implication": "L'organisation d'équipe doit être approfondie quand l'effectif le justifie, sinon l'audit doit éviter la fatigue inutile.",
+        "next_test": "Vérifier si le dirigeant est solo ; sinon cartographier planning, transmission et accès partagés.",
+    },
+    {
+        "id": "data_ai_readiness_objective",
+        "label": "Maturité Data et IA objective",
+        "integration_level": "V2",
+        "target_indicators": ["fichiers clients", "historique facturation", "conformité RGPD", "API/connecteurs"],
+        "step_ids": ["digital_tools_data", "risks_limits"],
+        "implication": "L'agent IA n'est crédible que si les données utiles sont disponibles, propres et autorisées.",
+        "next_test": "Lister les données nécessaires à la première boucle IA et classer leur source : D, V, H ou F.",
+    },
+]
+
+FINAL_REPORT_OUTLINE = [
+    "Résumé exécutif", "Déclarations du client (D)", "Sources vérifiées (V)", "Hypothèses d'Omar (H)", "Diagnostic business", "Diagnostic tech/data", "Analyse SWOT", "Risques et lignes rouges", "Matrice d'automatisation (Impact/Effort/Risque)", "Quick wins (7 jours)", "Plan d'action (30 jours)", "Recommandations OA (Omar & Alex)", "Limites d'automatisation", "Prompts et procédures utiles", "Données d'onboarding agent", "Structure de devis justifié", "Prochaines décisions",
+]
+
+
+def _maturity_level(score: int) -> dict[str, Any]:
+    if score <= 1:
+        return {"level": 1, "label": "initial", "description": "gestion artisanale, dépendante des personnes et peu instrumentée"}
+    if score == 2:
+        return {"level": 2, "label": "structuré partiel", "description": "signaux utiles présents, mais méthode et continuité encore fragiles"}
+    if score == 3:
+        return {"level": 3, "label": "structuré", "description": "flux principaux compris et premiers garde-fous exploitables"}
+    return {"level": 4, "label": "pilotable", "description": "capacité exploitable pour tests courts, mesure et amélioration continue"}
+
+
+def _evidence_items(*values: Any, fallback: str = "non documenté dans l’audit") -> list[str]:
+    items: list[str] = []
+    for value in values:
+        if isinstance(value, list):
+            for item in value:
+                compact = _compact_value(item, max_len=180)
+                if compact and compact not in items:
+                    items.append(compact)
+        else:
+            compact = _compact_value(value, max_len=220)
+            if compact and compact not in items:
+                items.append(compact)
+    return items or [fallback]
+
+
+def _premium_dimension_from_session(dim: dict[str, Any], session: dict[str, Any]) -> dict[str, Any]:
+    evidence: list[str] = []
+    score = 0
+    for step_id in dim.get("step_ids", []):
+        answers = _tree_state_answers(session, str(step_id))
+        compact = _compact_value(answers, max_len=320)
+        if compact:
+            evidence.append(compact)
+            score += 1
+    if dim["id"] == "team_organization" and "hr_team_organization" in (session.get("runtime") or {}).get("skipped_steps", []):
+        evidence.append("Étape équipe sautée : profil dirigeant solo ou effectif non pertinent pour le parcours court.")
+        score = max(score, 2)
+    return {
+        "id": dim["id"], "label": dim["label"], "integration_level": dim["integration_level"],
+        "target_indicators": list(dim.get("target_indicators", [])),
+        "maturity_level": _maturity_level(max(1, min(4, score))),
+        "evidence": evidence[:5] or ["Signal à collecter ou à valider dans un approfondissement."],
+        "implication": dim["implication"], "next_test": dim["next_test"],
+    }
+
+
+def _score_indices(session: dict[str, Any]) -> dict[str, Any]:
+    ops = _tree_state_answers(session, "operations_week")
+    tools = _tree_state_answers(session, "digital_tools_data")
+    risks = _tree_state_answers(session, "risks_limits")
+    person = _tree_state_answers(session, "person_and_goals")
+    ops_text = _compact_value(ops).casefold(); tools_text = _compact_value(tools).casefold(); risks_text = _compact_value(risks).casefold()
+    cyber_score = 35 + (20 if any(t in risks_text for t in ["validation", "humain", "sensible", "allerg"]) else 0) + (15 if any(t in tools_text for t in ["sauvegarde", "backup", "cloud"]) else 0) + (15 if any(t in tools_text for t in ["coffre", "mfa", "2fa", "double authent"]) else 0)
+    friction_score = 30 + (25 if any(t in ops_text for t in ["4 h", "4h", "heures", "temps"]) else 0) + (25 if any(t in tools_text for t in ["recopie", "excel", "whatsapp", "téléphone", "telephone"]) else 0) + (10 if _compact_value(ops.get("detected_irritants")) else 0)
+    maturity_score = 25 + (25 if any(t in tools_text for t in ["caisse", "excel", "google", "instagram", "whatsapp"]) else 0) + (20 if "ia" in _compact_value(person).casefold() else 0) + (15 if any(t in tools_text for t in ["api", "crm", "centralis", "connect"]) else 0)
+    return {"schema": "oa.audit-scores.explainable.v1", "indices": {
+        "cyber_hygiene": {"score": min(100, cyber_score), "why": "Score inspiré ANSSI : sauvegarde, accès, validation humaine et exposition des données sensibles.", "limits": "L'audit conversationnel ne vérifie pas techniquement l'existence d'une sauvegarde restaurable ni la configuration MFA.", "how_to_improve": "Tester une restauration, activer MFA sur la messagerie, utiliser un coffre-fort, documenter les accès critiques."},
+        "operational_friction": {"score": min(100, friction_score), "why": "Score orienté impact : temps déclaré, ressaisie, canaux dispersés et irritants répétitifs.", "limits": "Le volume exact doit être confirmé par une semaine témoin avant promesse de ROI.", "how_to_improve": "Mesurer 7 jours de demandes, créer des catégories d'intentions, supprimer une ressaisie prioritaire."},
+        "digital_ai_maturity": {"score": min(100, maturity_score), "why": "Score inspiré SME AI readiness : outils existants, données structurées, usage IA et appétence au changement.", "limits": "La maturité subjective du dirigeant peut surestimer la disponibilité réelle des données et connecteurs.", "how_to_improve": "Centraliser contacts/historiques utiles, définir règles IA, démarrer par brouillons validés."},
+    }}
+
+
+def _premium_hypotheses(session: dict[str, Any]) -> list[dict[str, Any]]:
+    ops = _tree_state_answers(session, "operations_week"); tools = _tree_state_answers(session, "digital_tools_data"); risks = _tree_state_answers(session, "risks_limits")
+    return [
+        {"id": "h1_operational_roi", "statement": "La première valeur OA se situe dans la réduction de charge mentale et de ressaisie, avant l'automatisation autonome.", "status": "supported" if ops.get("semaine") else "partial", "evidence": _evidence_items(ops.get("semaine"), fallback="irritant hebdomadaire à préciser"), "falsification_test": "Mesurer une semaine réelle : si le volume est faible, prioriser cyber/facturation plutôt qu'agent client."},
+        {"id": "h2_data_fragmentation", "statement": "La dispersion entre téléphone, WhatsApp, caisse, Excel, Google ou réseaux crée une friction de données exploitable par un agent en brouillon.", "status": "supported" if tools.get("outils_racontes") else "unverified", "evidence": _evidence_items(tools.get("outils_racontes"), fallback="outils non cartographiés"), "falsification_test": "Suivre un cas client sur deux canaux et vérifier si le contexte doit être ressaisi."},
+        {"id": "h3_human_gate", "statement": "Les garde-fous humains doivent précéder toute automatisation visible client, notamment allergènes, prix, acomptes et avis négatifs.", "status": "supported" if risks.get("lignes_rouges") else "partial", "evidence": _evidence_items(risks.get("lignes_rouges"), risks.get("donnees_sensibles"), fallback="lignes rouges à préciser"), "falsification_test": "Tester allergènes/prix/acompte/avis négatif : le système doit produire un brouillon, pas un envoi autonome."},
+    ]
+
+
+def _premium_traceability(session: dict[str, Any], hypotheses: list[dict[str, Any]]) -> dict[str, Any]:
+    analysis = _tree_business_analysis(session)
+    return {"schema": "oa.audit-traceability.dvfh.v1", "declared_client": _tree_declared_evidence(session), "verified_public": _tree_verified_public_evidence(session), "hypotheses_omar": [h["statement"] for h in hypotheses], "unknowns_or_future_checks": analysis.get("unknowns", [])}
+
+
+def _premium_agent_profile(session: dict[str, Any]) -> dict[str, Any]:
+    risks = _tree_state_answers(session, "risks_limits")
+    ops = _tree_state_answers(session, "operations_week")
+    tools = _tree_state_answers(session, "digital_tools_data")
+    objective = _compact_value(ops.get("top_caillou") or ops.get("semaine"), max_len=180) or "réduire la friction opérationnelle prioritaire"
+    return {
+        "status": "draft_pending_human_validation",
+        "role": "Assistant IA opérationnel AppOmar",
+        "core_objective": objective,
+        "mission": {
+            "primary": objective,
+            "success_criteria": [
+                "un gain de temps mesuré sur 7 jours",
+                "moins de ressaisie entre outils déclarés",
+                "zéro action externe sans validation humaine",
+                "une preuve client ou métier attachée à chaque recommandation",
+            ],
+            "operating_context": _compact_value(tools.get("outils_racontes"), max_len=220) or "outils à préciser pendant l'onboarding",
+        },
+        "authorized_actions": ["préparer des brouillons", "classer les demandes", "résumer les informations", "signaler les risques"],
+        "prohibited_actions": ["envoyer sans validation", "modifier prix/paiement", "traiter allergènes sans source validée", "contacter un tiers", "acheter/provisionner"],
+        "human_in_the_loop_gates": [risks.get("validation_humaine") or risks.get("lignes_rouges") or "validation humaine avant action externe"],
+    }
+
+
+def _premium_devis_model(session: dict[str, Any], hypotheses: list[dict[str, Any]]) -> dict[str, Any]:
+    ops = _tree_state_answers(session, "operations_week")
+    tools = _tree_state_answers(session, "digital_tools_data")
+    risks = _tree_state_answers(session, "risks_limits")
+    first_hypothesis = hypotheses[0]["id"] if hypotheses else "audit"
+    return {
+        "non_intrusive": True,
+        "principle": "Le devis découle des recommandations validées et de leurs preuves, pas d'un tunnel de vente agressif.",
+        "line_items": [
+            {
+                "reference": "OA-AGENT-DRAFT-01",
+                "recommendation_source": first_hypothesis,
+                "proof_required": "verbatim client + semaine témoin",
+                "benefit_expected": "réduction de charge mentale et de ressaisie",
+                "prerequisites": ["valider les cas d'usage", "mesurer 7 jours de demandes", "définir les validations humaines"],
+                "limits": "brouillons seulement tant que les preuves et gates ne sont pas validés",
+                "human_gate": risks.get("validation_humaine") or "validation client avant envoi externe",
+                "status": "optionnel",
+            },
+            {
+                "reference": "OA-DATA-CLEAN-01",
+                "recommendation_source": "h2_data_fragmentation",
+                "proof_required": _compact_value(tools.get("outils_racontes"), max_len=160) or "cartographie des outils à compléter",
+                "benefit_expected": "supprimer une rupture de flux prioritaire",
+                "prerequisites": ["lister les sources de données", "classer données D/V/H/F", "exclure données interdites"],
+                "limits": "pas d'import client ni connecteur sensible sans GO explicite",
+                "human_gate": "validation humaine avant accès aux données",
+                "status": "à valider",
+            },
+            {
+                "reference": "OA-7D-SMOKE-01",
+                "recommendation_source": first_hypothesis,
+                "proof_required": _compact_value(ops.get("semaine"), max_len=160) or "irritant hebdomadaire à préciser",
+                "benefit_expected": "preuve courte de valeur avant engagement plus large",
+                "prerequisites": ["choisir une boucle", "définir métrique", "bloquer actions payantes/provisioning"],
+                "limits": "test limité, sans promesse ROI avant mesure",
+                "human_gate": "GO client avant toute mise en production",
+                "status": "testable",
+            },
+        ],
+    }
+
+
+def _premium_executive_narrative(session: dict[str, Any], dimensions: list[dict[str, Any]], scores: dict[str, Any], hypotheses: list[dict[str, Any]]) -> str:
+    identity = _tree_state_answers(session, "identity_public_context"); activity = _tree_state_answers(session, "activity_business_model"); person = _tree_state_answers(session, "person_and_goals"); ops = _tree_state_answers(session, "operations_week"); tools = _tree_state_answers(session, "digital_tools_data"); risks = _tree_state_answers(session, "risks_limits")
+    company = _compact_value(identity.get("nom_entreprise"), max_len=120) or "l’entreprise auditée"
+    activity_text = _compact_value(activity.get("recit_activite"), max_len=260) or "activité à préciser"; goals = _compact_value(person.get("objectifs_racontes"), max_len=260) or "objectif dirigeant à préciser"; operations = _compact_value(ops.get("semaine"), max_len=280) or "semaine réelle à préciser"; tools_text = _compact_value(tools.get("outils_racontes"), max_len=280) or "outils et canaux à préciser"; risk_text = _compact_value(risks.get("lignes_rouges"), max_len=260) or "lignes rouges à préciser"; score_summary = scores["indices"]
+    paragraphs = [
+        f"## RAPPORT DE DIAGNOSTIC BUSINESS & TECH — {company}\n\nCe diagnostic suit le cadre AppOmar du rapport deep-search du 8 juillet 2026 : hybridation déclaratif/public, référence France Num pour les TPE/PME, orientation impact Bpifrance, hygiène ANSSI et respect CNIL des consentements. Le point de départ déclaré est : {activity_text}.",
+        f"## Résumé exécutif\n\nPour {company}, le sujet n’est pas de brancher une IA par principe. L'objectif dirigeant déclaré est : {goals}. La bonne lecture consiste à relier modèle économique, semaine réelle, outils, risques et préparation à la facturation électronique 2027, puis à proposer une trajectoire courte et vérifiable.",
+        f"## Déclarations client, hypothèses et limites\n\nLe signal opérationnel déclaré le plus fort est : {operations}. L’hypothèse principale d’Omar est que la première valeur vient d’une réduction de charge mentale et de ressaisie, à confirmer par une semaine témoin. Les faits déclarés, les sources vérifiées, les hypothèses et les inconnues restent séparés pour éviter de transformer une supposition en vérité.",
+        f"## Diagnostic tech/data et score explicable\n\nLes outils et canaux déclarés sont : {tools_text}. Les indices calculés donnent cyber {score_summary['cyber_hygiene']['score']}/100, friction opérationnelle {score_summary['operational_friction']['score']}/100 et maturité numérique/IA {score_summary['digital_ai_maturity']['score']}/100. Ces scores ne sont pas des vérités techniques : ils expliquent pourquoi progresser, leurs limites, et le prochain test terrain.",
+        f"## Risques et lignes rouges\n\nLes risques déclarés imposent une architecture prudente : {risk_text}. Les allergènes, prix, acomptes, avis négatifs et promesses client doivent rester sous validation humaine. C’est la condition pour respecter la confiance métier, les principes CNIL et la logique ANSSI de continuité d’activité plutôt qu’un discours anxiogène.",
+        f"## Trajectoire recommandée\n\nLa trajectoire AppOmar reste non intrusive : quick wins en 7 jours, plan d’action 30 jours, agent_profile en brouillon validé, puis devis justifié uniquement à partir des recommandations co-validées. Le rapport final doit donc produire à la fois une synthèse narrative, une matrice impact/effort/risque, des garde-fous, des prompts utiles et des données d’onboarding agent exploitables.",
+    ]
+    return "\n\n".join(paragraphs)
+
+
+PREMIUM_FINAL_SECTION_IDS = [
+    "executive_summary",
+    "declared_client",
+    "verified_public",
+    "omar_hypotheses",
+    "business_diagnosis",
+    "tech_data_diagnosis",
+    "swot",
+    "risks_guardrails",
+    "automation_matrix",
+    "quick_wins_7_days",
+    "action_plan_30_days",
+    "oa_recommendations",
+    "automation_limits",
+    "prompts_procedures",
+    "agent_onboarding_data",
+    "justified_devis",
+    "next_decisions",
+]
+
+
+def _premium_source_buckets(traceability: dict[str, Any]) -> dict[str, int]:
+    return {
+        "declared_client": len(traceability.get("declared_client") or []),
+        "verified_public": len(traceability.get("verified_public") or []),
+        "hypotheses_omar": len(traceability.get("hypotheses_omar") or []),
+        "unknowns_or_future_checks": len(traceability.get("unknowns_or_future_checks") or []),
+    }
+
+
+def _premium_final_report_sections(session: dict[str, Any], dimensions: list[dict[str, Any]], scores: dict[str, Any], hypotheses: list[dict[str, Any]], traceability: dict[str, Any], analysis: dict[str, Any]) -> list[dict[str, Any]]:
+    identity = _tree_state_answers(session, "identity_public_context")
+    activity = _tree_state_answers(session, "activity_business_model")
+    person = _tree_state_answers(session, "person_and_goals")
+    ops = _tree_state_answers(session, "operations_week")
+    admin = _tree_state_answers(session, "admin_finance_purchasing")
+    tools = _tree_state_answers(session, "digital_tools_data")
+    risks = _tree_state_answers(session, "risks_limits")
+    company = _compact_value(identity.get("nom_entreprise"), max_len=120) or "entreprise auditée"
+    refs = load_sector_references()
+    raw_sector_ref = refs.get(str(analysis.get("sector_id") or "")) or refs.get("generic_tpe") or {}
+    sector_ref: dict[str, Any] = raw_sector_ref if isinstance(raw_sector_ref, dict) else {}
+    raw_benchmarks = sector_ref.get("benchmarks")
+    benchmarks: dict[str, Any] = raw_benchmarks if isinstance(raw_benchmarks, dict) else {}
+    raw_first_week_tests = benchmarks.get("first_week_tests")
+    first_week_tests: list[Any] = raw_first_week_tests if isinstance(raw_first_week_tests, list) else []
+    raw_automation_candidates = benchmarks.get("automation_candidates")
+    automation_candidates: list[Any] = raw_automation_candidates if isinstance(raw_automation_candidates, list) else []
+    raw_risk_flags = sector_ref.get("risk_flags")
+    risk_flags: list[Any] = raw_risk_flags if isinstance(raw_risk_flags, list) else []
+    bucket_counts = _premium_source_buckets(traceability)
+
+    def section(idx: int, status: str, content: dict[str, Any], evidence: list[str], limits: str, next_action: str) -> dict[str, Any]:
+        return {
+            "id": PREMIUM_FINAL_SECTION_IDS[idx],
+            "title": FINAL_REPORT_OUTLINE[idx],
+            "status": status,
+            "source_buckets": bucket_counts,
+            "content": content,
+            "evidence": evidence or ["preuve à collecter"],
+            "limits": limits,
+            "next_action": next_action,
+        }
+
+    declared = traceability.get("declared_client") or []
+    verified = traceability.get("verified_public") or []
+    unknowns = traceability.get("unknowns_or_future_checks") or []
+    recommendations = analysis.get("recommendations") if isinstance(analysis.get("recommendations"), list) else []
+    swot = {
+        "forces": ["connaissance métier déclarée", "proximité client", _compact_value(activity.get("canaux_vente")) or "canal de vente à préciser"],
+        "faiblesses": ["ressaisie ou dispersion d'outils", "dépendance aux validations humaines", "mesure ROI encore à objectiver"],
+        "opportunites": automation_candidates[:3] or [h["statement"] for h in hypotheses[:2]],
+        "menaces": risk_flags[:3] or ["source publique non validée", "automatisation trop rapide", "données incomplètes"],
+    }
+    automation_items = [
+        {"candidate": str(candidate), "impact": "moyen à fort", "effort": "faible à moyen", "risk": "validation humaine requise", "source": "sector_pack"}
+        for candidate in (automation_candidates[:5] or ["brouillons de réponses", "classement demandes", "checklist hebdomadaire"])
+    ]
+    quick_wins = [
+        {"action": str(item), "proof": "test 7 jours", "owner": "client + Omar", "gate": "aucune action externe sans validation"}
+        for item in (first_week_tests[:4] or ["mesurer 20 demandes", "classer les irritants", "préparer 5 brouillons", "tester une checklist"])
+    ]
+    return [
+        section(0, "ready", {"company": company, "sector_id": analysis.get("sector_id"), "thesis": "prioriser une boucle IA courte, mesurée et validée humainement"}, declared[:4], "résumé dépendant des réponses et sources consenties", "valider la synthèse avec le dirigeant"),
+        section(1, "ready", {"items": declared}, declared[:5], "déclaratif non vérifié techniquement", "corriger les déclarations ambiguës"),
+        section(2, "empty" if not verified else "partial", {"items": verified}, verified or ["aucune source publique confirmée dans cette session"], "ne jamais convertir une source non confirmée en fait", "lancer/valider la recherche publique si consentie"),
+        section(3, "ready", {"items": hypotheses}, [h.get("statement", "") for h in hypotheses], "hypothèses falsifiables, pas des faits", "choisir les tests qui invalident chaque hypothèse"),
+        section(4, "partial", {"activity": activity, "goals": person, "dimensions": [d for d in dimensions if d["id"] in {"business_model_value_proposition", "customer_acquisition_journey", "admin_finance_e_invoicing"}]}, _evidence_items(activity, person, admin), "CA, marge et concurrence restent souvent à compléter", "compléter modèle économique, prix, marge et acquisition"),
+        section(5, "partial", {"tools": tools, "scores": scores.get("indices")}, _evidence_items(tools), "scores conversationnels non audit technique", "tester sauvegarde, accès et rupture de flux"),
+        section(6, "draft", swot, declared[:3], "SWOT co-validée nécessaire avant usage commercial", "faire réagir le client item par item"),
+        section(7, "ready", {"declared_risks": risks, "sector_risk_flags": risk_flags}, _evidence_items(risks, risk_flags), "les règles finales doivent être validées dans l'onboarding", "bloquer allergènes/prix/paiement/contact tiers sans validation"),
+        section(8, "draft", {"items": automation_items}, [item["candidate"] for item in automation_items], "impact/effort à confirmer par mesure terrain", "classer 3 opportunités avec le client"),
+        section(9, "testable", {"actions": quick_wins}, [item["action"] for item in quick_wins], "quick wins limités, sans promesse ROI", "exécuter un test 7 jours"),
+        section(10, "draft", {"days_0_7": "mesure et preuves", "days_8_14": "brouillons validés", "days_15_30": "stabilisation et décision devis"}, _evidence_items(ops, tools), "le plan dépend de la disponibilité client", "poser une métrique unique de succès"),
+        section(11, "draft", {"recommendations": recommendations}, [str(r.get("text") or r) for r in recommendations[:4]] if recommendations else ["recommandations à co-valider"], "pas de recommandation sans preuve liée", "rattacher chaque reco à D/V/H/F"),
+        section(12, "ready", {"limits": ["pas d'envoi autonome", "pas de paiement/provisioning", "pas de décision sensible", "pas de source non consentie"]}, _evidence_items(risks), "limites à adapter par métier réglementé", "intégrer les gates dans l'agent_profile"),
+        section(13, "draft", {"procedures": ["réponse brouillon", "classement intention", "résumé source", "escalade risque"]}, _evidence_items(tools, risks), "prompts non exécutoires sans validation", "écrire les procédures avec exemples réels"),
+        section(14, "ready", {"agent_profile": _premium_agent_profile(session)}, _evidence_items(activity, ops, tools, risks), "profil agent brouillon tant que non testé", "importer dans onboarding après GO client"),
+        section(15, "draft", {"devis_model": _premium_devis_model(session, hypotheses)}, _evidence_items(ops, tools), "prix/ligne finale à valider humainement", "générer devis seulement après validation recommandations"),
+        section(16, "ready", {"decisions": ["valider/corriger rapport", "choisir quick win", "autoriser dry-run", "demander devis"]}, _evidence_items(person, ops), "le client peut digérer sans suite commerciale", "proposer suite sans pression"),
+    ]
+
+
+def _premium_conversation_depth_contract(session: dict[str, Any]) -> dict[str, Any]:
+    tree = load_business_tech_tree()
+    steps: list[dict[str, Any]] = []
+    for raw_step in tree.get("steps") or []:
+        if not isinstance(raw_step, dict):
+            continue
+        step_id = str(raw_step.get("step_id") or "")
+        inputs = raw_step.get("inputs") if isinstance(raw_step.get("inputs"), list) else []
+        required_inputs = [str(item.get("id")) for item in inputs if isinstance(item, dict) and item.get("required")]
+        outputs = raw_step.get("outputs") if isinstance(raw_step.get("outputs"), dict) else {}
+        impact = []
+        for bucket, values in outputs.items():
+            if isinstance(values, list):
+                impact.extend(f"{bucket}.{value}" for value in values)
+        steps.append({
+            "step_id": step_id,
+            "acte": raw_step.get("acte"),
+            "goal": raw_step.get("objectif") or raw_step.get("label"),
+            "expected_evidence": required_inputs,
+            "validation_criteria": raw_step.get("completion") or required_inputs or ["réponse exploitable"],
+            "repair_behaviors": ["relancer une fois si trop vague", "proposer exemples métier", "bloquer validation si feedback produit non résolu", "séparer D/V/H/F"],
+            "report_impact": impact or ["rapport.limites"],
+        })
+    return {"schema": "oa.audit-step-depth-contract.v1", "source": "audit_tree.business_tech.v1.yaml", "steps": steps}
+
+
+def build_premium_consulting_report(session: dict[str, Any]) -> dict[str, Any]:
+    """Build deterministic AppOmar deep-search aligned premium consulting output."""
+    if not _is_business_tech_tree_session(session):
+        raise ValueError("build_premium_consulting_report requires business_tech tree session")
+    dimensions = [_premium_dimension_from_session(dim, session) for dim in PREMIUM_CONSULTING_DIMENSIONS]
+    scores = _score_indices(session)
+    hypotheses = _premium_hypotheses(session)
+    traceability = _premium_traceability(session, hypotheses)
+    narrative = _premium_executive_narrative(session, dimensions, scores, hypotheses)
+    analysis = _tree_business_analysis(session)
+    return {
+        "schema": "oa.premium-consulting-report.v1",
+        "session_id": session.get("id"),
+        "sector_id": analysis["sector_id"],
+        "method": {
+            "reference_doc": PREMIUM_CONSULTING_REFERENCE_DOC,
+            "frameworks": ["France Num", "Bpifrance", "ANSSI", "CNIL", "OECD SME AI Readiness", "Diag Data IA"],
+            "principles": ["hybrider déclarations client et sources publiques seulement consenties", "traduire les frameworks en questions pratiques sans jargon", "scorer simplement avec pourquoi, limite et progression", "générer rapport, agent_profile et devis justifié non intrusif"],
+        },
+        "diagnostic_dimensions": dimensions,
+        "scores": scores,
+        "traceability": traceability,
+        "hypotheses": hypotheses,
+        "final_report_outline": FINAL_REPORT_OUTLINE,
+        "final_report_sections": _premium_final_report_sections(session, dimensions, scores, hypotheses, traceability, analysis),
+        "conversation_depth_contract": _premium_conversation_depth_contract(session),
+        "agent_profile": _premium_agent_profile(session),
+        "devis_model": _premium_devis_model(session, hypotheses),
+        "executive_narrative": narrative,
+    }
+
+
+def premium_consulting_markdown(report: dict[str, Any]) -> str:
+    lines = [str(report.get("executive_narrative") or "")]
+    lines.append("\n## Structure du rapport final\n")
+    for idx, title in enumerate(report.get("final_report_outline", []) if isinstance(report.get("final_report_outline"), list) else [], start=1):
+        lines.append(f"### {idx}. {title}")
+    lines.append("\n## Scores explicables\n")
+    indices = ((report.get("scores") or {}).get("indices") or {}) if isinstance(report.get("scores"), dict) else {}
+    for key, index in indices.items():
+        lines.append(f"### {key} — {index.get('score')}/100")
+        lines.append(str(index.get("why") or ""))
+        lines.append(f"Limite : {index.get('limits') or 'à préciser'}. Progression : {index.get('how_to_improve') or 'à définir'}.\n")
+    lines.append("## Traçabilité D/V/H/F\n")
+    trace = report.get("traceability") if isinstance(report.get("traceability"), dict) else {}
+    lines.append(f"Déclaré client : {len(trace.get('declared_client', []) or [])} éléments. Sources vérifiées : {len(trace.get('verified_public', []) or [])} éléments. Hypothèses : {len(trace.get('hypotheses_omar', []) or [])}. Inconnues : {len(trace.get('unknowns_or_future_checks', []) or [])}.")
+    return "\n".join(lines).strip() + "\n"
+
 def build_agent_brief(session: dict[str, Any]) -> dict[str, Any]:
     analysis = _tree_business_analysis(session)
     identity = _tree_state_answers(session, "identity_public_context")
@@ -1732,10 +2159,13 @@ def build_j1ter_documents(session: dict[str, Any]) -> dict[str, Any]:
         f"Validation humaine : {human_gate}.",
         f"Données/lignes rouges : {risks.get('lignes_rouges') or 'à préciser'}.",
     ])
+    premium_report = build_premium_consulting_report(session)
     return {
         "schema": "oa.j1ter.documents.v1",
         "session_id": session.get("id"),
         "structured_audit": structured_audit,
+        "premium_consulting_report": premium_report,
+        "premium_consulting_markdown": premium_consulting_markdown(premium_report),
         "manifest_business": manifest_business,
         "owner_identity": owner_identity,
         "agent_profile": agent_profile,
