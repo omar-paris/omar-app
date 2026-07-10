@@ -252,6 +252,39 @@ def test_business_tech_product_feedback_after_answer_blocks_auto_validation_unti
     assert ai.validate_step(session, "activity_business_model")["ok"] is True
 
 
+def test_business_tech_rejects_weak_confused_or_hostile_inputs_instead_of_autocompleting_steps():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+    for text, step in [
+        ("Continuer sans compte", "pacte"),
+        ("Boulangerie B&B 2 Bd du Bois le Prêtre", "identity_public_context"),
+        ("Non, on continue sans recherche", "public_sources_consent"),
+    ]:
+        session = ai.add_message(session, text)["session"]
+        validated = ai.validate_step(session, step)
+        assert validated["ok"], validated
+        session = validated["session"]
+
+    weak_cases = [
+        ("activity_business_model", "oui", "recit_activite"),
+        ("person_and_goals", "heu tu me posees une question ou c'est une affirmation?", "objectifs_racontes"),
+        ("operations_week", "je ne sais pas", "semaine"),
+        ("admin_finance_purchasing", "je ne sais pas, tu m'aides à trouver", "admin_racontee"),
+        ("digital_tools_data", "a la la la", "outils_racontes"),
+        ("risks_limits", "tu valides tout tout seul ?", "lignes_rouges"),
+        ("diagnosis", "n'importe quoi", "swot_reaction"),
+    ]
+    for step, text, required_field in weak_cases:
+        isolated = json.loads(json.dumps(session, ensure_ascii=False))
+        isolated["current_step"] = step
+        after_message = ai.add_message(isolated, text)
+        isolated = after_message["session"]
+        validation = ai.validate_step(isolated, step)
+        assert validation["ok"] is False, {"step": step, "text": text, "validation": validation, "answers": isolated.get("state", {}).get(step)}
+        assert validation["error"] in {"step_incomplete", "product_feedback_unresolved", "answer_not_actionable"}
+        assert required_field in validation["completion"]["missing_inputs"] or validation["completion"].get("blocked_by_feedback") is True
+        assert step not in isolated.get("validated_steps", [])
+
+
 def test_business_tech_replays_alex_live_transcript_as_feedback_not_completed_session():
     session = ai.create_session({"tree_id": "business_tech"})["session"]
     transcript = [

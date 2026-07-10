@@ -851,6 +851,88 @@ def _tree_feedback_repair_question(feedback: dict[str, Any], step_id: str) -> st
     )
 
 
+CONSULTANT_STEPS_REQUIRING_ACTIONABLE_TEXT = {
+    "activity_business_model",
+    "person_and_goals",
+    "operations_week",
+    "admin_finance_purchasing",
+    "digital_tools_data",
+    "risks_limits",
+    "diagnosis",
+    "recommendations",
+    "validation",
+}
+
+NON_ACTIONABLE_EXACT = {
+    "oui",
+    "non",
+    "ok",
+    "d'accord",
+    "daccord",
+    "je ne sais pas",
+    "je sais pas",
+    "aucune idée",
+    "aucune idee",
+    "n'importe quoi",
+    "n’importe quoi",
+    "a la la la",
+    "alala",
+    "lalala",
+    "heu",
+    "euh",
+}
+
+NON_ACTIONABLE_PATTERNS = [
+    r"\bje ne sais pas\b",
+    r"\bje sais pas\b",
+    r"\btu m.?aides\b",
+    r"\bvous m.?aidez\b",
+    r"\baidez[- ]?moi\b",
+    r"\btu valides\b",
+    r"\bvous validez\b",
+    r"\btu me poses? une question\b",
+    r"\bquestion ou c.?est une affirmation\b",
+    r"\bn.?importe quoi\b",
+]
+
+
+def _tree_plain_text_actionability(step_id: str, text: str) -> dict[str, Any]:
+    raw = re.sub(r"\s+", " ", str(text or "")).strip()
+    hay = raw.casefold()
+    if step_id not in CONSULTANT_STEPS_REQUIRING_ACTIONABLE_TEXT or not raw:
+        return {"actionable": True}
+    if step_id == "operations_week" and hay in {"tout", "un peu tout", "tout ça", "tout ca"}:
+        return {"actionable": True}
+    if step_id == "digital_tools_data" and hay in {"beaucoup", "plein", "plein de choses", "pas mal", "beaucoup de choses"}:
+        return {"actionable": True}
+    if step_id in {"diagnosis", "recommendations", "validation"} and hay in {"oui", "ok", "d'accord", "daccord", "oui je valide"}:
+        return {"actionable": True}
+    if hay in NON_ACTIONABLE_EXACT or any(re.search(pattern, hay, re.I) for pattern in NON_ACTIONABLE_PATTERNS):
+        return {"actionable": False, "kind": "non_actionable", "reason": "weak_or_confused_input", "verbatim": raw}
+    words = re.findall(r"[\wÀ-ÿ']+", raw, flags=re.UNICODE)
+    if len(words) < 3 and step_id not in {"diagnosis", "recommendations", "validation"}:
+        return {"actionable": False, "kind": "non_actionable", "reason": "too_short_for_consultant_step", "verbatim": raw}
+    if "?" in raw and any(token in hay for token in ["tu ", "vous ", "omar", "valide", "question"]):
+        return {"actionable": False, "kind": "non_actionable", "reason": "user_question_not_business_answer", "verbatim": raw}
+    return {"actionable": True}
+
+
+def _tree_non_actionable_repair_question(classification: dict[str, Any], step_id: str) -> str:
+    if step_id == "operations_week" and classification.get("reason") == "weak_or_confused_input":
+        return "C’est normal si vous ne savez pas encore. Je ne vais pas inventer. Choisissez une piste à explorer : commandes clients, production/invendus, achats/fournisseurs, caisse/factures, planning/équipe, ou dites-moi ce que vous voulez qu’on observe ensemble."
+    if step_id == "admin_finance_purchasing":
+        return "Je ne peux pas transformer “je ne sais pas” en diagnostic. Pour vous aider : achats, factures, impayés, caisse, marge ou trésorerie — quel sujet mérite qu’on creuse en premier ?"
+    if step_id == "digital_tools_data":
+        return "Je ne vais pas valider ça comme cartographie d’outils. Dites-moi simplement ce que vous utilisez aujourd’hui : caisse, téléphone, WhatsApp, Excel, logiciel de factures, Google Business, réseaux, cahier papier — même incomplet."
+    if step_id == "risks_limits":
+        return "Non : je ne dois pas tout valider seul. La règle à définir ici est justement ce qui reste sous validation humaine : allergènes, prix, paiements, avis, commandes, données clients ou autre. Que voulez-vous garder sous contrôle humain ?"
+    if step_id == "diagnosis":
+        return "Je comprends que le diagnostic ne vous va pas. Je ne le valide pas. Dites-moi ce qui est faux en priorité : identité, activité, irritants, outils, risques, recommandations — ou écrivez “tout est à reprendre”."
+    if step_id == "person_and_goals":
+        return "Bonne remarque : si ce n’était pas clair, je pose une vraie question. Votre priorité personnelle aujourd’hui : rentabilité quotidienne, temps libéré, investissement, patrimoine, transmission, ou autre chose ?"
+    return "Je ne peux pas valider cette réponse comme donnée métier fiable. Reformulons concrètement : quel fait dois-je retenir pour cette étape ?"
+
+
 def _tree_sector_specific_question(session: dict[str, Any], step_id: str, missing: list[str]) -> str | None:
     """Replace generic prompts with sector-aware consultant questions when enough context exists."""
     sector_id = _tree_sector_id(session)
@@ -900,10 +982,21 @@ def _tree_input_by_id(step: dict[str, Any], input_id: str) -> dict[str, Any] | N
     return None
 
 
+def _tree_answer_value_is_missing(value: Any) -> bool:
+    if value in (None, "", []):
+        return True
+    if isinstance(value, str):
+        normalized = re.sub(r"\s+", " ", value).strip().casefold()
+        return normalized in {"à préciser", "a préciser", "je ne sais pas", "je sais pas", "n'importe quoi", "n’importe quoi"}
+    if isinstance(value, list):
+        return not [item for item in value if not _tree_answer_value_is_missing(item)]
+    return False
+
+
 def _tree_missing_inputs(session: dict[str, Any], step_id: str) -> list[str]:
     step = _tree_steps_by_id(load_business_tech_tree()).get(step_id) or {}
     answers = ((session.get("state") or {}).get(step_id) or {}).get("answers") or {}
-    return [input_id for input_id in _tree_step_required_inputs(step) if answers.get(input_id) in (None, "", [])]
+    return [input_id for input_id in _tree_step_required_inputs(step) if _tree_answer_value_is_missing(answers.get(input_id))]
 
 
 def _tree_step_completion(session: dict[str, Any], step_id: str) -> dict[str, Any]:
@@ -1454,6 +1547,30 @@ def business_tech_add_message(session: dict[str, Any], text: str) -> dict[str, A
             "missing_inputs": missing,
         }
         session.setdefault("asked_questions", []).append({"step": step_id, "question": q["question"], "at": now, "feedback_repair": True})
+        return {"session": session, "omar": q}
+
+    actionability = _tree_plain_text_actionability(step_id, raw_text) if is_plain_free_text else {"actionable": True}
+    if not actionability.get("actionable"):
+        actionability = {**actionability, "step": step_id, "at": now}
+        session.setdefault("non_actionable_inputs", []).append(actionability)
+        session.setdefault("messages", []).append({"role": "client", "text": raw_text, "step": step_id, "intent": "non_actionable", "at": now})
+        session.setdefault("runtime", {})["last_non_actionable_input"] = actionability
+        missing = _tree_missing_inputs(session, step_id)
+        q = {
+            **business_tech_next_question(session, step_id),
+            "question": _limit_message_lines(_tree_non_actionable_repair_question(actionability, step_id), int((session.get("runtime") or {}).get("policy", {}).get("message_max_lignes") or 3)),
+            "interaction": "validation_card",
+            "options": ["Montrez-moi des pistes", "Je réponds concrètement", "Corriger ce que vous avez compris"],
+            "actions": [
+                {"id": "show_examples", "label": "Montrez-moi des pistes", "intent": "help"},
+                {"id": "answer_business", "label": "Je réponds concrètement", "intent": "answer"},
+                {"id": "modify", "label": "Corriger ce que vous avez compris", "intent": "modify"},
+            ],
+            "non_actionable_input": actionability,
+            "completion": {**_tree_step_completion(session, step_id), "ready": False, "missing_inputs": missing},
+            "missing_inputs": missing,
+        }
+        session.setdefault("asked_questions", []).append({"step": step_id, "question": q["question"], "at": now, "non_actionable_repair": True})
         return {"session": session, "omar": q}
 
     contextual = _tree_interpret_contextual_free_text(step_id, raw_text) if is_plain_free_text else None
