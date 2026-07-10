@@ -8,7 +8,7 @@ products:
     famille: formule
     label: "Formule Starter"
     pitch: "Votre assistant + 1 service métier, sur serveur managé."
-    prix_mensuel: 49
+    prix_mensuel: 67
     setup: 0
     inclus: ["VPS Hermes OA (serveur EU)", "Agent dédié", "Hub local", "Sauvegardes", "1 connexion (email ou agenda)"]
     cible: "artisan/commerçant qui démarre"

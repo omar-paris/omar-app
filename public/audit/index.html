@@ -439,9 +439,26 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     try{const data=await apiGet(`/api/audit-sessions/${state.sessionId}/documents`); renderJ1terDocuments(data.documents); return data.documents}
     catch(error){console.warn('documents J1-ter indisponibles', error); return null}
   }
+  async function createDevisFromAudit(){
+    if(!state.auditId) return null;
+    const data=await api('/api/devis',{audit_id:state.auditId});
+    state.devis=data.devis;
+    return data.devis;
+  }
+  function devisHtml(devis){
+    if(!devis) return '<p class="status">Devis non généré.</p>';
+    const lines=(devis.lignes||[]).map(line=>`<li><strong>${esc(line.label||line.id)}</strong> — ${esc(line.prix_mensuel!=null?`${line.prix_mensuel} EUR/mois`:line.prix_unique!=null?`${line.prix_unique} EUR setup`:'sur devis')} <span class="status">${esc((line.justification&&line.justification.reason)||'à valider')}</span></li>`).join('');
+    const email=(devis.client&&devis.client.email)?` · prospect ${esc(devis.client.email)}`:'';
+    return `<section class="understanding visible"><h3>Proposition de devis</h3><p><strong>${esc(devis.total_mensuel_eur)} EUR/mois HT</strong> + ${esc(devis.total_unique_eur)} EUR initial HT · statut ${esc(devis.statut)}${email}.</p><ul>${lines}</ul><p class="status">Base d’entrée Omar & Alex : 67 EUR/mois. Aucun paiement en ligne n’est lancé ici ; le devis reste à valider humainement.</p></section>`;
+  }
   async function generateReport(){
     if(state.reportReady) return; $('audit-status').textContent='Génération du rapport…';
-    try{const data=state.sessionId ? await api(`/api/audit-sessions/${state.sessionId}/report`, buildFallbackPayload()) : await api('/api/audits', buildFallbackPayload()); setBusy(false); renderReport(data); await loadJ1terDocuments()}
+    try{
+      const data=state.sessionId ? await api(`/api/audit-sessions/${state.sessionId}/report`, buildFallbackPayload()) : await api('/api/audits', buildFallbackPayload());
+      setBusy(false); renderReport(data); await loadJ1terDocuments();
+      try{const devis=await createDevisFromAudit(); if(devis){$('audit-result').insertAdjacentHTML('beforeend', devisHtml(devis)); $('audit-status').textContent='Rapport généré, lead prospect tracé si connecté, devis proposé.';}}
+      catch(devisError){$('audit-status').textContent=`Rapport généré, devis à reprendre : ${devisError.message}`;}
+    }
     catch(error){setBusy(false); $('audit-status').textContent=`Rapport non généré : ${error.message}. La conversation reste enregistrée localement.`}
   }
   function autoResize(){const el=$('reply'); el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,150)+'px'}

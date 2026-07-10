@@ -562,6 +562,60 @@ def test_audit_session_backend_drives_sector_questions_and_exports(tmp_path):
         proc.terminate()
         proc.wait(timeout=3)
 
+
+def test_audit_session_final_report_creates_devis_and_lead_from_oauth_email(tmp_path):
+    proc, port = start_server(tmp_path)
+    try:
+        headers = {"content-type": "application/json", "X-Auth-Request-Email": "prospect@example.com"}
+        status, created = request_json(
+            "POST",
+            f"http://127.0.0.1:{port}/api/audit-sessions",
+            {"message": "Je suis boulanger à Lille"},
+            headers,
+        )
+        assert status == 201
+        sid = created["session"]["id"]
+        assert created["session"]["prospect"]["email"] == "prospect@example.com"
+
+        status, report = request_json(
+            "POST",
+            f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/report",
+            {
+                "activity": "Boulangerie artisanale à Lille",
+                "repetitive_tasks": "réponses WhatsApp, devis de gâteaux, relances commandes",
+                "current_tools": "WhatsApp, email, Excel",
+                "constraints": "allergènes, prix, validation humaine",
+            },
+            headers,
+        )
+        assert status == 201
+        aid = report["audit"]["id"]
+        assert report["lead"]["path"] == f"var/leads/lead-{aid}.json"
+        lead = json.loads((tmp_path / "leads" / f"lead-{aid}.json").read_text(encoding="utf-8"))
+        assert lead["email"] == "prospect@example.com"
+        assert lead["audit_session_id"] == sid
+        assert lead["source"] == "app.omar.paris/audit"
+        assert lead["safety"]["paid_actions"] == "none"
+
+        status, devis_created = request_json("POST", f"http://127.0.0.1:{port}/api/devis", {"audit_id": aid})
+        assert status == 201
+        devis = devis_created["devis"]
+        assert devis["client"]["email"] == "prospect@example.com"
+        assert devis["total_mensuel_eur"] == 67
+        assert any(line["id"] == "formule-starter" for line in devis["lignes"])
+
+        status, placeholder_devis = request_json(
+            "POST",
+            f"http://127.0.0.1:{port}/api/devis",
+            {"audit_id": aid, "client": {"email": "prospect " + "OAuth Google"}},
+        )
+        assert status == 201
+        assert placeholder_devis["devis"]["client"]["email"] == "prospect@example.com"
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
 def test_devis_api_accepts_item_objects_from_frontend_without_crashing(tmp_path):
     proc, port = start_server(tmp_path)
     try:
@@ -569,7 +623,7 @@ def test_devis_api_accepts_item_objects_from_frontend_without_crashing(tmp_path)
         status, created = request_json("POST", f"http://127.0.0.1:{port}/api/devis", payload)
         assert status == 201
         assert created["ok"] is True
-        assert created["devis"]["total_mensuel_eur"] == 49
+        assert created["devis"]["total_mensuel_eur"] == 67
         assert created["devis"]["total_unique_eur"] == 150
         assert [line["id"] for line in created["devis"]["lignes"]] == ["formule-starter", "presta-onboarding"]
     finally:
@@ -764,7 +818,7 @@ def test_rigorous_audit_persists_consents_sources_devis_source_and_delete(tmp_pa
         assert devis["statut"] == "a_valider"
         assert devis["audit_id"] == aid
         assert devis["justification"]
-        assert devis["total_mensuel_eur"] >= 49
+        assert devis["total_mensuel_eur"] >= 67
 
         status, deleted = request_json("POST", f"http://127.0.0.1:{port}/api/audits/{aid}/delete", {"confirm_delete": True})
         assert status == 200
@@ -822,7 +876,7 @@ def test_devis_requires_user_validation_before_checkout_then_reports_unconfigure
             assert body["error"] == "payment_provider_unconfigured"
             assert body["payment_provider_target"] == "not_configured"
             assert body["legacy_provider_disabled"] is True
-            assert body["total_mensuel_eur"] == 49
+            assert body["total_mensuel_eur"] == 67
             assert body["total_unique_eur"] == 150
     finally:
         proc.terminate()
@@ -855,7 +909,7 @@ def test_devis_accepts_dict_items_and_exports_pdf(tmp_path):
         assert status == 201
         devis = created["devis"]
         assert devis["statut"] == "a_valider"
-        assert devis["total_mensuel_eur"] == 98
+        assert devis["total_mensuel_eur"] == 134
         assert devis["total_unique_eur"] == 150
         assert devis["lignes"][0]["qty"] == 2
 
@@ -866,8 +920,8 @@ def test_devis_accepts_dict_items_and_exports_pdf(tmp_path):
             assert response.headers["content-type"] == "application/pdf"
             assert body.startswith(b"%PDF-1.4")
             assert b"Omar & Alex" in body
-            assert b"Formule Starter: 49 EUR/mois x2 = 98 EUR/mois" in body
-            assert b"Total mensuel HT: 98 EUR" in body
+            assert b"Formule Starter: 67 EUR/mois x2 = 134 EUR/mois" in body
+            assert b"Total mensuel HT: 134 EUR" in body
     finally:
         proc.terminate()
         proc.wait(timeout=3)
