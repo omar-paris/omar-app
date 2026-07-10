@@ -255,19 +255,48 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
   }
   async function runPublicResearch(){
     if(!state.sessionId) return null;
-    const activityText=state.answers.activity||'';
-    const payload={company_public_name:activityText,location:activityText,consents:{public_web_search:false,legal_registry_lookup:true,social_media_lookup:false},dry_run:false};
-    const data=await api(`/api/audit-sessions/${state.sessionId}/public-research`, payload);
+    const data=await api(`/api/audit-sessions/${state.sessionId}/public-research`, {dry_run:false});
+    syncSession(data.session);
     state.publicResearch=data.research_result||null; state.researchDone=true;
     return state.publicResearch;
   }
   function summarizePublicResearch(result){
     if(!result) return 'Recherche publique terminée : aucune donnée exploitable retournée.';
-    const facts=(result.facts||[]).slice(0,2).map(f=>String(f.value||'').trim()).filter(Boolean);
+    const facts=(result.facts||[]).slice(0,3).map(f=>String(f.value||f.label||'').trim()).filter(Boolean);
     const missing=(result.not_executed||[]).slice(0,2).map(x=>String(x.label||x.reason||'source non exécutée')).filter(Boolean);
-    if(facts.length) return `J’ai trouvé des éléments publics à vous faire valider : ${facts.join(' / ')}. Je les marque comme vérifiés publiquement, pas comme déclarés par vous.`;
-    if(missing.length) return `Recherche publique autorisée, mais rien de fiable n’a été récupéré automatiquement pour l’instant. Sources non exploitées : ${missing.join(', ')}.`;
-    return 'Recherche publique autorisée, mais aucun fait fiable n’a été récupéré automatiquement.';
+    if(facts.length) return `J’ai trouvé ces éléments publics à valider : ${facts.join(' / ')}. Je ne les utiliserai comme faits vérifiés que si vous confirmez.`;
+    if(missing.length) return `Recherche publique lancée, mais je n’ai pas encore de fait fiable automatique. Sources non exploitées : ${missing.join(', ')}. Validez si l’on continue sans fait public vérifié.`;
+    return 'Recherche publique lancée, mais aucun fait fiable n’a été récupéré automatiquement. Je peux continuer avec vos déclarations, sans prétendre avoir vérifié.';
+  }
+  function buildOmarMiniStory(result){
+    const verified=(result&&result.facts||[]).slice(0,2).map(f=>String(f.value||f.label||'').trim()).filter(Boolean);
+    const notRun=(result&&result.not_executed||[]).slice(0,2).map(x=>String(x.label||x.reason||'source non exécutée')).filter(Boolean);
+    const declared=compact(state.answers.identity_public_context||state.answers.activity_business_model||'', 'votre activité telle que vous me l’avez déclarée', 150);
+    const parts=[`Récit Omar à valider : je pars de ${declared}.`];
+    if(verified.length){parts.push(`Côté public, je retiens seulement après votre accord : ${verified.join(' / ')}.`)}
+    else{parts.push('Côté public, je ne retiens encore aucun fait vérifié automatiquement.')}
+    if(notRun.length){parts.push(`Sources non exécutées ou à vérifier manuellement : ${notRun.join(', ')}.`)}
+    parts.push('Validez ce mini-récit, corrigez-le, ou ignorez les sources avant que je continue.');
+    return parts.join('\n\n');
+  }
+  async function handlePublicResearchConsent(text){
+    addBubble('client', text); setBusy(true);
+    try{
+      if(state.sessionId){await api(`/api/audit-sessions/${state.sessionId}/message`,{message:text});}
+      const result=await runPublicResearch();
+      addBubble('omar', summarizePublicResearch(result));
+      addBubble('omar', buildOmarMiniStory(result));
+      state.localQuickReplies=[
+        {label:'Valider le récit Omar', intent:'confirm_omar_story'},
+        {label:'À corriger', intent:'modify'},
+        {label:'Ignorer ces sources', intent:'deny'}
+      ];
+      setBusy(false); render(); return;
+    }catch(error){
+      addBubble('omar', `Je n’ai pas pu terminer la recherche publique maintenant : ${error.message}. Je n’invente rien ; vous pouvez corriger, ignorer ces sources ou réessayer.`);
+      state.localQuickReplies=[{label:'Réessayer la recherche', intent:'run_public_research'},{label:'Corriger le nom ou l’adresse', intent:'modify'},{label:'Ignorer ces sources', intent:'deny'}];
+      setBusy(false); render(); return;
+    }
   }
   function syncSession(session){
     state.localQuickReplies=null;
@@ -318,7 +347,23 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     if(intent==='value'){addBubble('client', text); coachStep('value'); return;}
     if(intent==='challenge'){addBubble('client', text); coachStep('challenge'); return;}
     if(intent==='focus'){focusComposer(''); return;}
+    if(intent==='modify'){focusComposer(''); return;}
     if(intent==='unknown'){addBubble('client', text); coachStep('unknown'); return;}
+    if(state.current==='public_sources_consent' && (text==='Oui, recherche publique autorisée' || intent==='run_public_research')){
+      await handlePublicResearchConsent(text); return;
+    }
+    if(state.current==='public_sources_consent' && (intent==='confirm_omar_story' || intent==='confirm_public_research')){
+      addBubble('client', text); setBusy(true);
+      try{
+        if(state.sessionId){await api(`/api/audit-sessions/${state.sessionId}/message`,{message:'Valider les informations publiques et le récit Omar'}); const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:'public_sources_consent'}); syncSession(data.session); addBubble('omar', '✓ Récit Omar validé. Je continue avec ce qui est déclaré, vérifié, et encore incertain.', 'system'); ask(data.next); return;}
+      }catch(error){setBusy(false); addBubble('omar', `Je ne peux pas encore valider ces informations : ${error.message}.`); render(); return;}
+    }
+    if(state.current==='public_sources_consent' && intent==='deny'){
+      addBubble('client', text); setBusy(true);
+      try{
+        if(state.sessionId){await api(`/api/audit-sessions/${state.sessionId}/message`,{message:'Ignorer ces sources'}); const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:'public_sources_consent'}); syncSession(data.session); addBubble('omar','Très bien. Je continue uniquement avec vos déclarations, sans prétendre avoir vérifié publiquement.', 'system'); ask(data.next); return;}
+      }catch(error){setBusy(false); addBubble('omar', `Je ne peux pas encore passer à la suite : ${error.message}.`); render(); return;}
+    }
     if(['confirm','continue'].includes(intent)){
       addBubble('client', text); setBusy(true);
       if(state.sessionId){
@@ -334,15 +379,6 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
           setBusy(false); addBubble('omar', `Je ne peux pas encore passer à la suite : ${error.message}. Ajoutez une précision.`); render(); return
         }
       }
-    }
-    if(text==='Oui, recherche publique autorisée'){
-      addBubble('client', text); setBusy(true);
-      try{const result=await runPublicResearch(); addBubble('omar', summarizePublicResearch(result)); const next=state.pendingAfterResearch; state.pendingAfterResearch=null; if(next){ask(next)}else{setBusy(false)}}
-      catch(error){addBubble('omar', `Je n’ai pas pu faire la recherche publique maintenant : ${error.message}. Je continue l’audit sans l’inventer.`); const next=state.pendingAfterResearch; state.pendingAfterResearch=null; if(next){ask(next)}else{setBusy(false)}}
-      return;
-    }
-    if(text==='Non, on continue sans recherche'){
-      addBubble('client', text); state.researchDone=true; addBubble('omar','Très bien. Je continue uniquement avec vos réponses déclarées, sans prétendre avoir vérifié publiquement.'); const next=state.pendingAfterResearch; state.pendingAfterResearch=null; if(next){ask(next)} return;
     }
     $('reply').value=text; userSend();
   }

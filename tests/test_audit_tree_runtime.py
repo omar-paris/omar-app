@@ -88,6 +88,13 @@ def test_business_tech_tree_session_persists_structured_outputs_and_branches_hr_
         result = ai.add_message(session, json.dumps({"step_id": step_id, "answers": answers[step_id]}, ensure_ascii=False))["session"]
         session = result
         validation = ai.validate_step(session, step_id)
+        if step_id == "public_sources_consent" and not validation.get("ok") and validation.get("error") == "public_research_required":
+            session.setdefault("public_research", []).append({
+                "created_at": "2026-07-10T00:00:00Z",
+                "result": {"schema": "oa_public_research_result.v1", "status": "partial", "facts": [{"value": "DU PAIN ET DES IDEES Paris"}]},
+            })
+            session.setdefault("state", {}).setdefault("public_sources_consent", {}).setdefault("answers", {})["public_research_validation"] = "Récit Omar validé par le client"
+            validation = ai.validate_step(session, step_id)
         assert validation["ok"], validation
         session = validation["session"]
 

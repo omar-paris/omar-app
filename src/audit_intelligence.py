@@ -802,6 +802,88 @@ def _tree_step_completion(session: dict[str, Any], step_id: str) -> dict[str, An
     return {"step": step_id, "required_inputs": required, "missing_inputs": missing, "ready": not missing, "completion_pct": 100 if not required else round(done * 100 / len(required))}
 
 
+def _tree_public_research_permissions(session: dict[str, Any]) -> dict[str, bool]:
+    answers = ((session.get("state") or {}).get("public_sources_consent") or {}).get("answers") or {}
+    raw_consents = answers.get("consents")
+    consents = raw_consents if isinstance(raw_consents, dict) else {}
+    return {
+        "public_web_search": bool(consents.get("public_web_search") or consents.get("web_public") or consents.get("site_web") or consents.get("fiche_google")),
+        "legal_registry_lookup": bool(consents.get("legal_registry_lookup") or consents.get("sirene_detail")),
+        "social_media_lookup": bool(consents.get("social_media_lookup") or consents.get("reseaux")),
+    }
+
+
+def _tree_public_research_authorized(session: dict[str, Any]) -> bool:
+    return any(_tree_public_research_permissions(session).values())
+
+
+def _tree_public_research_attempted(session: dict[str, Any]) -> bool:
+    return bool(session.get("public_research"))
+
+
+def _tree_public_research_validation_status(session: dict[str, Any]) -> str | None:
+    answers = ((session.get("state") or {}).get("public_sources_consent") or {}).get("answers") or {}
+    explicit_status = answers.get("public_research_validation_status")
+    if explicit_status in {"validated", "ignored", "correction_requested"}:
+        return str(explicit_status)
+    raw = str(answers.get("public_research_validation") or "").lower()
+    if not raw:
+        return None
+    if "correction" in raw or "corriger" in raw:
+        return "correction_requested"
+    if "ignor" in raw or "sans" in raw:
+        return "ignored"
+    return "validated"
+
+
+def _tree_public_research_validated(session: dict[str, Any]) -> bool:
+    return _tree_public_research_validation_status(session) in {"validated", "ignored"}
+
+
+def _tree_public_research_block(step_id: str, session: dict[str, Any]) -> dict[str, Any] | None:
+    if step_id != "public_sources_consent" or not _tree_public_research_authorized(session):
+        return None
+    if not _tree_public_research_attempted(session):
+        completion = _tree_step_completion(session, step_id)
+        completion.update({"ready": False, "missing_inputs": ["public_research_validation"], "research_required": True})
+        return {
+            "ok": False,
+            "error": "public_research_required",
+            "completion": completion,
+            "omar": {
+                "schema": "oa.audit-tree.next-question.v1",
+                "step": step_id,
+                "question": "Vous avez autorisé la recherche publique : je dois d’abord la lancer, vous montrer les faits trouvés, puis vous demander validation avant de continuer.",
+                "options": ["Lancer la recherche publique", "Corriger le nom ou l’adresse", "Continuer sans recherche"],
+                "actions": [
+                    {"id": "run_public_research", "label": "Lancer la recherche publique", "intent": "run_public_research"},
+                    {"id": "correct_identity", "label": "Corriger le nom ou l’adresse", "intent": "modify"},
+                    {"id": "skip_public_research", "label": "Continuer sans recherche", "intent": "deny"},
+                ],
+            },
+        }
+    if not _tree_public_research_validated(session):
+        completion = _tree_step_completion(session, step_id)
+        completion.update({"ready": False, "missing_inputs": ["public_research_validation"], "research_validation_required": True})
+        return {
+            "ok": False,
+            "error": "public_research_validation_required",
+            "completion": completion,
+            "omar": {
+                "schema": "oa.audit-tree.next-question.v1",
+                "step": step_id,
+                "question": "J’ai des éléments publics à vous faire valider. Dites-moi s’ils sont corrects, à corriger, ou à ignorer avant que je construise mon analyse.",
+                "options": ["Valider les informations", "À corriger", "Ignorer ces sources"],
+                "actions": [
+                    {"id": "validate_public_facts", "label": "Valider les informations", "intent": "confirm_public_research"},
+                    {"id": "correct_public_facts", "label": "À corriger", "intent": "modify"},
+                    {"id": "ignore_public_facts", "label": "Ignorer ces sources", "intent": "deny"},
+                ],
+            },
+        }
+    return None
+
+
 def _tree_answer_text(session: dict[str, Any]) -> str:
     parts: list[str] = []
     for step_state in (session.get("state") or {}).values():
@@ -943,6 +1025,12 @@ def _tree_interpret_contextual_free_text(step_id: str, text: str) -> dict[str, A
     if step_id == "public_sources_consent":
         yes_tokens = {"oui", "ok", "d'accord", "daccord", "vas-y", "go", "autorisé", "autorise", "j'autorise"}
         no_tokens = {"non", "pas maintenant", "continue sans", "sans recherche", "je refuse"}
+        if any(token in hay for token in ["valider les informations", "infos valid", "informations valid", "faits valid", "c'est correct", "c’est correct"]):
+            return {"public_research_validation": "Faits publics validés par le client", "public_research_validation_status": "validated", "public_research_validation_text": text}
+        if any(token in hay for token in ["à corriger", "a corriger", "corriger", "ce n'est pas", "ce n’est pas"]):
+            return {"public_research_correction": text, "public_research_validation_status": "correction_requested"}
+        if any(token in hay for token in ["ignorer", "sans ces sources", "continuer sans recherche"]):
+            return {"consents": {"web_public": False, "sirene_detail": False, "site_web": False, "fiche_google": False, "reseaux": False}, "public_research_validation": "Sources ignorées à la demande du client", "public_research_validation_status": "ignored", "consent_text": text}
         if hay in yes_tokens or any(token in hay for token in ["oui", "autorise", "vas-y", "ok pour chercher"]):
             return {"consents": {"web_public": True, "sirene_detail": True, "site_web": False, "fiche_google": False, "reseaux": False}, "consent_text": text}
         if hay in no_tokens or any(token in hay for token in ["sans recherche", "refuse", "pas maintenant"]):
@@ -1061,6 +1149,9 @@ def business_tech_validate_step(session: dict[str, Any], step: str | None = None
     completion = _tree_step_completion(session, step_id)
     if not completion["ready"]:
         return {"ok": False, "error": "step_incomplete", "completion": completion, "omar": business_tech_next_question(session, step_id)}
+    research_block = _tree_public_research_block(step_id, session)
+    if research_block:
+        return research_block
     validated = session.setdefault("validated_steps", [])
     if step_id not in validated:
         validated.append(step_id)
@@ -1212,7 +1303,19 @@ def normalize_consents(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
     raw = payload.get("consents") if isinstance(payload.get("consents"), dict) else payload.get("consent")
     raw = raw if isinstance(raw, dict) else {}
-    permissions = {key: bool(raw.get(key, False)) for key in CONSENT_KEYS}
+    alias_map = {
+        "web_public": "public_web_search",
+        "site_web": "public_web_search",
+        "fiche_google": "public_web_search",
+        "sirene_detail": "legal_registry_lookup",
+        "siret": "legal_registry_lookup",
+        "reseaux": "social_media_lookup",
+    }
+    normalized_raw = dict(raw)
+    for alias, canonical in alias_map.items():
+        if raw.get(alias):
+            normalized_raw[canonical] = True
+    permissions = {key: bool(normalized_raw.get(key, False)) for key in CONSENT_KEYS}
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     return {
         "schema": "oa_audit_consent.v1",

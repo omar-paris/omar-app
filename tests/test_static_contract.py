@@ -408,3 +408,30 @@ def test_public_payment_copy_does_not_publish_specific_provider_target():
     assert "paid_test" not in joined
     assert "paiement validé" not in joined
     assert "portail client stripe" not in joined
+
+def test_audit_tree_validator_contract_passes():
+    result = subprocess.run(
+        ["python3", "scripts/audit_tree_validator.py"],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report["status"] == "pass"
+    assert not report["failures"]
+
+
+def test_audit_page_requires_omar_mini_story_validation_after_public_research():
+    build_site()
+    raw = html(PUBLIC / "audit" / "index.html")
+    compact = re.sub(r"\s+", "", raw)
+
+    assert "function buildOmarMiniStory" in raw
+    assert "confirm_omar_story" in raw
+    assert "Récit Omar à valider" in raw
+    assert "Valider le récit Omar" in raw
+    assert "buildOmarMiniStory(result)" in compact
+    assert "intent==='confirm_omar_story'" in compact
