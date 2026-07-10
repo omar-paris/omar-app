@@ -222,17 +222,18 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     render();
   }
   function focusComposer(prefill){const box=$('reply'); if(prefill && !box.value) box.value=prefill; box.focus(); autoResize();}
+  function telemetryActionId(action, rank){return String((action&&action.id)||(action&&action.action_id)||(action&&action.intent&&`legacy_intent:${action.intent}`)||`option_${rank||0}`).replace(/[^a-zA-Z0-9:_-]/g,'_').slice(0,80)}
   function renderQuickReplies(){
     let wrap=document.getElementById('quick-replies');
     if(!wrap){wrap=document.createElement('div'); wrap.id='quick-replies'; wrap.className='quick'; $('composer-form').parentNode.insertBefore(wrap,$('composer-form'))}
     const actions=state.localQuickReplies || uiQuickReplies(((state.lastOmar&&state.lastOmar.actions)||[]).filter(a=>a&&a.label));
     if(actions.length){
-      wrap.innerHTML=actions.slice(0,6).map(a=>`<button type="button" data-reply="${esc(a.label)}" data-intent="${esc(a.intent||'')}">${esc(a.label)}</button>`).join('');
+      wrap.innerHTML=actions.slice(0,6).map((a,i)=>`<button type="button" data-reply="${esc(a.label)}" data-intent="${esc(a.intent||'')}" data-action-id="${esc(telemetryActionId(a,i+1))}" data-rank="${i+1}">${esc(a.label)}</button>`).join('');
     }else{
       const opts=(state.lastOmar&&state.lastOmar.options)||[];
-      wrap.innerHTML=opts.slice(0,6).map(o=>`<button type="button" data-reply="${esc(o)}" data-intent="">${esc(o)}</button>`).join('');
+      wrap.innerHTML=opts.slice(0,6).map((o,i)=>`<button type="button" data-reply="${esc(o)}" data-intent="" data-action-id="option_${i+1}" data-rank="${i+1}">${esc(o)}</button>`).join('');
     }
-    wrap.querySelectorAll('button').forEach(btn=>btn.onclick=()=>handleQuickReply(btn.dataset.reply, btn.dataset.intent||''));
+    wrap.querySelectorAll('button').forEach(btn=>btn.onclick=()=>handleQuickReply(btn.dataset.reply, btn.dataset.intent||'', {action_id:btn.dataset.actionId, rank:btn.dataset.rank}));
   }
 
   async function api(path, payload){
@@ -323,8 +324,14 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     catch(error){setBusy(false); $('audit-status').textContent='Mode local : moteur audit indisponible.'; addBubble('omar', intro.fallback)}
   }
   function auditMoreText(){return "L’audit produit notamment un diagnostic structuré, un manifeste business, une première constitution locale, un profil d’agent et les questions restantes. Les documents restent séparés entre vos déclarations, les sources publiques vérifiées, les hypothèses Omar et les limites."}
-  async function handleQuickReply(text, intent){
+  async function trackButtonClicked(text, intent, meta){
+    if(!state.sessionId) return;
+    try{await api(`/api/audit-sessions/${state.sessionId}/telemetry`,{event:'button_clicked',step:state.current,action_id:(meta&&meta.action_id)||`legacy_intent:${intent||'unknown'}`,intent:intent||'',rank:(meta&&meta.rank)||null,stores_answer:['answer','confirm','continue','deny'].includes(intent||''),advances_step:['confirm','continue','deny'].includes(intent||'')});}
+    catch(error){console.warn('audit telemetry button_clicked ignored', error)}
+  }
+  async function handleQuickReply(text, intent, meta){
     if(state.busy) return;
+    await trackButtonClicked(text, intent, meta||{});
     state.localQuickReplies=null;
     if(state.current==='pacte' && text==='En savoir plus'){
       addBubble('client', text); addBubble('omar', auditMoreText()); render(); return;

@@ -35,6 +35,14 @@ from audit_intelligence import (  # noqa: E402
     normalize_consents as audit_normalize_consents,
     validate_step as audit_validate_step,
 )
+from audit_telemetry import (  # noqa: E402
+    append_telemetry_event,
+    make_button_clicked,
+    make_public_research_completed,
+    make_public_research_started,
+    make_report_created,
+    make_research_run,
+)
 
 DEFAULT_DATA_DIR = ROOT / "var"
 # IDs de proposition opaques (app#14) : token URL-safe aléatoire, sans nom client
@@ -1602,6 +1610,11 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 session = write_audit_session(self.data_dir, session)
                 self.send_json(200, {"ok": True, "session": session, "research_plan": plan})
                 return
+            if action == "telemetry":
+                event = make_button_clicked(session, payload)
+                session = write_audit_session(self.data_dir, append_telemetry_event(session, event))
+                self.send_json(202, {"ok": True, "session": session})
+                return
             if action == "public-research":
                 identity_answers = ((session.get("state") or {}).get("identity_public_context") or {}).get("answers") or {}
                 consent_answers = ((session.get("state") or {}).get("public_sources_consent") or {}).get("answers") or {}
@@ -1620,6 +1633,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 fetch_errors: list[dict[str, Any]] = []
                 external_calls_attempted = False
                 dry_run = bool(payload.get("dry_run", False))
+                append_telemetry_event(session, make_public_research_started(session, dry_run=dry_run))
                 website = str(payload.get("website") or payload.get("site") or "").strip()
                 registry_query = str(
                     payload.get("siret")
@@ -1646,6 +1660,8 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 result = audit_build_public_research_result(plan, fetched_pages, registry_records, external_calls_attempted=external_calls_attempted)
                 if fetch_errors:
                     result["fetch_errors"] = fetch_errors
+                append_telemetry_event(session, make_public_research_completed(session, result=result, dry_run=dry_run, external_calls_attempted=external_calls_attempted))
+                append_telemetry_event(session, make_research_run(session, plan=plan, result=result, dry_run=dry_run, external_calls_attempted=external_calls_attempted))
                 session.setdefault("public_research", []).append({
                     "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     "result": result,
@@ -1689,7 +1705,8 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 }
                 audit = safe_write_audit(self.data_dir, payload)
                 share = audit_share_payload(audit)
-                self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share})
+                session = write_audit_session(self.data_dir, append_telemetry_event(session, make_report_created(session, audit=audit, share=share)))
+                self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share, "session": session})
                 return
             self.send_json(404, {"ok": False, "error": "unknown_audit_session_action"})
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
