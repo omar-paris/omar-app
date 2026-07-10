@@ -27,6 +27,7 @@ from audit_intelligence import (  # noqa: E402
     completion_for_step as audit_completion_for_step,
     step_contract as audit_step_contract,
     build_devis_source as audit_build_devis_source,
+    build_agent_brief as audit_build_agent_brief,
     build_exports as audit_build_exports,
     build_j1ter_documents as audit_build_j1ter_documents,
     build_onboarding_pack_v1 as audit_build_onboarding_pack_v1,
@@ -1599,6 +1600,14 @@ class ProposalHandler(BaseHTTPRequestHandler):
                     return
                 self.send_json(200, {"ok": True, "documents": documents})
                 return
+            if action == "agent-brief":
+                try:
+                    agent_brief = audit_build_agent_brief(session)
+                except ValueError as exc:
+                    self.send_json(422, {"ok": False, "error": str(exc)})
+                    return
+                self.send_json(200, {"ok": True, "agent_brief": agent_brief})
+                return
             if action:
                 self.send_json(404, {"ok": False, "error": "not_found"})
                 return
@@ -1922,7 +1931,21 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 # validés/collectés, jamais depuis le transcript brut de session.
                 raw_answers = session.get("answers")
                 answers: dict[str, Any] = raw_answers if isinstance(raw_answers, dict) else {}
+                agent_brief = audit_build_agent_brief(session)
+                company_context = agent_brief.get("company_context", {}) if isinstance(agent_brief.get("company_context"), dict) else {}
+                guardrails = agent_brief.get("guardrails", {}) if isinstance(agent_brief.get("guardrails"), dict) else {}
                 structured_fields = {**answers}
+                for field_key, context_key in {
+                    "business_activity": "activity",
+                    "repetitive_tasks": "operations",
+                    "tools": "tools",
+                }.items():
+                    value = str(company_context.get(context_key) or "").strip()
+                    if value and not structured_fields.get(field_key):
+                        structured_fields[field_key] = value
+                hv = guardrails.get("human_validation_required") if isinstance(guardrails.get("human_validation_required"), list) else []
+                if hv and not structured_fields.get("human_validation"):
+                    structured_fields["human_validation"] = "; ".join(str(x) for x in hv if str(x).strip())
                 prospect_email = str((session.get("prospect") or {}).get("email") or _audit_prospect_email_header(self.headers) or "").strip().lower()
                 if isinstance(payload.get("structured_fields"), dict):
                     structured_fields.update(payload["structured_fields"])
@@ -1962,7 +1985,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
                     (self.data_dir / "audits" / f"{audit['id']}.json").write_bytes(json_bytes(audit))
                 share = audit_share_payload(audit)
                 session = write_audit_session(self.data_dir, append_telemetry_event(session, make_report_created(session, audit=audit, share=share)))
-                self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share, "session": session, "lead": audit.get("lead")})
+                self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "agent_brief": agent_brief, "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share, "session": session, "lead": audit.get("lead")})
                 return
             self.send_json(404, {"ok": False, "error": "unknown_audit_session_action"})
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:

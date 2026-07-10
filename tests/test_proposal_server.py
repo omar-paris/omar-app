@@ -551,6 +551,13 @@ def test_audit_session_backend_drives_sector_questions_and_exports(tmp_path):
         assert "transcript" not in stored_audit["input"]
         assert "POISON_TRANSCRIPT_BRUT" not in json.dumps(stored_audit, ensure_ascii=False)
         assert report["onboarding_pack"]["schema"] == "onboarding_pack.v1"
+        assert report["agent_brief"]["schema"] == "oa.omar-agent-brief.v1"
+        assert report["agent_brief"]["agent_operating_contract"]["mode"] == "draft_agent_after_audit"
+        assert report["agent_brief"]["evidence_contract"]["verified_public"] == []
+        assert all(item["origin"] in {"declared_client", "omar_hypothesis"} for item in report["agent_brief"]["analysis"]["recommendations"])
+        get_brief_status, brief_payload = request_json("GET", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/agent-brief")
+        assert get_brief_status == 200
+        assert brief_payload["agent_brief"]["schema"] == "oa.omar-agent-brief.v1"
         assert report["share"]["exports"]["markdown"].startswith("# ")
         assert report["share"]["exports"]["pdf_status"] == "pending_renderer"
         assert "share_url" in report["share"]
