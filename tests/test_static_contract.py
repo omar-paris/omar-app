@@ -326,21 +326,34 @@ def test_connector_readiness_json_and_account_surface_expose_catalogue_statuses(
     data = __import__("json").loads(api_path.read_text(encoding="utf-8"))
     assert data["schema"] == "appomar.connector_readiness.v1"
     assert data["status_vocabulary"] == ["potential", "configured", "proven", "unknown"]
+    assert data["status_semantics"]["unknown"].startswith("Public-safe placeholder")
+    assert data["public_status_counts"] == {"unknown": 7}
+    assert data["client_runtime_proof"] == {
+        "public_state": "not_proven_publicly",
+        "proven_client_connectors": 0,
+        "unknown_public_connectors": 7,
+        "promotion_rule": "Do not promote unknown to configured/proven without a public artifact validated by Catalogue/OmarTop/Athena.",
+    }
     assert data["safety"]["secrets_exposed"] is False
     assert data["safety"]["client_details_exposed"] is False
     assert data["safety"]["internal_responsibles_exposed"] is False
     assert data["safety"]["infra_state_exposed"] is False
     assert data["safety"]["public_payload_anonymized"] is True
     assert data["safety"]["proven_requires_measured_or_read_proof"] is True
-    assert len(data["items"]) >= 6
+    assert len(data["items"]) == 7
     seen = {item["classification"] for item in data["items"]}
-    assert {"potential", "configured", "unknown"}.issubset(seen)
+    assert seen == {"unknown"}
     for item in data["items"]:
         assert set(item) == {"capability", "classification", "proof", "gap"}
         assert item["classification"] in data["status_vocabulary"]
         assert item["proof"]
         assert item["gap"]
+        assert "configured/proven" in item["gap"]
     public_text = api_path.read_text(encoding="utf-8").lower()
+    for required in ["unknown", "not_proven_publicly", "public-safe placeholder", "catalogue/omartop/athena"]:
+        assert required in public_text
+    for forbidden_claim in ["runtime client prouvé", "client proven", "proven_client_connectors\": 1"]:
+        assert forbidden_claim not in public_text
     for forbidden in ["jab", "t_d76b3974", "vhost", "callback absent", "nango_jab", "oa-vps-operator", "h-omar", "owner", "blocked"]:
         assert forbidden not in public_text
     compte = html(PUBLIC / "compte" / "index.html").lower()
@@ -349,6 +362,8 @@ def test_connector_readiness_json_and_account_surface_expose_catalogue_statuses(
         "potential",
         "configured",
         "unknown",
+        "unknown côté public",
+        "unknown public ≠ proven client",
         "preuve publique",
         "next action",
         "/api/connector-readiness.json",
