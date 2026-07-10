@@ -9,6 +9,7 @@ import re
 import secrets
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -23,6 +24,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from site_data import OA_START_PACKS  # noqa: E402
 from audit_intelligence import (  # noqa: E402
     add_message as audit_add_message,
+    completion_for_step as audit_completion_for_step,
+    step_contract as audit_step_contract,
     build_devis_source as audit_build_devis_source,
     build_exports as audit_build_exports,
     build_j1ter_documents as audit_build_j1ter_documents,
@@ -50,7 +53,7 @@ DEFAULT_DATA_DIR = ROOT / "var"
 # stockées, avec contrôle propriétaire ci-dessous.
 DEFAULT_VAULT_ADDR = os.environ.get("OA_APP_VAULT_ADDR", os.environ.get("VAULT_ADDR", "http://127.0.0.1:8202"))
 DEFAULT_VAULT_TOKEN_FILE = Path(
-    os.environ.get("OA_APP_VAULT_TOKEN_FILE", "/home/omar/.config/omar-app/vault-token")
+    os.environ.get("OA_APP_VAULT_TOKEN_FILE", str(ROOT / ".runtime" / "vault-token"))
 )
 PROPOSAL_ID_RE = re.compile(
     r"^proposal-(?:[A-Za-z0-9_-]{43}|[0-9a-f]{32}-[a-z0-9-]+|[0-9]{8}T[0-9]{6}Z-[a-z0-9-]+)$"
@@ -67,7 +70,7 @@ ALLOWED_VAULT_FIELDS = {
 
 # Annuaire des clients (app-emails.txt par client) — racine surchargeable pour les
 # tests. Sert au mapping email authentifié -> client (isolation multi-tenant app#13/#14).
-DEFAULT_CLIENTS_DIR = Path(os.environ.get("OA_CLIENTS_DIR", "/home/omar/clients"))
+DEFAULT_CLIENTS_DIR = Path(os.environ.get("OA_CLIENTS_DIR", str(ROOT / "var" / "clients")))
 # Artefacts Hub en lecture seule pour l'état de santé SAV (jamais de SSH/mutation).
 DEFAULT_HUB_API_DIR = Path(
     os.environ.get("OA_HUB_API_DIR", str(ROOT.parent / "omar-hub" / "public" / "api"))
@@ -78,7 +81,7 @@ _CLIENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 def admin_emails() -> set[str]:
     return {
         e.strip().lower()
-        for e in os.environ.get("OA_ADMIN_EMAILS", "alexwillemetz@gmail.com").split(",")
+        for e in os.environ.get("OA_ADMIN_EMAILS", "").split(",")
         if e.strip()
     }
 
@@ -837,6 +840,131 @@ def read_audit_session(data_dir: Path, sid: str) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
+# --- Audit conversationnel via agent Hermes (Fable 2, 2026-07-02, GO Alex) ---
+# L'agent est un profil de la flotte H-Omar (Codex), jamais une API directe.
+# Chaîne de profils : oa-audit (dédié, à créer par H-Omar) puis oa-commerce (existant).
+HERMES_BIN = os.environ.get("OA_HERMES_BIN", "hermes")
+AUDIT_PROFILES = [p.strip() for p in os.environ.get("OA_AUDIT_PROFILES", "oa-audit,oa-commerce").split(",") if p.strip()]
+AUDIT_PROMPT_PATH = Path(__file__).resolve().parent / "oa_audit_prompt.md"
+AUDIT_CHAT_STEPS = ["intro", "activity", "research", "pain", "tools", "risk", "opportunities", "autonomy", "validation"]
+_CAILLOU_RE = re.compile(r"\[CAILLOU:\s*(\{.*?\})\s*\]", re.S)
+_CHOICES_RE = re.compile(r"\[CHOICES:\s*([^\]]+)\]")
+
+
+def _load_audit_system_prompt() -> str:
+    try:
+        return AUDIT_PROMPT_PATH.read_text(encoding="utf-8")
+    except OSError:
+        return "Tu es Omar, agent d'audit OA. Coach doux, 4 lignes max, une question à la fois, jamais de secret, jamais de vente."
+
+
+def build_audit_chat_prompt(session: dict[str, Any], message: str) -> str:
+    step = str(session.get("current_step") or "intro")
+    completion = audit_completion_for_step(session, step)
+    contract = audit_step_contract(step)
+    history = ""
+    for turn in (session.get("chat_history") or [])[-16:]:
+        who = "Client" if turn.get("role") == "client" else "Omar"
+        history += f"\n{who}: {str(turn.get('text') or '')[:400]}"
+    cailloux = "\n".join(f"- {c.get('description')}" for c in (session.get("cailloux") or [])[-8:])
+    return f"""{_load_audit_system_prompt()}
+
+[CONTEXTE DE CE TOUR]
+Étape courante : {step} — objectif : {contract.get('goal', '')}
+Critères pour clôturer : {' / '.join(contract.get('validation_criteria', []))}
+Il manque encore : {', '.join(completion.get('missing_fields', []) or ['rien de bloquant'])}
+Étapes déjà validées : {', '.join(session.get('validated_steps') or ['aucune'])}
+Secteur détecté : {session.get('sector_id') or 'inconnu'}
+Cailloux déjà notés :
+{cailloux or '- aucun pour l’instant'}
+
+[HISTORIQUE RÉCENT]{history or chr(10) + '(début de conversation)'}
+
+[MESSAGE DU CLIENT]
+{message}
+
+Réponds maintenant en tant qu'Omar (4 lignes max, une seule question), avec les tokens de contrôle si nécessaire."""
+
+
+def _audit_agent_env() -> dict[str, str]:
+    """Minimal env for child Hermes process: no server/API secrets by default."""
+    allowed = {
+        "HOME",
+        "PATH",
+        "USER",
+        "LOGNAME",
+        "LANG",
+        "LC_ALL",
+        "TERM",
+        "HERMES_HOME",
+        "XDG_CONFIG_HOME",
+        "XDG_CACHE_HOME",
+        "XDG_DATA_HOME",
+    }
+    env = {k: v for k, v in os.environ.items() if k in allowed and v}
+    env["PYTHONUNBUFFERED"] = "1"
+    return env
+
+
+def call_audit_agent(prompt: str) -> tuple[str, str] | None:
+    """Appelle le premier profil Hermes disponible. Retourne (réponse, profil) ou None."""
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            prefix="oa-audit-prompt-",
+            suffix=".md",
+            delete=False,
+        ) as tmp:
+            tmp_name = tmp.name
+            os.chmod(tmp_name, 0o600)
+            tmp.write(prompt)
+        query = (
+            "Lis le fichier local suivant avec l'outil fichier, puis réponds au prompt qu'il contient. "
+            "Ne cite pas le chemin et ne répète pas le contenu brut. Fichier: "
+            f"{tmp_name}"
+        )
+        for profile in AUDIT_PROFILES:
+            try:
+                result = subprocess.run(
+                    [HERMES_BIN, "-p", profile, "chat", "-q", query, "-Q", "-t", "file"],
+                    capture_output=True, text=True, timeout=75,
+                    env=_audit_agent_env(),
+                )
+                lines = [l for l in (result.stdout or "").strip().split("\n") if not l.startswith("session_id:")]
+                text = "\n".join(lines).strip()
+                if result.returncode == 0 and text:
+                    return text, profile
+            except (subprocess.TimeoutExpired, OSError):
+                continue
+        return None
+    finally:
+        if tmp_name:
+            try:
+                Path(tmp_name).unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def parse_audit_agent_reply(raw: str) -> dict[str, Any]:
+    step_done = "[STEP_DONE]" in raw
+    human_request = "[HUMAN_REQUEST]" in raw
+    cailloux = []
+    for m in _CAILLOU_RE.finditer(raw):
+        try:
+            cailloux.append(json.loads(m.group(1)))
+        except json.JSONDecodeError:
+            continue
+    choices_m = _CHOICES_RE.search(raw)
+    choices = [c.strip() for c in choices_m.group(1).split("|") if c.strip()][:4] if choices_m else []
+    clean = _CAILLOU_RE.sub("", raw)
+    clean = _CHOICES_RE.sub("", clean)
+    clean = clean.replace("[STEP_DONE]", "").replace("[HUMAN_REQUEST]", "")
+    clean = re.sub(r"\n{3,}", "\n\n", clean).strip()
+    return {"reply": clean, "step_done": step_done, "cailloux": cailloux, "choices": choices, "human_request": human_request}
+
+
 def audit_share_payload(audit: dict[str, Any]) -> dict[str, Any]:
     exports = audit_build_exports(audit)
     return {
@@ -979,7 +1107,7 @@ def build_onboarding_simulation(onboarding: dict[str, Any], target: str) -> dict
 
 def pricing_payload() -> dict[str, Any]:
     # V0.3 is intentionally read-only. HCLOUD_TOKEN may be injected directly; otherwise
-    # read it with the omar-app Vault service token only (never /home/omar/.vault-token).
+    # read it with the omar-app Vault service token only (never a user-home token).
     token = os.environ.get("HCLOUD_TOKEN") or _vault_secret("secret/integrations/hetzner/test", "HCLOUD_TOKEN")
     mode = "static_fallback"
     source = "src/site_data.py"
@@ -1520,7 +1648,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
         X-Auth-Request-Email — on vérifie qu'il est dans la liste admin."""
         email = self.headers.get("X-Auth-Request-Email", "").strip().lower()
         admins = {e.strip().lower() for e in
-                  os.environ.get("OA_ADMIN_EMAILS", "alexwillemetz@gmail.com").split(",")}
+                  os.environ.get("OA_ADMIN_EMAILS", "").split(",") if e.strip()}
         if email not in admins:
             self.send_json(403, {"ok": False, "error": "not_admin", "vu": email or "(aucun email)"})
             return
@@ -1583,6 +1711,42 @@ class ProposalHandler(BaseHTTPRequestHandler):
             for pattern in SECRET_PATTERNS:
                 if pattern in raw:
                     raise ValueError(f"secret-like literal forbidden: {pattern}")
+            if action == "chat":
+                # Mode agent Hermes (flotte H-Omar) — conversation libre sur rail d'étapes.
+                text = str(payload.get("message") or "").strip()
+                if not text:
+                    raise ValueError("message required")
+                now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                session.setdefault("chat_history", []).append({"role": "client", "text": text, "at": now})
+                audit_add_message(session, text)  # bookkeeping : messages, secteur, rapport
+                agent = call_audit_agent(build_audit_chat_prompt(session, text))
+                if not agent:
+                    write_audit_session(self.data_dir, session)
+                    self.send_json(503, {"ok": False, "error": "agent_unavailable"})
+                    return
+                raw, profile = agent
+                parsed = parse_audit_agent_reply(raw)
+                session["chat_history"].append({"role": "omar", "text": parsed["reply"], "at": now, "profile": profile})
+                if parsed["cailloux"]:
+                    session.setdefault("cailloux", []).extend(parsed["cailloux"])
+                if parsed["human_request"]:
+                    session.setdefault("human_requests", []).append({"at": now, "context": text[:200]})
+                step_advanced = False
+                done_step = str(session.get("current_step") or "intro")
+                if parsed["step_done"]:
+                    validated = session.setdefault("validated_steps", [])
+                    if done_step not in validated:
+                        validated.append(done_step)
+                    idx = AUDIT_CHAT_STEPS.index(done_step) if done_step in AUDIT_CHAT_STEPS else 0
+                    if idx < len(AUDIT_CHAT_STEPS) - 1:
+                        session["current_step"] = AUDIT_CHAT_STEPS[idx + 1]
+                    step_advanced = True
+                session = write_audit_session(self.data_dir, session)
+                self.send_json(200, {"ok": True, "session": session, "agent_profile": profile,
+                                     "omar_chat": {"reply": parsed["reply"], "choices": parsed["choices"],
+                                                   "step_advanced": step_advanced, "done_step": done_step if step_advanced else None,
+                                                   "human_request": parsed["human_request"]}})
+                return
             if action == "message":
                 text = str(payload.get("message") or "").strip()
                 if not text:
