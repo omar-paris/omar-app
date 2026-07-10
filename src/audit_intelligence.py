@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 
+from audit_telemetry import append_telemetry_event, make_button_displayed, make_session_created, make_step_validated
 from auditbiz_question_engine import choose_next_question as auditbiz_choose_next_question
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1087,10 +1088,18 @@ def create_business_tech_session(payload: dict[str, Any] | None = None) -> dict[
         "runtime": {"v0_scope": _tree_v0_scope(tree), "allowed_interactions_v0": list((tree.get("v0_scope") or {}).get("interactions") or sorted(TREE_V0_ALLOWED_INTERACTIONS)), "skipped_steps": [], "policy": {"regle_70_30": True, "profondeur_relance_max": 1, "message_max_lignes": int((tree.get("principles") or {}).get("message_max_lignes") or 3)}},
         "safety": {"paid_actions": "none", "provisioning": "none", "no_llm_freeform": True},
     }
+    raw_payload_runtime = payload.get("runtime")
+    payload_runtime: dict[str, Any] = raw_payload_runtime if isinstance(raw_payload_runtime, dict) else {}
+    if payload_runtime.get("tester") or payload_runtime.get("is_tester"):
+        session.setdefault("runtime", {})["tester"] = payload_runtime.get("tester") or True
+    if payload.get("is_tester"):
+        session.setdefault("runtime", {})["is_tester"] = True
     initial = str(payload.get("message") or "")
     if initial:
         session["messages"].append({"role": "client", "text": initial, "at": now})
     q = business_tech_next_question(session)
+    append_telemetry_event(session, make_session_created(session))
+    append_telemetry_event(session, make_button_displayed(session, q.get("actions") if isinstance(q.get("actions"), list) else []))
     session.setdefault("asked_questions", []).append({"step": q["step"], "question": q["question"], "at": now})
     return {"session": session, "omar": q}
 
@@ -1165,7 +1174,10 @@ def business_tech_validate_step(session: dict[str, Any], step: str | None = None
     session["completion"] = _tree_completion(session)
     if session["completion"]["complete"]:
         session["status"] = "complete"
-    return {"ok": True, "session": session, "completion": completion, "next": business_tech_next_question(session, str(session.get("current_step") or step_id))}
+    next_question = business_tech_next_question(session, str(session.get("current_step") or step_id))
+    append_telemetry_event(session, make_button_displayed(session, next_question.get("actions") if isinstance(next_question.get("actions"), list) else []))
+    append_telemetry_event(session, make_step_validated(session, step=step_id, next_step=next_step, completion=completion))
+    return {"ok": True, "session": session, "completion": completion, "next": next_question}
 
 
 def build_j1ter_documents(session: dict[str, Any]) -> dict[str, Any]:

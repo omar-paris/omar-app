@@ -126,6 +126,18 @@ def test_audit_page_final_step_matches_business_tech_runtime_validation_not_lega
     assert "audit_fable_tree_v0" not in raw
 
 
+def test_audit_page_buttons_expose_action_metadata_without_label_as_id():
+    build_site()
+    raw = html(PUBLIC / "audit" / "index.html")
+
+    assert "data-action-id" in raw
+    assert "data-rank" in raw
+    assert "button_clicked" in raw
+    assert "/telemetry" in raw
+    assert "telemetryActionId" in raw
+    assert "data-action-id=\"${esc(a.label)}\"" not in raw
+
+
 def test_devis_page_declares_registered_payment_blocked_target():
     build_site()
     text = html(PUBLIC / "devis" / "index.html").lower()
