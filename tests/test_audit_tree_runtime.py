@@ -136,6 +136,67 @@ def test_business_tech_sector_pack_relance_is_depth_limited():
     assert q2["sector_pack_relance"] is None
 
 
+def test_business_tech_next_question_exposes_agent_frame_and_business_analysis():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+    for text, step in [
+        ("Continuer sans compte", "pacte"),
+        ("La Fournée des Traditions 56 Rue Grande, 13390 Auriol", "identity_public_context"),
+        ("Non, on continue sans recherche", "public_sources_consent"),
+    ]:
+        session = ai.add_message(session, text)["session"]
+        session = ai.validate_step(session, step)["session"]
+
+    q = ai.next_question(session)
+    frame = q["agent_frame"]
+    assert frame["schema"] == "oa.audit-agent-frame.v1"
+    assert frame["mission"]["primary_goal"].startswith("Comprendre")
+    assert frame["step"]["id"] == "activity_business_model"
+    assert frame["step"]["objective"]
+    assert frame["evidence"]["declared_client"]
+    assert "La Fournée des Traditions" in " ".join(frame["evidence"]["declared_client"])
+    assert frame["analysis"]["sector_id"] == "bakery"
+    assert frame["analysis"]["useful_axes"]
+    assert {"question", "why", "facet_id"} <= set(frame["next_best_question"])
+    assert frame["controls"] == ["Pourquoi cette question", "Passer cette question", "Enregistrer et reprendre plus tard", "Corriger ce que j’ai compris"]
+    assert frame["guardrails"]["paid_actions"] == "none"
+    assert frame["guardrails"]["external_actions"] == "none_without_explicit_human_go"
+    assert "agent_frame" in q
+
+
+def test_business_tech_build_agent_brief_uses_all_acquired_data_without_mixing_sources():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+    answers = {
+        "pacte": "Continuer sans compte",
+        "identity_public_context": "La Fournée des Traditions, 56 Rue Grande, 13390 Auriol",
+        "public_sources_consent": "Non, on continue sans recherche",
+        "activity_business_model": "Boulangerie-pâtisserie artisanale à Auriol, 4 personnes, boutique de quartier, commandes week-end et clients particuliers.",
+        "person_and_goals": "Je veux libérer du temps, mieux piloter la marge et préparer une transmission plus sereine. J'ai déjà testé l'IA un peu.",
+        "operations_week": "Les appels pour horaires, commandes, allergènes et disponibilités prennent 4 h par semaine, surtout avant week-end.",
+        "admin_finance_purchasing": "Achats farine beurre emballages, factures fournisseur et marge par famille produit sont suivis surtout sur Excel.",
+        "digital_tools_data": "Téléphone, WhatsApp, caisse, Excel, fiche Google et Instagram ; on recopie les commandes à la main.",
+        "risks_limits": "Allergènes, prix, acomptes et avis négatifs doivent rester validés par un humain.",
+    }
+    for step, text in answers.items():
+        session = ai.add_message(session, text)["session"]
+        validation = ai.validate_step(session, step)
+        assert validation["ok"], validation
+        session = validation["session"]
+
+    brief = ai.build_agent_brief(session)
+    assert brief["schema"] == "oa.omar-agent-brief.v1"
+    assert brief["sector_id"] == "bakery"
+    assert brief["company_context"]["identity"]
+    assert "La Fournée" in brief["company_context"]["identity"]
+    assert brief["evidence_contract"]["verified_public"] == []
+    assert any("allerg" in item.casefold() for item in brief["guardrails"]["human_validation_required"])
+    assert len(brief["analysis"]["recommendations"])
+    assert len(brief["analysis"]["unknowns"])
+    assert all(item["origin"] in {"declared_client", "omar_hypothesis"} for item in brief["analysis"]["recommendations"])
+    assert brief["agent_operating_contract"]["mode"] == "draft_agent_after_audit"
+    assert brief["agent_operating_contract"]["allowed_actions"]
+    assert brief["agent_operating_contract"]["forbidden_actions"]
+
+
 def test_business_tech_critique_feedback_does_not_validate_as_business_answer():
     session = ai.create_session({"tree_id": "business_tech"})["session"]
     session = ai.add_message(session, "Continuer sans compte")["session"]

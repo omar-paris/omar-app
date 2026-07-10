@@ -1181,6 +1181,186 @@ def _tree_completion(session: dict[str, Any]) -> dict[str, Any]:
     return {"required_steps": required, "validated_steps": complete_steps, "skipped_steps": sorted(skipped), "complete": all(step in validated for step in required), "completion_pct": round(100 * len(complete_steps) / max(1, len(required)))}
 
 
+def _tree_state_answers(session: dict[str, Any], step_id: str) -> dict[str, Any]:
+    state = session.get("state") or {}
+    value = state.get(step_id) if isinstance(state, dict) else {}
+    return ((value or {}).get("answers") or {}) if isinstance(value, dict) else {}
+
+
+def _compact_value(value: Any, *, max_len: int = 280) -> str:
+    if isinstance(value, list):
+        text = ", ".join(str(x) for x in value if str(x).strip())
+    elif isinstance(value, dict):
+        text = "; ".join(f"{k}: {v}" for k, v in value.items() if str(v).strip())
+    else:
+        text = str(value or "")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:max_len]
+
+
+def _tree_declared_evidence(session: dict[str, Any]) -> list[str]:
+    items: list[str] = []
+    for step_id in (session.get("runtime") or {}).get("v0_scope", []):
+        answers = _tree_state_answers(session, str(step_id))
+        for value in answers.values():
+            compact = _compact_value(value)
+            if compact and compact not in items:
+                items.append(compact)
+    return items[:16]
+
+
+def _tree_verified_public_evidence(session: dict[str, Any]) -> list[str]:
+    facts: list[str] = []
+    for record in session.get("public_research", []) or []:
+        if not isinstance(record, dict):
+            continue
+        result = record.get("result") if isinstance(record.get("result"), dict) else {}
+        for fact in result.get("facts", []) if isinstance(result.get("facts"), list) else []:
+            value = _compact_value(fact.get("value") if isinstance(fact, dict) else fact)
+            if value:
+                facts.append(value)
+    return facts[:12]
+
+
+def _tree_business_analysis(session: dict[str, Any]) -> dict[str, Any]:
+    sector_id = _tree_sector_id(session)
+    refs = load_sector_references()
+    ref = refs.get(sector_id) or refs.get("generic_tpe") or {}
+    activity = _tree_state_answers(session, "activity_business_model")
+    person = _tree_state_answers(session, "person_and_goals")
+    ops = _tree_state_answers(session, "operations_week")
+    admin = _tree_state_answers(session, "admin_finance_purchasing")
+    tools = _tree_state_answers(session, "digital_tools_data")
+    risks = _tree_state_answers(session, "risks_limits")
+    text = "\n".join(_tree_declared_evidence(session)).casefold()
+    useful_axes = [str(x) for x in ref.get("important_dimensions", [])[:8]] or ["activité", "clients", "outils", "risques"]
+    hypotheses: list[dict[str, str]] = []
+    if sector_id == "bakery":
+        hypotheses.append({"origin": "omar_hypothesis", "confidence": "medium", "text": "Commerce de bouche local : les priorités utiles dépendent fortement du flux boutique, des pertes, de l’équipe et des questions allergènes."})
+    if any(token in text for token in ["whatsapp", "téléphone", "telephone", "appel"]):
+        hypotheses.append({"origin": "omar_hypothesis", "confidence": "medium", "text": "Les demandes répétitives client sont probablement une première boucle IA pertinente en dry-run validé."})
+    recommendations = [
+        {"origin": "omar_hypothesis", "confidence": "medium", "text": "Construire une première boucle agent en brouillon validable, centrée sur l’irritant le plus fréquent."},
+        {"origin": "declared_client", "confidence": "high", "text": f"Respecter strictement les lignes rouges déclarées : {_compact_value(risks.get('lignes_rouges'), max_len=180) or 'à préciser'}."},
+    ]
+    if sector_id == "bakery":
+        recommendations.append({"origin": "omar_hypothesis", "confidence": "medium", "text": "Prioriser un cas d’usage boulangerie simple : commandes, disponibilité produits, allergènes, avis ou invendus selon validation client."})
+    unknowns: list[str] = []
+    for label, value in {
+        "objectif dirigeant explicite": person.get("objectifs_racontes"),
+        "irritant prioritaire chiffré": ops.get("top_caillou") or ops.get("semaine"),
+        "marge / pilotage financier": admin.get("admin_racontee"),
+        "outils et ruptures de flux": tools.get("outils_racontes"),
+        "validation humaine et données sensibles": risks.get("validation_humaine") or risks.get("lignes_rouges"),
+        "zone exacte et concurrence proche": activity.get("recit_activite"),
+    }.items():
+        if value in (None, "", [], {}):
+            unknowns.append(label)
+    return {
+        "schema": "oa.audit-business-analysis.v1",
+        "sector_id": sector_id,
+        "sector_label": str(ref.get("label") or sector_id.replace("_", " ")),
+        "useful_axes": useful_axes,
+        "hypotheses": hypotheses[:6],
+        "recommendations": recommendations[:6],
+        "unknowns": unknowns or ["sources publiques non vérifiées si le client ne les autorise pas", "priorisation finale à co-valider"],
+        "signals": {
+            "activity": _compact_value(activity.get("recit_activite")),
+            "goals": _compact_value(person.get("objectifs_racontes")),
+            "operations": _compact_value(ops.get("semaine")),
+            "tools": _compact_value(tools.get("outils_racontes")),
+            "risks": _compact_value(risks.get("lignes_rouges")),
+        },
+    }
+
+
+def _tree_next_best_question(session: dict[str, Any], step_id: str) -> dict[str, Any]:
+    legacy_step = {
+        "activity_business_model": "activity",
+        "identity_public_context": "activity",
+        "public_sources_consent": "research",
+        "operations_week": "pain",
+        "digital_tools_data": "tools",
+        "risks_limits": "risk",
+        "recommendations": "opportunities",
+        "validation": "validation",
+    }.get(step_id, "activity")
+    candidates = recommend_micro_questions(session, legacy_step, limit=3)
+    if candidates:
+        return candidates[0]
+    return {"id": "fallback", "facet_id": "general", "question": "Quel détail changerait le plus le diagnostic si Omar le comprenait mieux ?", "why": "Un audit utile doit lever les zones floues avant de recommander.", "options": [], "interaction": "open"}
+
+
+def build_audit_agent_frame(session: dict[str, Any], step_id: str) -> dict[str, Any]:
+    tree = load_business_tech_tree()
+    step = _tree_steps_by_id(tree).get(step_id) or {}
+    analysis = _tree_business_analysis(session)
+    return {
+        "schema": "oa.audit-agent-frame.v1",
+        "mission": {
+            "primary_goal": "Comprendre l’entreprise assez précisément pour produire un diagnostic utile et préparer un agent borné, pas remplir un formulaire.",
+            "audit_outputs": ["rapport", "recommandations", "brief agent", "devis justifié si demandé"],
+        },
+        "step": {"id": step_id, "label": step.get("label"), "acte": step.get("acte"), "objective": step.get("objectif")},
+        "evidence": {
+            "declared_client": _tree_declared_evidence(session),
+            "verified_public": _tree_verified_public_evidence(session),
+            "omar_hypotheses": [item["text"] for item in analysis.get("hypotheses", [])],
+            "missing_or_unverified": analysis.get("unknowns", []),
+        },
+        "analysis": analysis,
+        "next_best_question": _tree_next_best_question(session, step_id),
+        "controls": ["Pourquoi cette question", "Passer cette question", "Enregistrer et reprendre plus tard", "Corriger ce que j’ai compris"],
+        "guardrails": {"paid_actions": "none", "external_actions": "none_without_explicit_human_go", "source_mixing": "declared_verified_hypothesis_separated", "tone": "vouvoiement, métier, direct"},
+    }
+
+
+def build_agent_brief(session: dict[str, Any]) -> dict[str, Any]:
+    analysis = _tree_business_analysis(session)
+    identity = _tree_state_answers(session, "identity_public_context")
+    activity = _tree_state_answers(session, "activity_business_model")
+    person = _tree_state_answers(session, "person_and_goals")
+    ops = _tree_state_answers(session, "operations_week")
+    tools = _tree_state_answers(session, "digital_tools_data")
+    risks = _tree_state_answers(session, "risks_limits")
+    sensitive = risks.get("donnees_sensibles") or []
+    human_validation = [str(risks.get("lignes_rouges") or "Validation humaine avant action externe sensible")]
+    if isinstance(sensitive, list):
+        human_validation.extend(str(x) for x in sensitive if str(x).strip())
+    return {
+        "schema": "oa.omar-agent-brief.v1",
+        "session_id": session.get("id"),
+        "sector_id": analysis["sector_id"],
+        "company_context": {
+            "identity": _compact_value(identity.get("nom_entreprise")),
+            "activity": _compact_value(activity.get("recit_activite")),
+            "customers": _compact_value(activity.get("type_clients")),
+            "team_size": _compact_value(activity.get("taille_equipe")),
+            "goals": _compact_value(person.get("objectifs_racontes")),
+            "operations": _compact_value(ops.get("semaine")),
+            "tools": _compact_value(tools.get("outils_racontes")),
+        },
+        "evidence_contract": {
+            "declared_client": _tree_declared_evidence(session),
+            "verified_public": _tree_verified_public_evidence(session),
+            "omar_hypothesis": [item["text"] for item in analysis.get("hypotheses", [])],
+        },
+        "analysis": analysis,
+        "guardrails": {
+            "human_validation_required": [item for item in human_validation if item],
+            "forbidden_data": sensitive,
+            "paid_actions": "none_without_go",
+            "external_contacts": "draft_only_until_client_validation",
+        },
+        "agent_operating_contract": {
+            "mode": "draft_agent_after_audit",
+            "allowed_actions": ["préparer des brouillons", "classer les demandes", "résumer les avis/sources autorisées", "proposer des checklists", "signaler les risques"],
+            "forbidden_actions": ["envoyer sans validation", "modifier prix/paiement", "répondre aux allergènes sans source validée", "contacter un tiers", "provisionner ou acheter"],
+            "success_criteria": ["gain de temps visible", "moins de ressaisie", "réponses plus régulières", "zéro action sensible sans validation"],
+        },
+    }
+
+
 def create_business_tech_session(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
     tree = load_business_tech_tree()
@@ -1235,7 +1415,9 @@ def business_tech_next_question(session: dict[str, Any], step: str | None = None
     options = (wanted_input or {}).get("options") or []
     if not isinstance(options, list):
         options = []
-    return {"schema": "oa.audit-tree.next-question.v1", "tree_id": tree["tree_id"], "step": step_id, "label": step_data.get("label"), "acte": step_data.get("acte"), "objective": step_data.get("objectif"), "question": _limit_message_lines(enforce_vouvoiement_text(raw_question), max_lines), "interaction": interaction, "options": [enforce_vouvoiement_text(str(item)) for item in options], "actions": _tree_contextual_actions(step_id, session, missing=missing), "completion": _tree_step_completion(session, step_id), "missing_inputs": missing, "sector_pack_relance": _tree_sector_pack_relance(session, step_id), "allowed_interactions_v0": list((tree.get("v0_scope") or {}).get("interactions") or sorted(TREE_V0_ALLOWED_INTERACTIONS)), "policy": {"regle_70_30": True, "message_max_lignes": max_lines, "profondeur_relance_max": 1, "no_llm_freeform": True}}
+    base_question = {"schema": "oa.audit-tree.next-question.v1", "tree_id": tree["tree_id"], "step": step_id, "label": step_data.get("label"), "acte": step_data.get("acte"), "objective": step_data.get("objectif"), "question": _limit_message_lines(enforce_vouvoiement_text(raw_question), max_lines), "interaction": interaction, "options": [enforce_vouvoiement_text(str(item)) for item in options], "actions": _tree_contextual_actions(step_id, session, missing=missing), "completion": _tree_step_completion(session, step_id), "missing_inputs": missing, "sector_pack_relance": _tree_sector_pack_relance(session, step_id), "allowed_interactions_v0": list((tree.get("v0_scope") or {}).get("interactions") or sorted(TREE_V0_ALLOWED_INTERACTIONS)), "policy": {"regle_70_30": True, "message_max_lignes": max_lines, "profondeur_relance_max": 1, "no_llm_freeform": True}}
+    base_question["agent_frame"] = build_audit_agent_frame(session, step_id)
+    return base_question
 
 
 def business_tech_add_message(session: dict[str, Any], text: str) -> dict[str, Any]:
