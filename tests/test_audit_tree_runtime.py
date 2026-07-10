@@ -100,6 +100,23 @@ def test_business_tech_tree_session_persists_structured_outputs_and_branches_hr_
     assert session["outputs"]["devis"]["devis_source"]["source_step"] == "validation"
 
 
+
+def test_business_tech_continue_without_account_records_pacte_and_advances():
+    created = ai.create_session({"tree_id": "business_tech"})
+    session = created["session"]
+
+    assert session["current_step"] == "pacte"
+    assert ai.validate_step(session, "pacte")["ok"] is False
+
+    session = ai.add_message(session, "Continuer sans compte")["session"]
+    pacte_answers = session["state"]["pacte"]["answers"]
+    assert pacte_answers["sauvegarde_choix"] == "Continuer sans compte"
+    assert pacte_answers["tutoiement"] == "Restons au vous"
+
+    validation = ai.validate_step(session, "pacte")
+    assert validation["ok"] is True, validation
+    assert validation["session"]["current_step"] == "identity_public_context"
+
 def test_business_tech_sector_pack_relance_is_depth_limited():
     session = ai.create_session({"tree_id": "business_tech"})["session"]
     ai.add_message(session, json.dumps({"step_id": "activity_business_model", "answers": {"recit_activite": "Je suis boulanger", "type_clients": "Des particuliers", "taille_equipe": "2-5"}}, ensure_ascii=False))

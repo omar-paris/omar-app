@@ -297,6 +297,23 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
   async function handleQuickReply(text, intent){
     if(state.busy) return;
     state.localQuickReplies=null;
+    if(state.current==='pacte' && text==='En savoir plus'){
+      addBubble('client', text); addBubble('omar', auditMoreText()); render(); return;
+    }
+    if(state.current==='pacte' && text==='Se connecter pour sauvegarder'){
+      addBubble('client', text); window.location.href='/oauth2/start?rd=/audit/'; return;
+    }
+    if(state.current==='pacte' && text==='Continuer sans compte'){
+      addBubble('client', text); setBusy(true);
+      if(state.sessionId){
+        try{
+          await api(`/api/audit-sessions/${state.sessionId}/message`,{message:'Continuer sans compte'});
+          const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:'pacte'});
+          syncSession(data.session); ask(data.next); return;
+        }catch(error){setBusy(false); addBubble('omar', `Je ne peux pas encore passer à la suite : ${error.message}. Ajoutez une précision.`); render(); return;}
+      }
+      state.current='identity_public_context'; state.validated.pacte=true; addBubble('omar', currentStep().fallback); render(); setBusy(false); return;
+    }
     if(intent==='help'){addBubble('client', text); coachStep('example'); return;}
     if(intent==='value'){addBubble('client', text); coachStep('value'); return;}
     if(intent==='challenge'){addBubble('client', text); coachStep('challenge'); return;}
@@ -326,23 +343,6 @@ body>.oa-hd{display:none!important}body main{max-width:none!important;margin:0!i
     }
     if(text==='Non, on continue sans recherche'){
       addBubble('client', text); state.researchDone=true; addBubble('omar','Très bien. Je continue uniquement avec vos réponses déclarées, sans prétendre avoir vérifié publiquement.'); const next=state.pendingAfterResearch; state.pendingAfterResearch=null; if(next){ask(next)} return;
-    }
-    if(state.current==='pacte' && text==='En savoir plus'){
-      addBubble('client', text); addBubble('omar', auditMoreText()); render(); return;
-    }
-    if(state.current==='pacte' && text==='Se connecter pour sauvegarder'){
-      addBubble('client', text); window.location.href='/oauth2/start?rd=/audit/'; return;
-    }
-    if(state.current==='pacte' && text==='Continuer sans compte'){
-      addBubble('client', text); setBusy(true);
-      if(state.sessionId){
-        try{
-          await api(`/api/audit-sessions/${state.sessionId}/message`,{message:'Continuer sans compte'});
-          const data=await api(`/api/audit-sessions/${state.sessionId}/validate-step`,{step:'pacte'});
-          syncSession(data.session); ask(data.next); return;
-        }catch(error){setBusy(false)}
-      }
-      state.current='identity_public_context'; state.validated.pacte=true; addBubble('omar', currentStep().fallback); render(); setBusy(false); return;
     }
     $('reply').value=text; userSend();
   }

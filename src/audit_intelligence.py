@@ -1033,7 +1033,10 @@ def business_tech_add_message(session: dict[str, Any], text: str) -> dict[str, A
     now = _tree_now()
     raw_answers = payload.get("answers")
     answers: dict[str, Any] = raw_answers if isinstance(raw_answers, dict) else {"free_text": text}
-    is_plain_free_text = isinstance(raw_answers, dict) and set(raw_answers) == {"free_text"}
+    # A plain `/message` payload such as {"message": "Continuer sans compte"}
+    # arrives without an explicit `answers` object. It is still contextual free
+    # text and must be interpreted against the current step before validation.
+    is_plain_free_text = isinstance(answers, dict) and set(answers) == {"free_text"}
     contextual = _tree_interpret_contextual_free_text(step_id, str(payload.get("raw_text") or text)) if is_plain_free_text else None
     if contextual:
         answers = contextual
