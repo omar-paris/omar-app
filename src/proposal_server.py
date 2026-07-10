@@ -1603,6 +1603,17 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 self.send_json(200, {"ok": True, "session": session, "research_plan": plan})
                 return
             if action == "public-research":
+                identity_answers = ((session.get("state") or {}).get("identity_public_context") or {}).get("answers") or {}
+                consent_answers = ((session.get("state") or {}).get("public_sources_consent") or {}).get("answers") or {}
+                if not payload.get("company_public_name") and not payload.get("public_name"):
+                    payload["company_public_name"] = str(identity_answers.get("nom_entreprise") or identity_answers.get("company_public_name") or "").strip()
+                if not payload.get("address"):
+                    payload["address"] = str(identity_answers.get("adresse") or identity_answers.get("address") or identity_answers.get("nom_entreprise") or "").strip()
+                if not payload.get("location"):
+                    payload["location"] = str(identity_answers.get("adresse") or identity_answers.get("location") or identity_answers.get("nom_entreprise") or "").strip()
+                if not isinstance(payload.get("consents"), dict):
+                    session_consents = consent_answers.get("consents") if isinstance(consent_answers.get("consents"), dict) else {}
+                    payload["consents"] = session_consents
                 plan = audit_build_research_plan(session, payload)
                 fetched_pages: list[dict[str, Any]] = []
                 registry_records: list[dict[str, Any]] = []

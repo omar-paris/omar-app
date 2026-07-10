@@ -14,13 +14,20 @@ def _answer_and_validate(session: dict, step_id: str, answers: dict) -> dict:
     result = ai.add_message(session, json.dumps({"step_id": step_id, "answers": answers}, ensure_ascii=False))
     session = result["session"]
     validated = ai.validate_step(session, step_id)
+    if not validated.get("ok") and validated.get("error") == "public_research_required":
+        session.setdefault("public_research", []).append({
+            "created_at": "2026-07-10T00:00:00Z",
+            "result": {"schema": "oa_public_research_result.v1", "status": "partial", "facts": [{"label": "Nom", "value": "Boulangerie test"}]},
+        })
+        session.setdefault("state", {}).setdefault("public_sources_consent", {}).setdefault("answers", {})["public_research_validation"] = "Faits publics validés par le client"
+        validated = ai.validate_step(session, step_id)
     assert validated["ok"], validated
     return validated["session"]
 
 
 def _prepare_bakery_session_at_activity_model() -> dict:
     session = ai.create_session({"tree_id": "business_tech"})["session"]
-    session = _answer_and_validate(session, "pacte", {"tutoiement": "Restons au vous", "rythme": "Droit au but"})
+    session = _answer_and_validate(session, "pacte", {"sauvegarde_choix": "Continuer sans compte"})
     session = _answer_and_validate(session, "identity_public_context", {"nom_entreprise": "Boulangerie test Paris", "sirene_match": "À corriger"})
     session = _answer_and_validate(session, "public_sources_consent", {"consents": {"web_public": True, "sirene_detail": True}})
     return session
@@ -46,13 +53,14 @@ def test_j1ter_pacte_quick_start_records_required_answers_and_advances():
     session = created["session"]
     assert session["current_step"] == "pacte"
 
-    result = ai.add_message(session, "OK, on commence")
+    result = ai.add_message(session, "Continuer sans compte")
     session = result["session"]
     validated = ai.validate_step(session, "pacte")
 
     assert validated["ok"], validated
     assert validated["session"]["current_step"] == "identity_public_context"
     answers = validated["session"]["state"]["pacte"]["answers"]
+    assert answers["sauvegarde_choix"] == "Continuer sans compte"
     assert answers["tutoiement"] == "Restons au vous"
     assert answers["rythme"] == "Droit au but"
 
@@ -60,7 +68,7 @@ def test_j1ter_pacte_quick_start_records_required_answers_and_advances():
 def test_j1ter_identity_free_text_records_company_name_and_advances_like_live_user():
     created = ai.create_session({"tree_id": "business_tech"})
     session = created["session"]
-    session = _answer_and_validate(session, "pacte", {"tutoiement": "Restons au vous", "rythme": "Droit au but"})
+    session = _answer_and_validate(session, "pacte", {"sauvegarde_choix": "Continuer sans compte"})
 
     result = ai.add_message(session, "Boulangerie Dupont à Paris 11e")
     session = result["session"]
@@ -75,7 +83,7 @@ def test_j1ter_identity_free_text_records_company_name_and_advances_like_live_us
 def test_j1ter_natural_free_text_flow_completes_and_generates_documents_like_live_smoke():
     session = ai.create_session({"tree_id": "business_tech"})["session"]
     natural_answers = [
-        ("pacte", "OK, on commence"),
+        ("pacte", "Continuer sans compte"),
         ("identity_public_context", "Boulangerie Dupont à Paris 11e"),
         ("public_sources_consent", "Oui pour les sources publiques, pas de réseaux sociaux"),
         ("activity_business_model", "Boulangerie artisanale, vente boutique, particuliers du quartier, équipe de 6 personnes, sandwichs midi, pâtisseries le week-end"),
@@ -94,6 +102,13 @@ def test_j1ter_natural_free_text_flow_completes_and_generates_documents_like_liv
         result = ai.add_message(session, text)
         session = result["session"]
         validated = ai.validate_step(session, step_id)
+        if step_id == "public_sources_consent" and not validated.get("ok") and validated.get("error") == "public_research_required":
+            session.setdefault("public_research", []).append({
+                "created_at": "2026-07-10T00:00:00Z",
+                "result": {"schema": "oa_public_research_result.v1", "status": "partial", "facts": [{"label": "Nom", "value": "Boulangerie Dupont"}]},
+            })
+            session = ai.add_message(session, "Valider les informations")["session"]
+            validated = ai.validate_step(session, step_id)
         assert validated["ok"], {"step": step_id, "validated": validated, "state": session.get("state", {}).get(step_id)}
         session = validated["session"]
 
@@ -113,7 +128,7 @@ def test_j1ter_public_research_consent_is_backend_state_not_front_fragile_yes():
     session = _answer_and_validate(
         session,
         "pacte",
-        {"tutoiement": "Restons au vous", "rythme": "Droit au but"},
+        {"sauvegarde_choix": "Continuer sans compte"},
     )
     session = _answer_and_validate(
         session,
@@ -136,6 +151,62 @@ def test_j1ter_public_research_consent_is_backend_state_not_front_fragile_yes():
     assert session["runtime"]["source_consent_status"] == "authorized"
     assert result["omar"]["step"] == "public_sources_consent"
     assert any(action["intent"] == "confirm" for action in result["omar"]["actions"])
+
+
+def test_j1ter_authorized_public_research_must_be_attempted_before_next_step():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+    session = _answer_and_validate(session, "pacte", {"sauvegarde_choix": "Continuer sans compte"})
+    session = _answer_and_validate(
+        session,
+        "identity_public_context",
+        {"nom_entreprise": "Boulangerie du Parc Monceau", "adresse": "51 Rue de Prony, 75017 Paris"},
+    )
+
+    result = ai.add_message(session, "Oui, recherche publique autorisée")
+    session = result["session"]
+    blocked = ai.validate_step(session, "public_sources_consent")
+
+    assert blocked["ok"] is False
+    assert blocked["error"] == "public_research_required"
+    assert blocked["completion"]["ready"] is False
+    assert blocked["completion"]["missing_inputs"] == ["public_research_validation"]
+    assert "recherche publique" in blocked["omar"]["question"].lower()
+
+    session.setdefault("public_research", []).append({
+        "created_at": "2026-07-10T00:00:00Z",
+        "result": {"schema": "oa_public_research_result.v1", "status": "partial", "facts": [{"label": "Nom", "value": "Boulangerie du Parc Monceau"}]},
+    })
+    session.setdefault("state", {}).setdefault("public_sources_consent", {}).setdefault("answers", {})["public_research_validation"] = "Faits publics validés par le client"
+    validated = ai.validate_step(session, "public_sources_consent")
+
+    assert validated["ok"] is True
+    assert validated["session"]["current_step"] == "activity_business_model"
+
+
+def test_j1ter_public_research_correction_does_not_validate_or_advance():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+    session = _answer_and_validate(session, "pacte", {"sauvegarde_choix": "Continuer sans compte"})
+    session = _answer_and_validate(
+        session,
+        "identity_public_context",
+        {"nom_entreprise": "Boulangerie du Parc Monceau", "adresse": "51 Rue de Prony, 75017 Paris"},
+    )
+
+    session = ai.add_message(session, "Oui, recherche publique autorisée")["session"]
+    session.setdefault("public_research", []).append({
+        "created_at": "2026-07-10T00:00:00Z",
+        "result": {"schema": "oa_public_research_result.v1", "status": "partial", "facts": [{"label": "Nom", "value": "Mauvaise boulangerie"}]},
+    })
+    session = ai.add_message(session, "Ce n'est pas la bonne entreprise, corriger avec Boulangerie du Parc Monceau")["session"]
+    blocked = ai.validate_step(session, "public_sources_consent")
+
+    assert blocked["ok"] is False
+    assert blocked["error"] == "public_research_validation_required"
+    assert session["current_step"] == "public_sources_consent"
+    answers = session["state"]["public_sources_consent"]["answers"]
+    assert answers["public_research_validation_status"] == "correction_requested"
+    assert "public_research_validation" not in answers
+    assert answers["public_research_correction"].startswith("Ce n'est pas la bonne entreprise")
 
 
 def test_j1ter_broad_answer_tout_on_bakery_irritants_becomes_priority_not_repeat():
@@ -288,13 +359,18 @@ def test_j1ter_documents_endpoint_exposes_generated_artifacts(tmp_path):
         assert status == 201
         sid = created["session"]["id"]
         for step_id, answers in [
-            ("pacte", {"tutoiement": "Restons au vous", "rythme": "Droit au but"}),
+            ("pacte", {"sauvegarde_choix": "Continuer sans compte"}),
             ("identity_public_context", {"nom_entreprise": "Boulangerie API Paris", "sirene_match": "À corriger"}),
             ("public_sources_consent", {"consents": {"web_public": True, "sirene_detail": True}}),
             ("activity_business_model", {"recit_activite": "Boulangerie pâtisserie à Paris", "type_clients": "Des particuliers", "taille_equipe": "6-20", "canaux_vente": "Sur place"}),
             ("person_and_goals", {"objectifs_racontes": "gagner du temps", "niveau_digital": "Ça va"}),
         ]:
             request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/message", {"message": json.dumps({"step_id": step_id, "answers": answers}, ensure_ascii=False)})
+            if step_id == "public_sources_consent":
+                status, research = request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/public-research", {"dry_run": True})
+                assert status == 200
+                assert research["research_result"]["schema"] == "oa_public_research_result.v1"
+                request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/message", {"message": "Valider les informations"})
             request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/validate-step", {"step": step_id})
         status, docs = request_json("GET", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/documents")
         assert status == 200

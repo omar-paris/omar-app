@@ -71,7 +71,7 @@ def test_business_tech_tree_session_persists_structured_outputs_and_branches_hr_
     created = ai.create_session({"tree_id": "business_tech"})
     session = created["session"]
     answers = {
-        "pacte": {"tutoiement": "Restons au vous", "rythme": "Droit au but", "temps_dispo": "20 min"},
+        "pacte": {"sauvegarde_choix": "Continuer sans compte"},
         "identity_public_context": {"nom_entreprise": "DU PAIN ET DES IDEES Paris", "sirene_match": "C'est bien moi"},
         "public_sources_consent": {"consents": {"web_public": True, "sirene_detail": True, "site_web": False, "fiche_google": False, "reseaux": False}},
         "activity_business_model": {"recit_activite": "Boulangerie à Paris", "type_clients": "Des particuliers", "taille_equipe": "Solo", "canaux_vente": "Sur place"},
@@ -88,6 +88,13 @@ def test_business_tech_tree_session_persists_structured_outputs_and_branches_hr_
         result = ai.add_message(session, json.dumps({"step_id": step_id, "answers": answers[step_id]}, ensure_ascii=False))["session"]
         session = result
         validation = ai.validate_step(session, step_id)
+        if step_id == "public_sources_consent" and not validation.get("ok") and validation.get("error") == "public_research_required":
+            session.setdefault("public_research", []).append({
+                "created_at": "2026-07-10T00:00:00Z",
+                "result": {"schema": "oa_public_research_result.v1", "status": "partial", "facts": [{"value": "DU PAIN ET DES IDEES Paris"}]},
+            })
+            session.setdefault("state", {}).setdefault("public_sources_consent", {}).setdefault("answers", {})["public_research_validation"] = "Récit Omar validé par le client"
+            validation = ai.validate_step(session, step_id)
         assert validation["ok"], validation
         session = validation["session"]
 
@@ -99,6 +106,23 @@ def test_business_tech_tree_session_persists_structured_outputs_and_branches_hr_
     assert "identite_officielle" in session["outputs"]["report"]
     assert session["outputs"]["devis"]["devis_source"]["source_step"] == "validation"
 
+
+
+def test_business_tech_continue_without_account_records_pacte_and_advances():
+    created = ai.create_session({"tree_id": "business_tech"})
+    session = created["session"]
+
+    assert session["current_step"] == "pacte"
+    assert ai.validate_step(session, "pacte")["ok"] is False
+
+    session = ai.add_message(session, "Continuer sans compte")["session"]
+    pacte_answers = session["state"]["pacte"]["answers"]
+    assert pacte_answers["sauvegarde_choix"] == "Continuer sans compte"
+    assert pacte_answers["tutoiement"] == "Restons au vous"
+
+    validation = ai.validate_step(session, "pacte")
+    assert validation["ok"] is True, validation
+    assert validation["session"]["current_step"] == "identity_public_context"
 
 def test_business_tech_sector_pack_relance_is_depth_limited():
     session = ai.create_session({"tree_id": "business_tech"})["session"]
@@ -150,9 +174,9 @@ def test_audit_session_endpoint_uses_tree_runtime_when_requested(tmp_path):
         sid = created["session"]["id"]
         assert created["session"]["schema"] == "oa_audit_session.business_tech.v1"
         assert len(created["omar"]["question"].splitlines()) <= 3
-        status, posted = request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/message", {"message": json.dumps({"step_id": "pacte", "answers": {"tutoiement": "Restons au vous", "rythme": "Droit au but"}}, ensure_ascii=False)})
+        status, posted = request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/message", {"message": json.dumps({"step_id": "pacte", "answers": {"sauvegarde_choix": "Continuer sans compte"}}, ensure_ascii=False)})
         assert status == 200
-        assert posted["session"]["state"]["pacte"]["answers"]["rythme"] == "Droit au but"
+        assert posted["session"]["state"]["pacte"]["answers"]["sauvegarde_choix"] == "Continuer sans compte"
         assert posted["omar"]["step"] == "pacte"
     finally:
         proc.terminate()

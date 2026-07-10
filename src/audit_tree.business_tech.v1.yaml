@@ -49,19 +49,16 @@ steps:
     label: Accueil & pacte
     objectif: Cadre posé (durée, gratuité, contrôle client) + style choisi.
     entry_message: >
-      Bonjour, moi c'est Omar. En 20 minutes je comprends votre activité et je
-      vous remets un vrai diagnostic business & tech — gratuit, sans engagement.
-      Vous préférez qu'on reste au vouvoiement ?
+      Bonjour, moi c'est Omar. À travers plusieurs questions, nous allons explorer
+      votre activité et terminer avec un diagnostic Business & Tech complet,
+      proposé sous forme de plusieurs documents. Souhaitez-vous vous connecter pour
+      sauvegarder et reprendre plus tard, ou continuer sans compte ?
     inputs:
-      - {id: tutoiement, type: quick_replies, required: true,
-         options: ["On se tutoie", "Restons au vous"]}
-      - {id: rythme, type: quick_replies, required: true,
-         question: "Tu préfères aller droit au but, ou prendre le temps ?",
-         options: ["Droit au but", "Prendre le temps"]}
-      - {id: temps_dispo, type: quick_replies, required: false,
-         question: "Tu as combien de temps, là ?",
-         options: ["10 min", "20 min", "Pas de limite"]}
-    completion: [tutoiement, rythme]
+      - {id: sauvegarde_choix, type: quick_replies, required: true,
+         options: ["Se connecter pour sauvegarder", "Continuer sans compte", "En savoir plus"]}
+      - {id: tutoiement, type: hidden, required: false, value: "Restons au vous"}
+      - {id: rythme, type: hidden, required: false, value: "Droit au but"}
+    completion: [sauvegarde_choix]
     branches:
       - {if: "temps_dispo == '10 min'", then: set_mode_express}
     outputs: {onboarding: [preferences_communication]}

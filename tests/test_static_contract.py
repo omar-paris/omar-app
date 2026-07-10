@@ -67,31 +67,42 @@ def test_audit_page_is_v4_minimal_conversation_not_cockpit_or_static_form():
     text = raw.lower()
     for term in [
         "conversation avec omar",
-        "rencontre. plongée. livraison.",
+        "progression",
+        "on fait connaissance",
+        "on entre dans le concret",
+        "votre diagnostic",
         "audit_business_tech_tree_v1",
         "audit business & tech actif",
         "noyau déclaratif yaml",
         "bonjour, moi c’est omar",
+        "à travers plusieurs questions",
+        "diagnostic business & tech complet",
+        "plusieurs documents",
         "ce qu’omar a compris",
         "ce qu’il ne faut pas automatiser",
-        "sauvegarde optionnelle",
         "continuer sans compte",
         "se connecter pour sauvegarder",
-        "recevoir le rapport par email",
-        "obligatoire seulement pour accéder au devis",
+        "recevoir ce rapport",
         "le devis est volontairement réservé aux personnes enregistrées",
-        "style v4",
-        "encre #16140f",
-        "corail #a8553a",
+        "height:100dvh",
+        "grid-template-columns:minmax(190px,230px) minmax(0,1fr)",
         "/api/audit-sessions",
         "/documents",
-        "aucun mot de passe",
-        "aucune carte bancaire",
+        "aucune action payante",
     ]:
         assert term in text
-    for step in ["pacte", "identité", "sources publiques", "activité", "dirigeant & objectifs", "semaine réelle", "admin & finances", "outils", "lignes rouges", "diagnostic", "priorités", "synthèse finale"]:
+    for forbidden_intro in [
+        "répondez librement. vous pouvez faire l’audit sans compte",
+        "sauvegarde optionnelle",
+        "obligatoire seulement pour accéder au devis",
+        "style v4",
+        "aucune carte bancaire",
+        "rencontre. plongée. livraison.",
+    ]:
+        assert forbidden_intro not in text
+    for step in ["démarrage", "identité", "sources publiques", "activité", "dirigeant & objectifs", "semaine réelle", "marketing & ventes", "admin & finances", "équipe & organisation", "outils", "lignes rouges", "diagnostic", "priorités", "synthèse finale"]:
         assert step in text
-    for act in ["rencontre", "plongée", "livraison"]:
+    for act in ["on fait connaissance", "on entre dans le concret", "votre diagnostic"]:
         assert act in text
     assert "linear-gradient" not in text
     assert "radial-gradient" not in text
@@ -106,7 +117,7 @@ def test_audit_page_final_step_matches_business_tech_runtime_validation_not_lega
     raw = html(PUBLIC / "audit" / "index.html")
     compact = re.sub(r"\s+", "", raw)
 
-    assert "{id:'livraison',label:'Livraison',steps:['diagnosis','recommendations','validation']}" in compact
+    assert "{id:'livraison',label:'Votrediagnostic',steps:['diagnosis','recommendations','validation']}" in compact
     assert "{id:'validation',label:'Synthèsefinale'" in compact
     assert "session.status==='complete'" in raw
     assert "completion.complete" in raw
@@ -397,3 +408,30 @@ def test_public_payment_copy_does_not_publish_specific_provider_target():
     assert "paid_test" not in joined
     assert "paiement validé" not in joined
     assert "portail client stripe" not in joined
+
+def test_audit_tree_validator_contract_passes():
+    result = subprocess.run(
+        ["python3", "scripts/audit_tree_validator.py"],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report["status"] == "pass"
+    assert not report["failures"]
+
+
+def test_audit_page_requires_omar_mini_story_validation_after_public_research():
+    build_site()
+    raw = html(PUBLIC / "audit" / "index.html")
+    compact = re.sub(r"\s+", "", raw)
+
+    assert "function buildOmarMiniStory" in raw
+    assert "confirm_omar_story" in raw
+    assert "Récit Omar à valider" in raw
+    assert "Valider le récit Omar" in raw
+    assert "buildOmarMiniStory(result)" in compact
+    assert "intent==='confirm_omar_story'" in compact
