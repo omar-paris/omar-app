@@ -237,7 +237,8 @@ def render_connector_readiness() -> str:
     return f"""
   <section class="card" id="connector_readiness" style="margin-top:22px">
     <h2>Readiness connecteurs — Catalogue → AppOmar</h2>
-    <p class="meta">Source: Catalogue OA public anonymisé. Vocabulaire contractuel: potential/configured/proven/unknown. Les détails client, propriétaires internes et états infra restent hors de cette surface publique.</p>
+    <p class="meta">Source: Catalogue OA public anonymisé. Vocabulaire contractuel: potential/configured/proven/unknown. Les 7 connecteurs restent volontairement <strong>unknown côté public</strong> tant qu'aucune preuve runtime client/gate publique n'existe.</p>
+    <p class="meta"><strong>Unknown public ≠ proven client</strong> : AppOmar ne transforme jamais une cible Catalogue en <code>configured</code> ou <code>proven</code> sans artefact public validé par Catalogue/OmarTop/Athena. Les détails client, propriétaires internes et états infra restent hors de cette surface publique.</p>
     <table class="readiness-table" aria-label="Readiness connecteurs Catalogue">
       <thead><tr><th>Capacité</th><th>Statut</th><th>Preuve publique</th><th>Next action / gap</th></tr></thead>
       <tbody>{rows}</tbody>
@@ -431,6 +432,18 @@ def write_api_assets() -> None:
         "schema": "appomar.connector_readiness.v1",
         "source": "oa-catalogue public anonymized connector readiness",
         "status_vocabulary": ["potential", "configured", "proven", "unknown"],
+        "status_semantics": {
+            "unknown": "Public-safe placeholder: no publishable client runtime proof or public gate artifact exists yet.",
+            "configured": "Only allowed when a public configuration proof is validated by Catalogue/OmarTop/Athena.",
+            "proven": "Only allowed when measured/read runtime client proof is validated for public exposure.",
+        },
+        "public_status_counts": {"unknown": len(CONNECTOR_READINESS)},
+        "client_runtime_proof": {
+            "public_state": "not_proven_publicly",
+            "proven_client_connectors": 0,
+            "unknown_public_connectors": len(CONNECTOR_READINESS),
+            "promotion_rule": "Do not promote unknown to configured/proven without a public artifact validated by Catalogue/OmarTop/Athena.",
+        },
         "items": CONNECTOR_READINESS,
         "safety": {
             "secrets_exposed": False,
