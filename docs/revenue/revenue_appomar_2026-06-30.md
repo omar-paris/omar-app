@@ -14,9 +14,9 @@ Stream: revenue_appomar
 
 | Source | Preuve utile revenue |
 |---|---|
-| `/home/omar/23-Offre/actifs/omar-app/APP_CONTRACT.md` | JTBD A→Z: onboarding conversationnel -> devis -> Stripe test/simulation -> provisioning timeline -> `agent_spec`. |
-| `/home/omar/23-Offre/actifs/omar-app/catalog.json` | Starter 49 €/mois, Pro 99 €/mois, onboarding 150 € unique, SAV 60 € unique. |
-| `/home/omar/23-Offre/actifs/omar-landing/public/tarifs/index.html` | Landing annonce « à partir de 80 €/mois » et CTA vers `https://app.omar.paris/audit/`. |
+| `repo:APP_CONTRACT.md` | JTBD A→Z: onboarding conversationnel -> devis -> Stripe test/simulation -> provisioning timeline -> `agent_spec`. |
+| `repo:catalog.json` | Starter 49 €/mois, Pro 99 €/mois, onboarding 150 € unique, SAV 60 € unique. |
+| `repo:../omar-landing/public/tarifs/index.html` | Landing annonce « à partir de 80 €/mois » et CTA vers `https://app.omar.paris/audit/`. |
 | Live headers | `/`, `/audit/`, `/devis/`, `/onboarding/` retournent 302 vers `/oauth2/start?...` avant contenu. |
 
 ## Offre vendable recommandée maintenant
@@ -86,8 +86,8 @@ kpis:
   handoffs_created: 1
   blocked_items: 2
 done_today:
-  - "/home/omar/23-Offre/actifs/omar-app/docs/revenue/revenue_appomar_2026-06-30.md"
-  - "/home/omar/23-Offre/actifs/omar-app/docs/revenue/revenue_appomar_2026-06-30.json"
+  - "repo:docs/revenue/revenue_appomar_2026-06-30.md"
+  - "repo:docs/revenue/revenue_appomar_2026-06-30.json"
 needs_from_other_agents:
   - from: oa-commerce
     ask: "Arbitrer prix public AppOmar et livrer wording CTA + objections avant alignement Builder."

@@ -52,7 +52,7 @@ DEFAULT_DATA_DIR = ROOT / "var"
 # stockées, avec contrôle propriétaire ci-dessous.
 DEFAULT_VAULT_ADDR = os.environ.get("OA_APP_VAULT_ADDR", os.environ.get("VAULT_ADDR", "http://127.0.0.1:8202"))
 DEFAULT_VAULT_TOKEN_FILE = Path(
-    os.environ.get("OA_APP_VAULT_TOKEN_FILE", "/home/omar/.config/omar-app/vault-token")
+    os.environ.get("OA_APP_VAULT_TOKEN_FILE", str(ROOT / ".runtime" / "vault-token"))
 )
 PROPOSAL_ID_RE = re.compile(
     r"^proposal-(?:[A-Za-z0-9_-]{43}|[0-9a-f]{32}-[a-z0-9-]+|[0-9]{8}T[0-9]{6}Z-[a-z0-9-]+)$"
@@ -69,7 +69,7 @@ ALLOWED_VAULT_FIELDS = {
 
 # Annuaire des clients (app-emails.txt par client) — racine surchargeable pour les
 # tests. Sert au mapping email authentifié -> client (isolation multi-tenant app#13/#14).
-DEFAULT_CLIENTS_DIR = Path(os.environ.get("OA_CLIENTS_DIR", "/home/omar/clients"))
+DEFAULT_CLIENTS_DIR = Path(os.environ.get("OA_CLIENTS_DIR", str(ROOT / "var" / "clients")))
 # Artefacts Hub en lecture seule pour l'état de santé SAV (jamais de SSH/mutation).
 DEFAULT_HUB_API_DIR = Path(
     os.environ.get("OA_HUB_API_DIR", str(ROOT.parent / "omar-hub" / "public" / "api"))
@@ -80,7 +80,7 @@ _CLIENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 def admin_emails() -> set[str]:
     return {
         e.strip().lower()
-        for e in os.environ.get("OA_ADMIN_EMAILS", "alexwillemetz@gmail.com").split(",")
+        for e in os.environ.get("OA_ADMIN_EMAILS", "").split(",")
         if e.strip()
     }
 
@@ -842,7 +842,7 @@ def read_audit_session(data_dir: Path, sid: str) -> dict[str, Any] | None:
 # --- Audit conversationnel via agent Hermes (Fable 2, 2026-07-02, GO Alex) ---
 # L'agent est un profil de la flotte H-Omar (Codex), jamais une API directe.
 # Chaîne de profils : oa-audit (dédié, à créer par H-Omar) puis oa-commerce (existant).
-HERMES_BIN = os.environ.get("OA_HERMES_BIN", "/home/omar/.local/bin/hermes")
+HERMES_BIN = os.environ.get("OA_HERMES_BIN", "hermes")
 AUDIT_PROFILES = [p.strip() for p in os.environ.get("OA_AUDIT_PROFILES", "oa-audit,oa-commerce").split(",") if p.strip()]
 AUDIT_PROMPT_PATH = Path(__file__).resolve().parent / "oa_audit_prompt.md"
 AUDIT_CHAT_STEPS = ["intro", "activity", "research", "pain", "tools", "risk", "opportunities", "autonomy", "validation"]
@@ -1063,7 +1063,7 @@ def build_onboarding_simulation(onboarding: dict[str, Any], target: str) -> dict
 
 def pricing_payload() -> dict[str, Any]:
     # V0.3 is intentionally read-only. HCLOUD_TOKEN may be injected directly; otherwise
-    # read it with the omar-app Vault service token only (never /home/omar/.vault-token).
+    # read it with the omar-app Vault service token only (never a user-home token).
     token = os.environ.get("HCLOUD_TOKEN") or _vault_secret("secret/integrations/hetzner/test", "HCLOUD_TOKEN")
     mode = "static_fallback"
     source = "src/site_data.py"
@@ -1604,7 +1604,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
         X-Auth-Request-Email — on vérifie qu'il est dans la liste admin."""
         email = self.headers.get("X-Auth-Request-Email", "").strip().lower()
         admins = {e.strip().lower() for e in
-                  os.environ.get("OA_ADMIN_EMAILS", "alexwillemetz@gmail.com").split(",")}
+                  os.environ.get("OA_ADMIN_EMAILS", "").split(",") if e.strip()}
         if email not in admins:
             self.send_json(403, {"ok": False, "error": "not_admin", "vu": email or "(aucun email)"})
             return

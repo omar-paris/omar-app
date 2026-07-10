@@ -7,7 +7,7 @@
   "scope": "AppOmar/Omar App vendre réellement: audit IA, offre, devis, onboarding",
   "verified_sources": [
     {
-      "path": "/home/omar/23-Offre/actifs/omar-app/APP_CONTRACT.md",
+      "path": "repo:APP_CONTRACT.md",
       "facts": [
         "AppOmar internal codename; customer-facing product Omar App on app.omar.paris",
         "Primary JTBD: onboarding conversationnel -> devis -> Stripe test/simulation -> provisioning timeline -> agent_spec",
@@ -15,7 +15,7 @@
       ]
     },
     {
-      "path": "/home/omar/23-Offre/actifs/omar-app/catalog.json",
+      "path": "repo:catalog.json",
       "facts": [
         "formule-starter: 49 EUR/mois",
         "formule-pro: 99 EUR/mois",
@@ -24,7 +24,7 @@
       ]
     },
     {
-      "path": "/home/omar/23-Offre/actifs/omar-landing/public/tarifs/index.html",
+      "path": "repo:../omar-landing/public/tarifs/index.html",
       "facts": [
         "public landing states precommande a partir de 80 EUR/mois",
         "CTA principal points to https://app.omar.paris/audit/"
@@ -34,7 +34,7 @@
   "verification": {
     "local_build_and_tests": {
       "command": "python3 scripts/build.py && python3 -m pytest -q tests/test_static_contract.py tests/test_proposal_server.py tests/test_auditbiz_schema.py",
-      "workdir": "/home/omar/23-Offre/actifs/omar-app",
+      "workdir": "repo:omar-app",
       "result": "built 10 routes; 32 passed in 2.83s"
     },
     "live_route_headers": {
