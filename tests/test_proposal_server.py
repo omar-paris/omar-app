@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import socket
 import subprocess
@@ -1026,3 +1027,36 @@ def test_onboarding_simulation_preview_is_dry_run_and_secret_safe(tmp_path):
     finally:
         proc.terminate()
         proc.wait(timeout=3)
+
+
+def test_call_audit_agent_uses_file_prompt_and_minimal_env(monkeypatch):
+    captured = {}
+
+    def fake_run(args, capture_output, text, timeout, env):
+        captured["args"] = args
+        captured["env"] = env
+        query = args[args.index("-q") + 1]
+        assert "PROSPECT_SECRET" not in " ".join(args)
+        assert "Fichier: " in query
+        prompt_path = query.rsplit("Fichier: ", 1)[1]
+        captured["prompt_path"] = prompt_path
+        assert Path(prompt_path).exists()
+        assert oct(Path(prompt_path).stat().st_mode & 0o777) == "0o600"
+        assert "PROSPECT_SECRET" in Path(prompt_path).read_text(encoding="utf-8")
+        return subprocess.CompletedProcess(args, 0, stdout="session_id: abc\nRéponse Omar", stderr="")
+
+    monkeypatch.setattr(proposal_server, "AUDIT_PROFILES", ["oa-audit"])
+    monkeypatch.setenv("HCLOUD_TOKEN", "SERVER_SECRET_SHOULD_NOT_INHERIT")
+    monkeypatch.setenv("OA_PROPOSALS_TOKEN", "APP_SECRET_SHOULD_NOT_INHERIT")
+    monkeypatch.setattr(proposal_server.subprocess, "run", fake_run)
+
+    result = proposal_server.call_audit_agent("Client dit PROSPECT_SECRET")
+
+    assert result == ("Réponse Omar", "oa-audit")
+    assert captured["args"][:4] == [proposal_server.HERMES_BIN, "-p", "oa-audit", "chat"]
+    assert captured["args"][-2:] == ["-t", "file"]
+    assert "PROSPECT_SECRET" not in " ".join(captured["args"])
+    assert captured["env"]["PYTHONUNBUFFERED"] == "1"
+    assert "HCLOUD_TOKEN" not in captured["env"]
+    assert "OA_PROPOSALS_TOKEN" not in captured["env"]
+    assert not Path(captured["prompt_path"]).exists()

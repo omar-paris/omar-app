@@ -9,6 +9,7 @@ import re
 import secrets
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -885,22 +886,65 @@ Cailloux déjà notés :
 Réponds maintenant en tant qu'Omar (4 lignes max, une seule question), avec les tokens de contrôle si nécessaire."""
 
 
+def _audit_agent_env() -> dict[str, str]:
+    """Minimal env for child Hermes process: no server/API secrets by default."""
+    allowed = {
+        "HOME",
+        "PATH",
+        "USER",
+        "LOGNAME",
+        "LANG",
+        "LC_ALL",
+        "TERM",
+        "HERMES_HOME",
+        "XDG_CONFIG_HOME",
+        "XDG_CACHE_HOME",
+        "XDG_DATA_HOME",
+    }
+    env = {k: v for k, v in os.environ.items() if k in allowed and v}
+    env["PYTHONUNBUFFERED"] = "1"
+    return env
+
+
 def call_audit_agent(prompt: str) -> tuple[str, str] | None:
     """Appelle le premier profil Hermes disponible. Retourne (réponse, profil) ou None."""
-    for profile in AUDIT_PROFILES:
-        try:
-            result = subprocess.run(
-                [HERMES_BIN, "chat", "--profile", profile, "-q", prompt, "-Q"],
-                capture_output=True, text=True, timeout=75,
-                env={**os.environ, "PYTHONUNBUFFERED": "1"},
-            )
-            lines = [l for l in (result.stdout or "").strip().split("\n") if not l.startswith("session_id:")]
-            text = "\n".join(lines).strip()
-            if result.returncode == 0 and text:
-                return text, profile
-        except (subprocess.TimeoutExpired, OSError):
-            continue
-    return None
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            prefix="oa-audit-prompt-",
+            suffix=".md",
+            delete=False,
+        ) as tmp:
+            tmp_name = tmp.name
+            os.chmod(tmp_name, 0o600)
+            tmp.write(prompt)
+        query = (
+            "Lis le fichier local suivant avec l'outil fichier, puis réponds au prompt qu'il contient. "
+            "Ne cite pas le chemin et ne répète pas le contenu brut. Fichier: "
+            f"{tmp_name}"
+        )
+        for profile in AUDIT_PROFILES:
+            try:
+                result = subprocess.run(
+                    [HERMES_BIN, "-p", profile, "chat", "-q", query, "-Q", "-t", "file"],
+                    capture_output=True, text=True, timeout=75,
+                    env=_audit_agent_env(),
+                )
+                lines = [l for l in (result.stdout or "").strip().split("\n") if not l.startswith("session_id:")]
+                text = "\n".join(lines).strip()
+                if result.returncode == 0 and text:
+                    return text, profile
+            except (subprocess.TimeoutExpired, OSError):
+                continue
+        return None
+    finally:
+        if tmp_name:
+            try:
+                Path(tmp_name).unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def parse_audit_agent_reply(raw: str) -> dict[str, Any]:
