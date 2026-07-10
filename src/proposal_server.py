@@ -1905,6 +1905,19 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 self.send_json(200, {"ok": True, "session": session, "research_plan": plan, "research_result": result})
                 return
             if action == "report":
+                # business_tech.v1 : ne jamais générer un rapport à trous. Si les
+                # étapes structurées ne sont pas réellement complètes/validées, on
+                # bloque au lieu de produire "activité à préciser" / "irritant à préciser".
+                if str(session.get("schema") or "") == "oa_audit_session.business_tech.v1":
+                    completion = session.get("completion") if isinstance(session.get("completion"), dict) else None
+                    if session.get("status") != "complete" or not (completion or {}).get("complete"):
+                        self.send_json(409, {
+                            "ok": False,
+                            "error": "audit_session_incomplete",
+                            "completion": completion or audit_completion_for_step(session, str(session.get("current_step") or "pacte")),
+                            "omar": audit_step_contract(str(session.get("current_step") or "pacte")),
+                        })
+                        return
                 # business_tech.v1 : le rapport est généré depuis les champs structurés
                 # validés/collectés, jamais depuis le transcript brut de session.
                 raw_answers = session.get("answers")

@@ -1,0 +1,51 @@
+{
+  "session": "/home/omar/23-Offre/actifs/omar-app/var/audit_sessions/audit-session-20260710T192125Z-c00b692c.json",
+  "audit": "/home/omar/23-Offre/actifs/omar-app/var/audits/audit-20260710T193133Z-4cdc4074.json",
+  "devis": "/home/omar/23-Offre/actifs/omar-app/var/devis/devis-20260710T193134Z-6f4c40c8.json",
+  "issues": [
+    {
+      "code": "SAVE_OK",
+      "description": "La session est persistée serveur; pas de perte apparente du verbatim."
+    },
+    {
+      "code": "QUESTIONS_SUPERFICIELLES",
+      "description": "Questions trop génériques, non sectorielles, pas assez consultantes."
+    },
+    {
+      "code": "PUBLIC_RESEARCH_FAKE",
+      "description": "Consentement public demandé mais recherche concurrentielle/localisation/horaires/effectif non réellement exécutée."
+    },
+    {
+      "code": "BAD_WORDING",
+      "description": "Vocabulaire inadapté artisan/TPE: boîte, récit, comme à un voisin, transitions abruptes."
+    },
+    {
+      "code": "NO_ACTIVE_LISTENING",
+      "description": "Les longues remarques d’Alex sont validées comme réponses métier puis le flow passe à la suite sans reformulation ni prise en compte."
+    },
+    {
+      "code": "DEAD_BUTTON",
+      "description": "Bouton/quick reply “poser mes lignes rouges” signalé comme sans effet."
+    },
+    {
+      "code": "REPORT_GENERIC",
+      "description": "Rapport final générique avec “activité à préciser”, “irritant à préciser”, malgré les remarques et identité publique."
+    },
+    {
+      "code": "UI_TRUNCATION",
+      "description": "Diagnostic final tronqué/non lisible dans la zone de chat; besoin vue document/slide/rapport plein écran."
+    },
+    {
+      "code": "BULLETS_HATED",
+      "description": "Les bullet points du diagnostic sont rejetés; format à repenser."
+    },
+    {
+      "code": "PLATFORMS_NOISE",
+      "description": "Recommandations plateformes/actions vagues type activer des choses inutiles."
+    },
+    {
+      "code": "PREMATURE_FINAL",
+      "description": "Fin du parcours trop rapide: pas de choix lire/télécharger/mettre en place, pas de documents d’étape clairs."
+    }
+  ]
+}

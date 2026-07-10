@@ -127,8 +127,8 @@ steps:
     label: Activité & modèle
     objectif: Le VRAI métier, les clients, comment l'argent rentre.
     entry_message: >
-      Racontez-moi votre activité comme à un voisin : vous faites quoi, pour qui,
-      et comment ça se vend ?
+      Je vais cadrer votre activité comme un consultant : métier exact, clients,
+      zone, équipe et façon de vendre. Vous faites quoi, pour qui, et comment ça se vend ?
     inputs:
       - {id: recit_activite, type: free_text, required: true}
       - {id: type_clients, type: quick_replies, required: true,
@@ -156,8 +156,8 @@ steps:
     label: La personne & ses objectifs
     objectif: Qui est le dirigeant, où il veut aller, son rapport au digital/IA.
     entry_message: >
-      Et vous là-dedans ? Dites-moi où vous voulez emmener cette boîte — et ce que
-      vous aimeriez que ça change pour VOUS.
+      Je reformule avant de continuer : on a besoin de comprendre le dirigeant autant que l'activité.
+      Vous cherchez surtout rentabilité quotidienne, temps libéré, investissement, patrimoine ou transmission ?
     inputs:
       - {id: objectifs_racontes, type: free_text, required: true}
       - {id: horizon, type: quick_replies, required: false,
@@ -309,7 +309,8 @@ steps:
       Omar POSE le diagnostic (SWOT + matrice impact/effort) et le client
       réagit — le diagnostic est co-signé, pas subi.
     entry_message: >
-      Voilà mon diagnostic, en face à face. Dites-moi où je vise juste et où je me trompe.
+      Voici mon diagnostic à valider : je distingue faits déclarés, sources publiques et hypothèses.
+      Dites-moi ce qui est juste, faux, exagéré ou manquant.
     inputs:
       - id: swot_reaction
         type: validation_card
