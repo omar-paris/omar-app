@@ -570,6 +570,55 @@ def test_audit_session_backend_drives_sector_questions_and_exports(tmp_path):
         proc.wait(timeout=3)
 
 
+def test_business_tech_report_api_exposes_premium_consulting_artifacts(tmp_path):
+    proc, port = start_server(tmp_path)
+    try:
+        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions", {"tree_id": "business_tech"})
+        assert status == 201
+        sid = created["session"]["id"]
+        answers_by_step = {
+            "pacte": {"sauvegarde_choix": "Continuer sans compte"},
+            "identity_public_context": {"nom_entreprise": "La Fournée API, 56 Rue Grande, 13390 Auriol", "sirene_match": "À corriger"},
+            "public_sources_consent": {"consents": {"web_public": False, "sirene_detail": False, "site_web": False, "fiche_google": False, "reseaux": False}},
+            "activity_business_model": {"recit_activite": "Boulangerie-pâtisserie artisanale à Auriol, 4 personnes, boutique de quartier et commandes week-end.", "type_clients": "Des particuliers", "taille_equipe": "Solo", "canaux_vente": "Sur place"},
+            "person_and_goals": {"objectifs_racontes": "Libérer du temps, mieux piloter la marge et préparer une transmission sereine.", "niveau_digital": "Ça va"},
+            "operations_week": {"semaine": "Les appels pour horaires, commandes, allergènes et disponibilités prennent 4 h par semaine.", "top_caillou": "Réponses commandes"},
+            "marketing_sales": {"parcours_client_raconte": "Les clients arrivent par boutique, bouche à oreille, fiche Google et appels téléphoniques.", "perte_identifiee": "Je réponds trop tard"},
+            "admin_finance_purchasing": {"admin_racontee": "Achats farine beurre emballages, factures fournisseur et marge par famille produit sont suivis sur Excel."},
+            "digital_tools_data": {"outils_racontes": "Téléphone, WhatsApp, caisse, Excel, fiche Google et Instagram ; on recopie les commandes à la main.", "outils_confirm": ["Téléphone", "WhatsApp", "Excel"]},
+            "risks_limits": {"lignes_rouges": "Allergènes, prix, acomptes et avis négatifs doivent rester validés par un humain.", "donnees_sensibles": ["Bancaire clients"], "validation_humaine": "Je valide tout au début"},
+            "diagnosis": {"swot_reaction": "OK", "matrice_reaction": "OK"},
+            "recommendations": {"recos_validees": "relances et réponses commandes", "priorisation": ["réponses commandes", "relances"]},
+            "validation": {"synthese_finale": "OK pour le rapport", "suite": "Chiffrer ça (devis)"},
+        }
+        for step_id, answers in answers_by_step.items():
+            status, _ = request_json(
+                "POST",
+                f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/message",
+                {"message": json.dumps({"step_id": step_id, "answers": answers}, ensure_ascii=False)},
+            )
+            assert status == 200
+            status, validated = request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/validate-step", {"step": step_id})
+            assert status == 200, {"step": step_id, "validated": validated}
+        assert validated["session"]["status"] == "complete"
+
+        status, report = request_json("POST", f"http://127.0.0.1:{port}/api/audit-sessions/{sid}/report", {})
+        assert status == 201
+        premium = report["premium_consulting_report"]
+        assert premium["schema"] == "oa.premium-consulting-report.v1"
+        assert len(premium["diagnostic_dimensions"]) == 9
+        assert len(premium["final_report_sections"]) == 17
+        assert premium["conversation_depth_contract"]["schema"] == "oa.audit-step-depth-contract.v1"
+        assert premium["agent_profile"]["status"] == "draft_pending_human_validation"
+        assert report["premium_consulting_markdown"].startswith("## RAPPORT DE DIAGNOSTIC BUSINESS & TECH")
+        stored_audit = json.loads((tmp_path / "audits" / f"{report['audit']['id']}.json").read_text(encoding="utf-8"))
+        assert stored_audit["premium_consulting_report"]["schema"] == "oa.premium-consulting-report.v1"
+        assert stored_audit["premium_consulting_markdown"].startswith("## RAPPORT DE DIAGNOSTIC BUSINESS & TECH")
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
 def test_audit_session_final_report_creates_devis_and_lead_from_oauth_email(tmp_path):
     proc, port = start_server(tmp_path)
     try:

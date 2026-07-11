@@ -31,6 +31,8 @@ from audit_intelligence import (  # noqa: E402
     build_exports as audit_build_exports,
     build_j1ter_documents as audit_build_j1ter_documents,
     build_onboarding_pack_v1 as audit_build_onboarding_pack_v1,
+    build_premium_consulting_report as audit_build_premium_consulting_report,
+    premium_consulting_markdown as audit_premium_consulting_markdown,
     build_public_research_result as audit_build_public_research_result,
     build_research_plan as audit_build_research_plan,
     build_sources_used as audit_build_sources_used,
@@ -1979,13 +1981,25 @@ class ProposalHandler(BaseHTTPRequestHandler):
                     "email": prospect_email or str(payload.get("email") or ""),
                 }
                 audit = safe_write_audit(self.data_dir, payload)
+                premium_consulting_report: dict[str, Any] | None = None
+                premium_consulting_markdown: str | None = None
+                if str(session.get("schema") or "") == "oa_audit_session.business_tech.v1":
+                    premium_consulting_report = audit_build_premium_consulting_report(session)
+                    premium_consulting_markdown = audit_premium_consulting_markdown(premium_consulting_report)
+                    audit["premium_consulting_report"] = premium_consulting_report
+                    audit["premium_consulting_markdown"] = premium_consulting_markdown
+                    (self.data_dir / "audits" / f"{audit['id']}.json").write_bytes(json_bytes(audit))
                 lead = write_audit_lead(self.data_dir, audit, source_session_id=str(session.get("id") or ""))
                 if lead:
                     audit["lead"] = lead
                     (self.data_dir / "audits" / f"{audit['id']}.json").write_bytes(json_bytes(audit))
                 share = audit_share_payload(audit)
                 session = write_audit_session(self.data_dir, append_telemetry_event(session, make_report_created(session, audit=audit, share=share)))
-                self.send_json(201, {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "agent_brief": agent_brief, "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share, "session": session, "lead": audit.get("lead")})
+                response = {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "agent_brief": agent_brief, "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share, "session": session, "lead": audit.get("lead")}
+                if premium_consulting_report is not None:
+                    response["premium_consulting_report"] = premium_consulting_report
+                    response["premium_consulting_markdown"] = premium_consulting_markdown or ""
+                self.send_json(201, response)
                 return
             self.send_json(404, {"ok": False, "error": "unknown_audit_session_action"})
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
