@@ -263,6 +263,60 @@ def test_business_tech_premium_consulting_report_follows_deep_search_appomar_con
     assert "RAPPORT DE DIAGNOSTIC BUSINESS & TECH" in docs["premium_consulting_markdown"]
 
 
+def test_business_tech_final_client_document_bundle_has_six_presentable_documents():
+    session = _complete_bakery_consulting_session()
+
+    bundle = ai.build_final_client_document_bundle(session)
+
+    assert bundle["schema"] == "oa.final-client-document-bundle.v1"
+    assert [doc["id"] for doc in bundle["documents"]] == [
+        "audit_report",
+        "business_manifesto",
+        "local_constitution",
+        "agent_profile",
+        "action_plan_and_devis",
+        "open_questions_and_evidence",
+    ]
+    assert all({"id", "title", "status", "audience", "markdown", "source_refs", "next_action"} <= set(doc) for doc in bundle["documents"])
+    assert all(len(doc["markdown"].split()) >= 80 for doc in bundle["documents"])
+    assert all("à préciser" not in doc["markdown"].casefold() for doc in bundle["documents"][:5])
+    assert "manifeste" in bundle["documents"][1]["title"].casefold()
+    assert "constitution" in bundle["documents"][2]["title"].casefold()
+    assert "validation humaine" in bundle["documents"][2]["markdown"].casefold()
+    assert "devis" in bundle["documents"][4]["title"].casefold()
+    assert bundle["quality_gate"]["ready_for_client_review"] is True
+    assert bundle["quality_gate"]["document_count"] == 6
+
+
+def test_business_tech_priority_sectors_have_consultant_micro_questions_and_artifact_hooks():
+    cases = {
+        "bakery": "Boulangerie-pâtisserie de quartier, commandes week-end, allergènes et avis Google.",
+        "restaurant": "Restaurant bistronomique avec réservations, no-show, menu allergènes et avis publics.",
+        "lawyer": "Cabinet avocat droit social, dossiers confidentiels, relances clients et secret professionnel.",
+        "plumber": "Plombier chauffagiste, urgences, devis, planning tournées et avis Google.",
+        "secretary_independent": "Secrétaire indépendante, appels entrants, relances administratives, facturation clients.",
+        "wealth_manager": "Conseiller en gestion de patrimoine, prospects, conformité, documents sensibles et rendez-vous.",
+    }
+    expected_terms = {
+        "bakery": ["allerg", "commande", "avis"],
+        "restaurant": ["réservation", "allerg", "no-show"],
+        "lawyer": ["secret", "dossier", "juridique"],
+        "plumber": ["urgence", "devis", "planning"],
+        "secretary_independent": ["administr", "relance", "appel"],
+        "wealth_manager": ["patrimoine", "conform", "rendez-vous"],
+    }
+    for sector_id, activity in cases.items():
+        session = ai.create_session({"tree_id": "business_tech"})["session"]
+        session["sector_id"] = sector_id
+        session = ai.add_message(session, json.dumps({"step_id": "activity_business_model", "answers": {"recit_activite": activity, "type_clients": "Les deux", "taille_equipe": "2-5", "canaux_vente": "Google/web"}}, ensure_ascii=False))["session"]
+        questions = ai.recommend_micro_questions(session, "pain", limit=4)
+        text = json.dumps(questions, ensure_ascii=False).casefold()
+        assert len(questions) >= 3, {"sector": sector_id, "questions": questions}
+        assert any(term in text for term in expected_terms[sector_id]), {"sector": sector_id, "text": text}
+        assert all({"question", "why", "facet_id", "follow_up", "skip_allowed", "save_resume_allowed"} <= set(q) for q in questions)
+        assert len({q["question"] for q in questions}) == len(questions)
+
+
 def test_business_tech_critique_feedback_does_not_validate_as_business_answer():
     session = ai.create_session({"tree_id": "business_tech"})["session"]
     session = ai.add_message(session, "Continuer sans compte")["session"]

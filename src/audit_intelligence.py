@@ -2174,6 +2174,113 @@ def build_j1ter_documents(session: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _final_client_doc(doc_id: str, title: str, audience: str, markdown: str, source_refs: list[str], next_action: str, *, status: str = "ready_for_client_review") -> dict[str, Any]:
+    return {
+        "id": doc_id,
+        "title": title,
+        "status": status,
+        "audience": audience,
+        "markdown": markdown.strip() + "\n",
+        "source_refs": source_refs,
+        "next_action": next_action,
+    }
+
+
+def build_final_client_document_bundle(session: dict[str, Any]) -> dict[str, Any]:
+    """Build the six client-facing final documents for a completed AppOmar audit.
+
+    The output is editorial, but still deterministic: it only uses the structured
+    audit state and the premium report builders. It is designed for API/export/UI
+    use before a human turns the material into a signed proposal.
+    """
+    if not _is_business_tech_tree_session(session):
+        raise ValueError("build_final_client_document_bundle requires business_tech tree session")
+    docs = build_j1ter_documents(session)
+    report = docs["premium_consulting_report"]
+    structured = docs["structured_audit"]
+    profile = structured["profile"]
+    proof = structured["proof"]
+    agent_profile = docs["agent_profile"]
+    sector_id = str(report.get("sector_id") or profile.get("sector_id") or "generic_tpe")
+    company = _compact_value(profile.get("company_name"), max_len=120) or "l’entreprise auditée"
+    activity = _compact_value(profile.get("activity"), max_len=260) or f"activité {sector_id.replace('_', ' ')}"
+    customers = _compact_value(profile.get("customers"), max_len=180) or "clients déclarés pendant l’audit"
+    channels = _compact_value(profile.get("sales_channels"), max_len=180) or "canaux déclarés pendant l’audit"
+    objective = _compact_value(structured.get("owner_identity", {}).get("goals"), max_len=260) or "réduire la charge opérationnelle visible"
+    risks = structured.get("risk_and_control") or {}
+    lines_red = _compact_value(risks.get("lines_red"), max_len=260) or "validation humaine avant action externe sensible"
+    human_gates = risks.get("human_gates") if isinstance(risks.get("human_gates"), list) else ["validation humaine avant action externe sensible"]
+    trace = report.get("traceability") if isinstance(report.get("traceability"), dict) else {}
+    scores = ((report.get("scores") or {}).get("indices") or {}) if isinstance(report.get("scores"), dict) else {}
+    sections = report.get("final_report_sections") if isinstance(report.get("final_report_sections"), list) else []
+    quick_section = next((s for s in sections if s.get("id") == "quick_wins_7_days"), {})
+    action_section = next((s for s in sections if s.get("id") == "action_plan_30_days"), {})
+    devis_section = next((s for s in sections if s.get("id") == "justified_devis"), {})
+    quick_actions = ((quick_section.get("content") or {}).get("actions") or []) if isinstance(quick_section.get("content"), dict) else []
+    quick_labels = [str(item.get("action") or item) for item in quick_actions[:4]] or ["mesurer une semaine de demandes", "préparer des brouillons validés", "classer les irritants", "documenter les lignes rouges"]
+    line_items = ((devis_section.get("content") or {}).get("devis_model") or {}).get("line_items") if isinstance(devis_section.get("content"), dict) else []
+    if not isinstance(line_items, list):
+        line_items = []
+
+    audit_md = "\n\n".join([
+        f"# Rapport d’audit Business & Tech — {company}",
+        f"L’audit décrit {activity}. Les clients et canaux déclarés sont : {customers} ; {channels}. L’objectif dirigeant est : {objective}. Le rapport sépare les déclarations client, sources vérifiées, hypothèses Omar et inconnues afin d’éviter les raccourcis commerciaux.",
+        f"Les scores conversationnels sont cyber {scores.get('cyber_hygiene', {}).get('score', 'n/a')}/100, friction opérationnelle {scores.get('operational_friction', {}).get('score', 'n/a')}/100 et maturité numérique/IA {scores.get('digital_ai_maturity', {}).get('score', 'n/a')}/100. Ils servent à orienter les prochains tests, pas à prétendre à un audit technique exhaustif.",
+        f"La première recommandation est de choisir une boucle courte, mesurable et validée humainement. Les limites métier restent centrales : {lines_red}. Chaque décision doit garder un lien clair avec une preuve ou une hypothèse falsifiable.",
+    ])
+    manifesto_md = "\n\n".join([
+        f"# Manifeste business — {company}",
+        f"{company} ne doit pas adopter l’IA comme un gadget. L’enjeu est de protéger le métier, le vocabulaire client et la relation humaine, puis d’utiliser AppOmar pour retirer les frictions répétitives qui empêchent le dirigeant de piloter sereinement.",
+        f"Le manifeste part de l’activité réelle : {activity}. Les clients visés restent {customers}, avec des canaux comme {channels}. L’IA proposée doit donc parler le langage du métier, demander confirmation quand un fait manque et ne jamais transformer une hypothèse en vérité.",
+        f"La promesse acceptable est sobre : gagner du temps, réduire la ressaisie, rendre les réponses plus régulières et préparer une décision de devis seulement quand les preuves sont suffisantes. Le client garde la main sur les validations sensibles et sur l’éventuelle suite commerciale.",
+    ])
+    constitution_md = "\n\n".join([
+        f"# Constitution locale de l’agent — {company}",
+        f"L’agent AppOmar proposé agit comme assistant opérationnel en brouillon. Il prépare, classe, résume et signale ; il ne publie pas, ne contacte pas un tiers, ne modifie pas les prix et ne déclenche aucune action payante sans validation humaine.",
+        f"La règle centrale est la séparation D/V/H/F : déclarations client, sources vérifiées, hypothèses Omar et faits futurs à contrôler. Cette séparation protège la confiance et évite de mélanger recherche publique, intuition commerciale et parole du dirigeant.",
+        f"Les validations humaines obligatoires sont : {' ; '.join(str(x) for x in human_gates)}. Les données sensibles ou lignes rouges déclarées restent prioritaires : {lines_red}. L’agent doit escalader toute ambiguïté plutôt que répondre trop vite.",
+    ])
+    missions = agent_profile.get("missions") if isinstance(agent_profile.get("missions"), list) else ["réduire la friction opérationnelle prioritaire"]
+    agent_md = "\n\n".join([
+        f"# Profil d’agent IA proposé — {company}",
+        f"Rôle : {agent_profile.get('role')}. Ton : {agent_profile.get('tone')}. Mission initiale : {' ; '.join(str(x) for x in missions)}. L’agent reste un brouillon validable avant tout contact externe.",
+        f"Actions autorisées : préparer des brouillons, classer les demandes, résumer les informations autorisées, proposer des checklists et signaler les risques. Actions interdites : envoyer sans validation, modifier paiement/prix, traiter un point sensible sans source validée, contacter un tiers ou provisionner un service.",
+        f"Critères de succès : une boucle utile mesurée sur 7 jours, moins de ressaisie entre outils, des réponses plus régulières et zéro action sensible sans validation humaine. L’agent doit produire des preuves simples plutôt que du discours générique.",
+    ])
+    action_md = "\n\n".join([
+        f"# Plan d’action et devis justifié — {company}",
+        "Les sept premiers jours servent à prouver la valeur sans sur-engagement. Actions proposées : " + "; ".join(quick_labels) + ".",
+        f"Le plan 30 jours reste progressif : {json.dumps(action_section.get('content') or {}, ensure_ascii=False)}. La décision de devis ne vient qu’après validation des recommandations, mesure d’un cas d’usage et accord explicite sur les limites.",
+        "Lignes de devis préparables : " + "; ".join(str(item.get("reference") or item) for item in line_items[:3]) + ". Chaque ligne doit garder une preuve, un bénéfice attendu, des prérequis, une limite et un gate humain.",
+    ])
+    open_md = "\n\n".join([
+        f"# Questions ouvertes et preuves à valider — {company}",
+        "Ce document conserve ce qui ne doit pas être présenté comme acquis. Les inconnues structurées sont : " + "; ".join(str(x) for x in proof.get("unknowns", []) or trace.get("unknowns_or_future_checks", []) or ["sources publiques et volumes à confirmer"]) + ".",
+        "Les déclarations client déjà collectées sont : " + "; ".join(str(x) for x in (proof.get("declared") or [])[:5]) + ". Elles restent du déclaratif tant qu’aucune source ou validation métier ne les confirme.",
+        "Prochaine revue : corriger les faits, autoriser ou refuser les recherches publiques, choisir une boucle de test et valider les lignes rouges. Cette étape évite de transformer le rapport en promesse commerciale prématurée.",
+    ])
+    documents = [
+        _final_client_doc("audit_report", "Rapport d’audit Business & Tech", "dirigeant + conseiller OA", audit_md, ["premium_consulting_report", "structured_audit"], "faire valider la synthèse par le dirigeant"),
+        _final_client_doc("business_manifesto", "Manifeste business client", "dirigeant", manifesto_md, ["manifest_business", "owner_identity"], "confirmer le vocabulaire métier et la promesse acceptable"),
+        _final_client_doc("local_constitution", "Constitution locale de l’agent", "dirigeant + futur agent", constitution_md, ["local_constitution", "risk_and_control"], "valider les gates humains avant onboarding"),
+        _final_client_doc("agent_profile", "Profil d’agent IA proposé", "équipe OA + dirigeant", agent_md, ["agent_profile"], "transformer en configuration agent après GO client"),
+        _final_client_doc("action_plan_and_devis", "Plan d’action 7j/30j et devis justifié", "dirigeant + commercial OA", action_md, ["devis_model", "quick_wins_7_days", "action_plan_30_days"], "sélectionner une boucle de dry-run"),
+        _final_client_doc("open_questions_and_evidence", "Questions ouvertes et preuves à valider", "dirigeant + reviewer", open_md, ["traceability", "open_questions"], "résoudre les inconnues avant publication définitive"),
+    ]
+    return {
+        "schema": "oa.final-client-document-bundle.v1",
+        "session_id": session.get("id"),
+        "sector_id": sector_id,
+        "documents": documents,
+        "quality_gate": {
+            "document_count": len(documents),
+            "ready_for_client_review": len(documents) == 6 and all(len(doc["markdown"].split()) >= 80 for doc in documents),
+            "requires_human_review_before_signature": True,
+            "no_external_action": True,
+        },
+    }
+
+
 CONSENT_KEYS = [
     "public_web_search",
     "legal_registry_lookup",
@@ -2345,19 +2452,54 @@ def sector_deep_facets(sector_id: str, refs: dict[str, dict[str, Any]] | None = 
     return [facet for facet in normalized if facet["id"] and facet["questions"]]
 
 
+def _sector_question_block_facets(sector_id: str, refs: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    ref = refs.get(sector_id) or refs.get("generic_tpe") or {}
+    blocks_raw = ref.get("question_blocks")
+    blocks: dict[str, Any] = blocks_raw if isinstance(blocks_raw, dict) else {}
+    important = [str(x) for x in ref.get("important_dimensions", [])] if isinstance(ref.get("important_dimensions"), list) else []
+    risks = [str(x) for x in ref.get("risk_flags", [])] if isinstance(ref.get("risk_flags"), list) else []
+    normalized: list[dict[str, Any]] = []
+    for step_id, questions in blocks.items():
+        if not isinstance(questions, list):
+            continue
+        q_items = []
+        for idx, question in enumerate(questions):
+            text = str(question).strip()
+            if not text:
+                continue
+            q_items.append({
+                "id": f"{sector_id}.{step_id}.{idx + 1}",
+                "interaction": "free_text",
+                "question": text,
+                "why": "Question métier issue du référentiel sectoriel OA ; elle relie le récit client aux preuves, risques et premières boucles testables.",
+                "options": [],
+                "follow_up": "Si la réponse reste vague, demandez un exemple réel de la dernière semaine, puis classez le signal en D/V/H/F.",
+            })
+        if q_items:
+            normalized.append({
+                "id": str(step_id),
+                "label": f"{sector_id.replace('_', ' ')} — {str(step_id).replace('_', ' ')}",
+                "purpose": "; ".join((important + risks)[:5]),
+                "depth": "sector_question_block",
+                "source_basis": ["audit_sectors.question_blocks", "audit_sectors.risk_flags", "audit_sectors.important_dimensions"],
+                "questions": q_items,
+            })
+    return normalized
+
+
 def recommend_micro_questions(session: dict[str, Any], step: str, *, limit: int = 5) -> list[dict[str, Any]]:
     refs = load_sector_references()
     sector_id = str(session.get("sector_id") or detect_sector(session_text(session), refs))
-    facets = sector_deep_facets(sector_id, refs)
+    facets = sector_deep_facets(sector_id, refs) or _sector_question_block_facets(sector_id, refs)
     step_focus = {
-        "activity": ["production_offre", "emplacement", "savoir_faire", "finance_pilotage"],
-        "research": ["emplacement", "marketing_local", "experience_client"],
-        "pain": ["production_offre", "stocks_achats", "equipe", "finance_pilotage"],
-        "tools": ["production_offre", "stocks_achats", "equipe", "experience_client"],
-        "risk": ["reglementaire", "finance_pilotage", "experience_client"],
-        "opportunities": ["ia_potentiel", "production_offre", "experience_client", "marketing_local"],
-        "autonomy": ["ia_potentiel", "equipe", "savoir_faire"],
-        "validation": ["finance_pilotage", "reglementaire", "ia_potentiel"],
+        "activity": ["activity", "production_offre", "emplacement", "savoir_faire", "finance_pilotage"],
+        "research": ["research", "emplacement", "marketing_local", "experience_client"],
+        "pain": ["pain", "production_offre", "stocks_achats", "equipe", "finance_pilotage"],
+        "tools": ["tools", "production_offre", "stocks_achats", "equipe", "experience_client"],
+        "risk": ["risk", "reglementaire", "finance_pilotage", "experience_client"],
+        "opportunities": ["opportunities", "ia_potentiel", "production_offre", "experience_client", "marketing_local"],
+        "autonomy": ["autonomy", "ia_potentiel", "equipe", "savoir_faire"],
+        "validation": ["validation", "finance_pilotage", "reglementaire", "ia_potentiel"],
     }
     preferred = step_focus.get(step, [])
     ordered = sorted(facets, key=lambda f: (preferred.index(f["id"]) if f["id"] in preferred else 99, f["id"]))

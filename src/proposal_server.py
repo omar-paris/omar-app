@@ -30,6 +30,7 @@ from audit_intelligence import (  # noqa: E402
     build_agent_brief as audit_build_agent_brief,
     build_exports as audit_build_exports,
     build_j1ter_documents as audit_build_j1ter_documents,
+    build_final_client_document_bundle as audit_build_final_client_document_bundle,
     build_onboarding_pack_v1 as audit_build_onboarding_pack_v1,
     build_premium_consulting_report as audit_build_premium_consulting_report,
     premium_consulting_markdown as audit_premium_consulting_markdown,
@@ -1983,11 +1984,14 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 audit = safe_write_audit(self.data_dir, payload)
                 premium_consulting_report: dict[str, Any] | None = None
                 premium_consulting_markdown: str | None = None
+                final_client_document_bundle: dict[str, Any] | None = None
                 if str(session.get("schema") or "") == "oa_audit_session.business_tech.v1":
                     premium_consulting_report = audit_build_premium_consulting_report(session)
                     premium_consulting_markdown = audit_premium_consulting_markdown(premium_consulting_report)
+                    final_client_document_bundle = audit_build_final_client_document_bundle(session)
                     audit["premium_consulting_report"] = premium_consulting_report
                     audit["premium_consulting_markdown"] = premium_consulting_markdown
+                    audit["final_client_document_bundle"] = final_client_document_bundle
                     (self.data_dir / "audits" / f"{audit['id']}.json").write_bytes(json_bytes(audit))
                 lead = write_audit_lead(self.data_dir, audit, source_session_id=str(session.get("id") or ""))
                 if lead:
@@ -1999,6 +2003,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 if premium_consulting_report is not None:
                     response["premium_consulting_report"] = premium_consulting_report
                     response["premium_consulting_markdown"] = premium_consulting_markdown or ""
+                    response["final_client_document_bundle"] = final_client_document_bundle or {}
                 self.send_json(201, response)
                 return
             self.send_json(404, {"ok": False, "error": "unknown_audit_session_action"})
