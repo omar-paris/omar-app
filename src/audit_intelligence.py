@@ -855,7 +855,9 @@ CONSULTANT_STEPS_REQUIRING_ACTIONABLE_TEXT = {
     "activity_business_model",
     "person_and_goals",
     "operations_week",
+    "marketing_sales",
     "admin_finance_purchasing",
+    "hr_team_organization",
     "digital_tools_data",
     "risks_limits",
     "diagnosis",
@@ -1211,8 +1213,18 @@ def _tree_interpret_contextual_free_text(step_id: str, text: str) -> dict[str, A
                 "detected_irritants": ["horaires", "disponibilité", "commandes", "allergènes", "prix"],
             }
         return {"semaine": text, "top_caillou": "demandes clients", "detected_irritants": ["commandes", "planning", "caisse", "demandes clients", "factures"]}
+    if step_id == "marketing_sales" and hay:
+        leak = "Je réponds trop tard" if any(token in hay for token in ["trop tard", "retard", "répond", "repond", "perd des demandes", "perdre des demandes"]) else (
+            "Ils ne me trouvent pas" if any(token in hay for token in ["ne me trouvent", "pas trouvé", "pas trouve", "google"]) else "Je ne sais pas"
+        )
+        return {"parcours_client_raconte": text, "perte_identifiee": leak}
     if step_id == "admin_finance_purchasing" and hay:
         return {"admin_racontee": text}
+    if step_id == "hr_team_organization" and hay:
+        friction = "Plannings" if any(token in hay for token in ["planning", "remplacement", "absence"]) else (
+            "Communication interne" if any(token in hay for token in ["whatsapp", "consigne", "transmission", "infos"]) else "Ça roule"
+        )
+        return {"equipe_racontee": text, "friction_equipe": friction}
     if step_id == "digital_tools_data" and hay:
         if hay in {"beaucoup", "plein", "plein de choses", "pas mal", "beaucoup de choses"}:
             return {

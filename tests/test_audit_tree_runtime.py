@@ -109,6 +109,41 @@ def test_business_tech_tree_session_persists_structured_outputs_and_branches_hr_
 
 
 
+def test_business_tech_contextual_free_text_maps_consultant_side_steps():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+
+    session["current_step"] = "marketing_sales"
+    session = ai.add_message(session, "Les clients viennent par vitrine, bouche-à-oreille, Google Business et Instagram. On perd des demandes quand on répond trop tard.")["session"]
+    validation = ai.validate_step(session, "marketing_sales")
+    assert validation["ok"], validation
+
+    session["current_step"] = "hr_team_organization"
+    session = ai.add_message(session, "Planning papier, deux vendeurs, un apprenti, consignes dans WhatsApp, remplacements parfois confus.")["session"]
+    validation = ai.validate_step(session, "hr_team_organization")
+    assert validation["ok"], validation
+
+    marketing = session["state"]["marketing_sales"]["answers"]
+    assert marketing["parcours_client_raconte"].startswith("Les clients viennent")
+    assert marketing["perte_identifiee"] == "Je réponds trop tard"
+    team = session["state"]["hr_team_organization"]["answers"]
+    assert team["equipe_racontee"].startswith("Planning papier")
+    assert team["friction_equipe"] == "Plannings"
+
+
+def test_business_tech_contextual_side_steps_reject_non_actionable_short_answers():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+
+    for step_id in ["marketing_sales", "hr_team_organization"]:
+        session["current_step"] = step_id
+        result = ai.add_message(session, "oui")
+        validation = ai.validate_step(result["session"], step_id)
+        assert validation["ok"] is False
+        assert validation["error"] == "step_incomplete"
+        assert result["omar"].get("non_actionable_input", {}).get("reason") in {"too_vague_or_non_answer", "weak_or_confused_input"}
+        assert step_id not in (result["session"].get("validated_steps") or [])
+
+
+
 def test_business_tech_continue_without_account_records_pacte_and_advances():
     created = ai.create_session({"tree_id": "business_tech"})
     session = created["session"]
