@@ -130,6 +130,19 @@ def test_business_tech_contextual_free_text_maps_consultant_side_steps():
     assert team["friction_equipe"] == "Plannings"
 
 
+def test_business_tech_contextual_side_steps_reject_non_actionable_short_answers():
+    session = ai.create_session({"tree_id": "business_tech"})["session"]
+
+    for step_id in ["marketing_sales", "hr_team_organization"]:
+        session["current_step"] = step_id
+        result = ai.add_message(session, "oui")
+        validation = ai.validate_step(result["session"], step_id)
+        assert validation["ok"] is False
+        assert validation["error"] == "step_incomplete"
+        assert result["omar"].get("non_actionable_input", {}).get("reason") in {"too_vague_or_non_answer", "weak_or_confused_input"}
+        assert step_id not in (result["session"].get("validated_steps") or [])
+
+
 
 def test_business_tech_continue_without_account_records_pacte_and_advances():
     created = ai.create_session({"tree_id": "business_tech"})
