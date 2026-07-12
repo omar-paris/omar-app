@@ -1046,6 +1046,27 @@ def audit_share_payload(audit: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def audit_public_session_summary(session: dict[str, Any]) -> dict[str, Any]:
+    """Session view safe for final report responses.
+
+    The report endpoint returns client-facing documents. It must not leak the raw
+    conversation transcript; callers only need resumable state metadata.
+    """
+    return {
+        "id": session.get("id"),
+        "schema": session.get("schema"),
+        "status": session.get("status"),
+        "current_step": session.get("current_step"),
+        "validated_steps": list(session.get("validated_steps") or []),
+        "completion": session.get("completion") if isinstance(session.get("completion"), dict) else {},
+        "runtime": session.get("runtime") if isinstance(session.get("runtime"), dict) else {},
+        "prospect": session.get("prospect") if isinstance(session.get("prospect"), dict) else {},
+        "metrics": session.get("metrics") if isinstance(session.get("metrics"), dict) else {},
+        "telemetry_count": len(session.get("telemetry") or []),
+        "message_count": len(session.get("messages") or []),
+    }
+
+
 def read_proposal(data_dir: Path, pid: str) -> dict[str, Any] | None:
     if not PROPOSAL_ID_RE.match(pid):
         return None
@@ -1999,7 +2020,7 @@ class ProposalHandler(BaseHTTPRequestHandler):
                     (self.data_dir / "audits" / f"{audit['id']}.json").write_bytes(json_bytes(audit))
                 share = audit_share_payload(audit)
                 session = write_audit_session(self.data_dir, append_telemetry_event(session, make_report_created(session, audit=audit, share=share)))
-                response = {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "agent_brief": agent_brief, "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share, "session": session, "lead": audit.get("lead")}
+                response = {"ok": True, "audit": {"id": audit["id"], "status": audit["status"]}, "report": audit["report"], "agent_brief": agent_brief, "onboarding_pack": audit.get("onboarding_pack"), "devis_source": audit.get("devis_source"), "consent_snapshot": audit.get("consent_snapshot"), "sources_used": audit.get("sources_used", []), "share": share, "session": audit_public_session_summary(session), "lead": audit.get("lead")}
                 if premium_consulting_report is not None:
                     response["premium_consulting_report"] = premium_consulting_report
                     response["premium_consulting_markdown"] = premium_consulting_markdown or ""

@@ -622,6 +622,14 @@ def test_business_tech_report_api_exposes_premium_consulting_artifacts(tmp_path)
             "action_plan_and_devis",
             "open_questions_and_evidence",
         ]
+        assert report["session"]["id"] == sid
+        assert report["session"]["status"] == "complete"
+        assert report["session"]["message_count"] > 0
+        assert "messages" not in report["session"]
+        assert "chat_history" not in report["session"]
+        assert "state" not in report["session"]
+        serialized_response = json.dumps(report, ensure_ascii=False)
+        assert "first_message_keys" not in serialized_response
         stored_audit = json.loads((tmp_path / "audits" / f"{report['audit']['id']}.json").read_text(encoding="utf-8"))
         assert stored_audit["premium_consulting_report"]["schema"] == "oa.premium-consulting-report.v1"
         assert stored_audit["premium_consulting_markdown"].startswith("## RAPPORT DE DIAGNOSTIC BUSINESS & TECH")
