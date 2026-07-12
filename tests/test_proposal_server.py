@@ -611,9 +611,29 @@ def test_business_tech_report_api_exposes_premium_consulting_artifacts(tmp_path)
         assert premium["conversation_depth_contract"]["schema"] == "oa.audit-step-depth-contract.v1"
         assert premium["agent_profile"]["status"] == "draft_pending_human_validation"
         assert report["premium_consulting_markdown"].startswith("## RAPPORT DE DIAGNOSTIC BUSINESS & TECH")
+        bundle = report["final_client_document_bundle"]
+        assert bundle["schema"] == "oa.final-client-document-bundle.v1"
+        assert bundle["quality_gate"]["ready_for_client_review"] is True
+        assert [doc["id"] for doc in bundle["documents"]] == [
+            "audit_report",
+            "business_manifesto",
+            "local_constitution",
+            "agent_profile",
+            "action_plan_and_devis",
+            "open_questions_and_evidence",
+        ]
+        assert report["session"]["id"] == sid
+        assert report["session"]["status"] == "complete"
+        assert report["session"]["message_count"] > 0
+        assert "messages" not in report["session"]
+        assert "chat_history" not in report["session"]
+        assert "state" not in report["session"]
+        serialized_response = json.dumps(report, ensure_ascii=False)
+        assert "first_message_keys" not in serialized_response
         stored_audit = json.loads((tmp_path / "audits" / f"{report['audit']['id']}.json").read_text(encoding="utf-8"))
         assert stored_audit["premium_consulting_report"]["schema"] == "oa.premium-consulting-report.v1"
         assert stored_audit["premium_consulting_markdown"].startswith("## RAPPORT DE DIAGNOSTIC BUSINESS & TECH")
+        assert stored_audit["final_client_document_bundle"]["quality_gate"]["document_count"] == 6
     finally:
         proc.terminate()
         proc.wait(timeout=3)
