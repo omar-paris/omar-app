@@ -907,6 +907,71 @@ def test_rigorous_audit_persists_consents_sources_devis_source_and_delete(tmp_pa
         proc.terminate()
         proc.wait(timeout=3)
 
+def test_audit_to_prefilled_onboarding_and_justified_devis_contract_public(tmp_path):
+    proc, port = start_server(tmp_path)
+    try:
+        payload = {
+            "activity": "Boulangerie artisanale à Lille",
+            "urgency": "répondre plus vite aux commandes et devis",
+            "ai_level": "débutant",
+            "repetitive_tasks": "réponses WhatsApp, devis de gâteaux, relances commandes",
+            "current_tools": "WhatsApp, email, Excel",
+            "constraints": "allergènes, prix, validation humaine avant envoi",
+        }
+        status, created = request_json("POST", f"http://127.0.0.1:{port}/api/audits", payload)
+        assert status == 201
+        aid = created["audit"]["id"]
+
+        status, prefill = request_json("GET", f"http://127.0.0.1:{port}/api/onboarding/prefill?audit_id={aid}")
+        assert status == 200
+        assert prefill["ok"] is True
+        assert prefill["audit_id"] == aid
+        assert prefill["onboarding"]["schema"] == "appomar.onboarding_prefill.v1"
+        assert prefill["onboarding"]["record"]["activite"] == "Boulangerie artisanale à Lille"
+        assert "produire_documents" in prefill["onboarding"]["record"]["objectifs"]
+        assert prefill["onboarding"]["agent_profile"]["modules"]
+        assert prefill["onboarding"]["source_summary"]["title"] == "Voici ce que l'audit a compris — confirme/corrige"
+
+        status, created_devis = request_json("POST", f"http://127.0.0.1:{port}/api/devis", {"audit_id": aid})
+        assert status == 201
+        devis = created_devis["devis"]
+        assert devis["audit_id"] == aid
+        assert devis["public_session_scope"] == {"kind": "audit_id", "id": aid}
+        assert devis["devis_contract"]["template"] == "{item} — recommandé parce que {reco_source}"
+        assert devis["devis_contract"]["lines"]
+        assert all(line["display"].startswith(line["item"]) for line in devis["devis_contract"]["lines"])
+        assert all("recommandé parce que" in line["display"] for line in devis["devis_contract"]["lines"] if not line["optional"])
+        assert any(not line["optional"] for line in devis["devis_contract"]["lines"])
+    finally:
+        proc.terminate()
+        proc.wait(timeout=3)
+
+
+def test_public_onboarding_prefill_escapes_audit_summary_before_innerhtml_render():
+    onboarding_html = (ROOT / "pages-app" / "onboarding.html").read_text(encoding="utf-8")
+    devis_html = (ROOT / "pages-app" / "devis.html").read_text(encoding="utf-8")
+
+    assert "function escText" in onboarding_html
+    assert "<p>${escText(s.summary" in onboarding_html
+    assert "box.innerHTML=`<h2>${escText" in onboarding_html
+    assert "<p>${s.summary" not in onboarding_html
+    assert "${w.display||''}" not in devis_html
+    assert "${esc(w.display" in devis_html
+
+
+def test_public_tunnel_pages_wire_audit_id_between_report_onboarding_and_devis():
+    audit_html = (ROOT / "pages-app" / "audit.html").read_text(encoding="utf-8")
+    onboarding_html = (ROOT / "pages-app" / "onboarding.html").read_text(encoding="utf-8")
+    devis_html = (ROOT / "pages-app" / "devis.html").read_text(encoding="utf-8")
+
+    assert "/onboarding/?audit_id=" in audit_html
+    assert "api/onboarding/prefill?audit_id" in onboarding_html
+    assert "Voici ce que l'audit a compris — confirme/corrige" in onboarding_html
+    assert "/devis/?audit_id=" in onboarding_html
+    assert "audit_id" in devis_html
+    assert "recommandé parce que" in devis_html
+
+
 def test_devis_requires_user_validation_before_checkout_then_reports_unconfigured_payment_provider(tmp_path):
     proc, port = start_server(tmp_path)
     try:
