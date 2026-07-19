@@ -18,8 +18,8 @@
       ],
       "cible": "artisan/commerçant qui démarre",
       "est_pack_initial": true,
-      "capability_status": "configured",
-      "proof_tier": "configured",
+      "capability_status": "potential",
+      "proof_tier": "potential",
       "proof_scope": "AppOmar product/catalog row exists for pricing or service framing only; it is not runtime proof.",
       "runtime_scope": "commercial_wrapper",
       "evidence_refs": [
@@ -41,11 +41,23 @@
       "safe_claim": "Offre AppOmar à cadrer/valider humainement avant activation réelle.",
       "do_not_claim": [
         "runtime client autonome",
-        "installation/provisioning réel sans GO humain"
+        "installation/provisioning réel sans GO humain",
+        "connecteur client configuré/proven sans tenant-local manifest vérifié",
+        "runtime client autonome prouvé sans gate/evidence refs"
       ],
       "last_verified_at": "2026-07-08",
       "cost_status": "known",
-      "proof_status": "configured"
+      "proof_status": "potential",
+      "runtime_status": "unknown",
+      "runtime_client_proven": false,
+      "connector_manifest_required": true,
+      "connector_guard_refs": [
+        "t_3c8942df",
+        "t_911dc1e5",
+        "t_b7f1552c",
+        "t_50fd4fd7"
+      ],
+      "connector_guard_note": "Connector/client integration claims stay potential/unknown until a checked tenant-local manifest proves configured/proven runtime."
     },
     {
       "id": "formule-pro",
@@ -65,12 +77,12 @@
       "catalogue_refs": [
         "secretaire-connexions-surveillance"
       ],
-      "capability_status": "configured",
+      "capability_status": "potential",
       "runtime_status": "unknown",
       "cost_status": "known",
       "human_approval_required": true,
       "commercial_scope": "appomar_v1_mapping",
-      "proof_tier": "configured",
+      "proof_tier": "potential",
       "proof_scope": "Offre commerciale présente dans catalog.json; underlying catalogue ref remains potential/runtime unknown.",
       "runtime_scope": "commercial_wrapper",
       "evidence_refs": [
@@ -91,10 +103,21 @@
       "durable_gate_artifact_ref": "",
       "safe_claim": "Pack/cadrage Formule Pro vendable avec limites explicites et validation humaine.",
       "do_not_claim": [
-        "runtime client Catalogue déjà démontré"
+        "runtime client Catalogue déjà démontré",
+        "connecteur client configuré/proven sans tenant-local manifest vérifié",
+        "runtime client autonome prouvé sans gate/evidence refs"
       ],
       "last_verified_at": "2026-07-08",
-      "proof_status": "configured"
+      "proof_status": "potential",
+      "runtime_client_proven": false,
+      "connector_manifest_required": true,
+      "connector_guard_refs": [
+        "t_3c8942df",
+        "t_911dc1e5",
+        "t_b7f1552c",
+        "t_50fd4fd7"
+      ],
+      "connector_guard_note": "Connector/client integration claims stay potential/unknown until a checked tenant-local manifest proves configured/proven runtime."
     },
     {
       "id": "appomar-public-audit-onboarding-funnel",
@@ -242,10 +265,21 @@
       "safe_claim": "Ligne de devis/cadrage assisté avec limites runtime explicites.",
       "do_not_claim": [
         "runtime client Catalogue déjà démontré",
-        "module installé/healthy chez client"
+        "module installé/healthy chez client",
+        "connecteur client configuré/proven sans tenant-local manifest vérifié",
+        "runtime client autonome prouvé sans gate/evidence refs"
       ],
       "last_verified_at": "2026-07-08",
-      "proof_status": "potential"
+      "proof_status": "potential",
+      "runtime_client_proven": false,
+      "connector_manifest_required": true,
+      "connector_guard_refs": [
+        "t_3c8942df",
+        "t_911dc1e5",
+        "t_b7f1552c",
+        "t_50fd4fd7"
+      ],
+      "connector_guard_note": "Connector/client integration claims stay potential/unknown until a checked tenant-local manifest proves configured/proven runtime."
     },
     {
       "id": "mod-presence",
@@ -284,10 +318,21 @@
       "safe_claim": "Ligne de devis/cadrage assisté avec limites runtime explicites.",
       "do_not_claim": [
         "runtime client Catalogue déjà démontré",
-        "module installé/healthy chez client"
+        "module installé/healthy chez client",
+        "connecteur client configuré/proven sans tenant-local manifest vérifié",
+        "runtime client autonome prouvé sans gate/evidence refs"
       ],
       "last_verified_at": "2026-07-08",
-      "proof_status": "potential"
+      "proof_status": "potential",
+      "runtime_client_proven": false,
+      "connector_manifest_required": true,
+      "connector_guard_refs": [
+        "t_3c8942df",
+        "t_911dc1e5",
+        "t_b7f1552c",
+        "t_50fd4fd7"
+      ],
+      "connector_guard_note": "Connector/client integration claims stay potential/unknown until a checked tenant-local manifest proves configured/proven runtime."
     },
     {
       "id": "mod-paperasse",
@@ -487,10 +532,20 @@
       "do_not_claim": [
         "configured/proven sans gate Athena",
         "connecteurs client intégrés",
-        "RAM/disk/coût runtime mesurés"
+        "RAM/disk/coût runtime mesurés",
+        "connecteur client configuré/proven sans tenant-local manifest vérifié",
+        "runtime client autonome prouvé sans gate/evidence refs"
       ],
       "last_verified_at": "2026-07-08",
-      "proof_status": "potential"
+      "proof_status": "potential",
+      "connector_manifest_required": true,
+      "connector_guard_refs": [
+        "t_3c8942df",
+        "t_911dc1e5",
+        "t_b7f1552c",
+        "t_50fd4fd7"
+      ],
+      "connector_guard_note": "Connector/client integration claims stay potential/unknown until a checked tenant-local manifest proves configured/proven runtime."
     },
     {
       "id": "recrutement-annonces-candidats",
@@ -775,10 +830,20 @@
       "do_not_claim": [
         "configured/proven sans gate Athena",
         "connecteurs client intégrés",
-        "RAM/disk/coût runtime mesurés"
+        "RAM/disk/coût runtime mesurés",
+        "connecteur client configuré/proven sans tenant-local manifest vérifié",
+        "runtime client autonome prouvé sans gate/evidence refs"
       ],
       "last_verified_at": "2026-07-08",
-      "proof_status": "potential"
+      "proof_status": "potential",
+      "connector_manifest_required": true,
+      "connector_guard_refs": [
+        "t_3c8942df",
+        "t_911dc1e5",
+        "t_b7f1552c",
+        "t_50fd4fd7"
+      ],
+      "connector_guard_note": "Connector/client integration claims stay potential/unknown until a checked tenant-local manifest proves configured/proven runtime."
     }
   ]
 }
