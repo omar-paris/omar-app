@@ -466,15 +466,124 @@ def build_devis_justification(lignes: list[dict[str, Any]], devis_source: dict[s
     out: list[dict[str, Any]] = []
     for line in lignes:
         item = source_items.get(str(line.get("id"))) or {}
+        has_source_reason = bool(str(item.get("reason") or "").strip())
         out.append({
             "catalog_id": line.get("id"),
             "label": line.get("label"),
-            "reason": item.get("reason") or "Sélection demandée par le client ou opérateur.",
-            "evidence": item.get("evidence") or "manual_selection",
+            "reason": item.get("reason") if has_source_reason else "",
+            "evidence": item.get("evidence") if has_source_reason else "manual_selection_without_audit_justification",
             "confidence": item.get("confidence"),
-            "required": item.get("required", True),
+            "required": bool(item.get("required", True)) if has_source_reason else False,
+            "optional": not has_source_reason or not bool(item.get("required", True)),
         })
     return out
+
+
+def build_devis_contract(lignes: list[dict[str, Any]], justifications: list[dict[str, Any]]) -> dict[str, Any]:
+    """Contrat lisible côté prospect : chaque ligne explique sa source ou est optionnelle."""
+    just_by_id = {str(item.get("catalog_id")): item for item in justifications if isinstance(item, dict)}
+    contract_lines: list[dict[str, Any]] = []
+    for line in lignes:
+        item_id = str(line.get("id") or "")
+        label = str(line.get("label") or item_id)
+        justification = just_by_id.get(item_id, {})
+        reason = str(justification.get("reason") or "").strip()
+        optional = bool(justification.get("optional")) or not reason
+        if reason:
+            display = f"{label} — recommandé parce que {reason}"
+        else:
+            display = f"{label} — optionnel (aucune justification d'audit liée)"
+        contract_lines.append({
+            "item": label,
+            "catalog_id": item_id,
+            "reco_source": reason,
+            "optional": optional,
+            "display": display,
+            "evidence": justification.get("evidence"),
+            "confidence": justification.get("confidence"),
+        })
+    return {
+        "schema": "appomar.devis_contract.v1",
+        "template": "{item} — recommandé parce que {reco_source}",
+        "lines": contract_lines,
+        "rule": "Une ligne sans justification d'audit est marquée optionnelle, pas vendue comme recommandation.",
+    }
+
+
+def _contains_token(text: str, needles: list[str]) -> bool:
+    hay = str(text or "").casefold()
+    return any(needle.casefold() in hay for needle in needles)
+
+
+def build_onboarding_prefill(audit: dict[str, Any]) -> dict[str, Any]:
+    """Pré-remplit l'onboarding depuis la synthèse validée de l'audit, sans créer de compte."""
+    payload = audit.get("input") or {}
+    report = audit.get("report") or {}
+    pack = audit.get("onboarding_pack") or {}
+    devis_source = audit.get("devis_source") or {}
+    activity = str(payload.get("activity") or "").strip()
+    tasks = str(payload.get("repetitive_tasks") or "")
+    tools = str(payload.get("current_tools") or "")
+    all_text = "\n".join(str(payload.get(k) or "") for k in ["activity", "repetitive_tasks", "current_tools", "constraints", "opportunities", "autonomy", "validation"])
+    goals: list[str] = []
+    if _contains_token(all_text, ["message", "réponse", "reponse", "whatsapp", "email", "mail"]):
+        goals.append("rediger_reponses")
+    if _contains_token(all_text, ["devis", "document", "facture", "paperasse", "contrat"]):
+        goals.append("produire_documents")
+    if _contains_token(all_text, ["relance", "planning", "agenda", "organiser"]):
+        goals.append("organiser_journee")
+    if _contains_token(all_text, ["tri", "classement", "prioriser"]):
+        goals.append("tri_messages")
+    if _contains_token(all_text, ["surveille", "avis", "google", "site", "réseaux", "reseaux"]):
+        goals.append("surveiller_environnement")
+    if not goals:
+        goals = ["produire_documents"]
+    tool_values: list[str] = []
+    tool_map = [("google", "google_workspace"), ("microsoft", "microsoft_365"), ("drive", "drive_onedrive"), ("agenda", "agenda"), ("crm", "crm"), ("factur", "facturation"), ("téléphone", "telephone_pro"), ("telephone", "telephone_pro")]
+    for needle, value in tool_map:
+        if needle in tools.casefold() and value not in tool_values:
+            tool_values.append(value)
+    modules = [str(item.get("catalog_id")) for item in devis_source.get("recommended_items", []) if isinstance(item, dict) and item.get("catalog_id")]
+    return {
+        "schema": "appomar.onboarding_prefill.v1",
+        "status": "prefilled_from_audit_to_confirm",
+        "audit_id": audit.get("id"),
+        "source": "client_validated_summary + onboarding_pack.v1",
+        "source_summary": {
+            "title": "Voici ce que l'audit a compris — confirme/corrige",
+            "report_title": report.get("title"),
+            "summary": report.get("summary"),
+            "declared_by_client": report.get("declared_by_client", []),
+            "omar_hypotheses": report.get("omar_hypotheses", []),
+            "do_not_automate": report.get("do_not_automate", []),
+        },
+        "record": {
+            "identite": "",
+            "entreprise": activity,
+            "activite": activity,
+            "email": str(payload.get("email") or ""),
+            "domaine": "",
+            "objectifs": goals,
+            "objectifs_libre": tasks,
+            "outils": tool_values,
+            "infra": "inconnu",
+            "appareils": [],
+        },
+        "agent_profile": {
+            "agent_name": (pack.get("persona") or {}).get("name") or "Omar",
+            "personality": {"ton": "professionnel", "tutoiement": False, "autonomie": "moderee"},
+            "canaux": [str(c).lower() for c in pack.get("channels", []) if c != "à choisir"] or ["appomar"],
+            "modules": modules or goals,
+            "infra": "inconnu",
+            "infra_preference": "inconnu",
+            "forbidden_data": pack.get("forbidden_data", []),
+            "human_gates": pack.get("human_gates", []),
+            "initial_routines": pack.get("initial_routines", []),
+        },
+        "completed_sections": ["identite", "objectifs", "outils"],
+        "current_step": 0,
+        "confirm_required": True,
+    }
 
 
 def normalize_devis_items(raw_items: Any) -> list[dict[str, int | str]]:
@@ -1558,8 +1667,17 @@ class ProposalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/health":
             self.send_json(200, {"ok": True, "service": "omar-app-proposals", "version": "V0.5.0"})
             return
-        if self.path == "/api/catalog":
+        if path == "/api/catalog":
             self.send_json(200, load_catalog())
+            return
+        if path == "/api/onboarding/prefill":
+            query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            aid = str((query.get("audit_id") or [""])[0])
+            audit = read_audit(self.data_dir, aid)
+            if not audit:
+                self.send_json(404, {"ok": False, "error": "audit_not_found"})
+                return
+            self.send_json(200, {"ok": True, "audit_id": aid, "onboarding": build_onboarding_prefill(audit)})
             return
         if self.path.startswith("/api/devis/"):
             did = self.path[len("/api/devis/"):].split("?", 1)[0]
@@ -2130,16 +2248,20 @@ class ProposalHandler(BaseHTTPRequestHandler):
         existing = read_devis(self.data_dir, str(payload.get("devis_id", "")))
         if existing and existing.get("statut") != "achete":
             did = existing["id"]
+            justifications = build_devis_justification(lignes, devis_source)
             devis = {**existing, "lignes": lignes, "total_mensuel_eur": mensuel,
                      "total_unique_eur": unique,
                      "audit_id": payload.get("audit_id") or existing.get("audit_id"),
                      "client": _devis_client_from_payload(payload, audit) or existing.get("client", {}),
                      "devis_source": devis_source or existing.get("devis_source"),
-                     "justification": build_devis_justification(lignes, devis_source),
+                     "justification": justifications,
+                     "devis_contract": build_devis_contract(lignes, justifications),
+                     "public_session_scope": {"kind": "audit_id", "id": payload.get("audit_id") or existing.get("audit_id")} if (payload.get("audit_id") or existing.get("audit_id")) else None,
                      "statut": "a_valider" if existing.get("statut") in {"brouillon", "a_valider"} else existing.get("statut"),
                      "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         else:
             did = f"devis-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
+            justifications = build_devis_justification(lignes, devis_source)
             devis = {
                 "id": did, "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "client": _devis_client_from_payload(payload, audit), "lignes": lignes,
@@ -2147,7 +2269,9 @@ class ProposalHandler(BaseHTTPRequestHandler):
                 "devise": "EUR", "statut": "a_valider",
                 "audit_id": payload.get("audit_id"),
                 "devis_source": devis_source,
-                "justification": build_devis_justification(lignes, devis_source),
+                "justification": justifications,
+                "devis_contract": build_devis_contract(lignes, justifications),
+                "public_session_scope": {"kind": "audit_id", "id": payload.get("audit_id")} if payload.get("audit_id") else None,
                 "validation_required": True,
             }
         d = self.data_dir / "devis"
