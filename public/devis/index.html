@@ -13,6 +13,7 @@
 .cart{position:sticky;top:74px;border:1px solid #e5e7eb;border-radius:12px;padding:16px}
 .cart h2{margin:0 0 10px;font-size:15px}
 .line{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid #f3f4f6}
+.why{font-size:11px;color:#64748b;margin:-1px 0 7px;line-height:1.35}.why.optional{color:#92400e}
 .tot{display:flex;justify-content:space-between;font-weight:700;margin-top:10px;font-size:15px}
 .cart button{width:100%;margin-top:8px;padding:10px;border:0;border-radius:10px;font-size:14px;cursor:pointer}
 .buy{background:#2563eb;color:#fff}.save{background:#f3f4f6;color:#111827}
@@ -31,7 +32,7 @@
 <main>
 <h1 class="h1" style="margin-bottom:4px">Composez votre solution</h1>
 <p class="sub" style="margin-bottom:8px">Le devis est l’étape sécurisée après l’audit : vous devez être enregistré pour sauvegarder, recevoir le devis et déclencher le paiement.</p>
-<div class="safe">🔒 Accès devis réservé aux personnes enregistrées · Paiement sécurisé non configuré · aucun provisioning sans validation humaine.</div>
+<div class="safe">🔒 Accès devis réservé aux personnes enregistrées · Paiement sécurisé non configuré · aucun provisioning sans validation humaine. Les lignes issues de l'audit affichent “recommandé parce que …” ; une ligne sans justification reste optionnelle.</div>
 <div class="grid"><div id="cat"></div>
 <aside class="cart"><h2>Votre devis</h2><div id="lines"><div style="font-size:13px;color:#9ca3af">Aucune sélection</div></div>
 <div class="tot"><span>Mensuel</span><span id="tm">0 &euro;</span></div>
@@ -50,37 +51,48 @@
 </div>
 </aside></div></main>
 <script>
-let CAT=[], sel=new Set(), devisId=null, saveTimer=null;
+let CAT=[], sel=new Set(), devisId=null, saveTimer=null, devisContract=null;
 const FAM={formule:"Formules",module:"Modules à la carte",prestation:"Prestations"};
 const params=new URLSearchParams(location.search);
+const auditId=params.get("audit_id")||"";
+const esc=s=>String(s||"").replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 async function load(){
   const r=await fetch("/api/catalog"); CAT=(await r.json()).products;
   const rid=params.get("id");
   if(rid){ try{ const dr=await fetch("/api/devis/"+rid); if(dr.ok){ const dv=(await dr.json()).devis;
-    devisId=dv.id; sel=new Set(dv.lignes.map(l=>l.id));
+    devisId=dv.id; devisContract=dv.devis_contract||null; sel=new Set(dv.lignes.map(l=>l.id));
     if(dv.statut==="achete"){ document.getElementById("saved").textContent="✓ Ce devis a été acheté le "+(dv.paye_le||"").slice(0,10);
       showProvisioningTimeline(); }
   } }catch(e){} }
+  else if(auditId){ try{ const dr=await fetch("/api/devis",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({audit_id:auditId})}); const j=await dr.json(); if(dr.ok&&j.ok){
+    devisId=j.devis.id; devisContract=j.devis.devis_contract||null; sel=new Set(j.devis.lignes.map(l=>l.id));
+    history.replaceState(null,"",`/devis/?audit_id=${encodeURIComponent(auditId)}&id=${encodeURIComponent(devisId)}`);
+    document.getElementById("saved").textContent="✓ devis prérempli depuis l’audit — chaque ligne indique pourquoi elle est recommandée";
+  }}catch(e){ msg("Devis audit indisponible : "+e.message,false); } }
   if(params.get("paid")){ msg("✓ Paiement reçu — merci ! Votre configuration va démarrer.",true); showProvisioningTimeline(); }
   render();
 }
 function render(){
   let h=""; for(const fam of ["formule","module","prestation"]){
     const items=CAT.filter(p=>p.famille===fam); if(!items.length)continue;
-    h+=`<div class="fam">${FAM[fam]}</div>`;
+    h+=`<div class="fam">${esc(FAM[fam])}</div>`;
     for(const p of items){ const pm=p.prix_mensuel, pu=p.prix_unique;
       const price=pm!=null?`${pm} €/mois`:(pu!=null?`${pu} € une fois`:"sur devis");
-      const inc=p.inclus?`<div class="inc">${(Array.isArray(p.inclus)?p.inclus:[p.inclus]).join(" · ")}</div>`:"";
-      h+=`<div class="prod ${sel.has(p.id)?'sel':''}" onclick="tog('${p.id}')"><h3>${p.label}</h3><div class="pitch">${p.pitch||''}</div><div class="price">${price}</div>${inc}</div>`;
+      const inc=p.inclus?`<div class="inc">${esc((Array.isArray(p.inclus)?p.inclus:[p.inclus]).join(" · "))}</div>`:"";
+      h+=`<div class="prod ${sel.has(p.id)?'sel':''}" data-product-id="${esc(p.id)}"><h3>${esc(p.label)}</h3><div class="pitch">${esc(p.pitch||'')}</div><div class="price">${esc(price)}</div>${inc}</div>`;
     }}
-  document.getElementById("cat").innerHTML=h; cart();
+  document.getElementById("cat").innerHTML=h;
+  document.querySelectorAll(".prod[data-product-id]").forEach(el=>{el.onclick=()=>tog(el.dataset.productId||"");});
+  cart();
 }
 function tog(id){ sel.has(id)?sel.delete(id):sel.add(id); render(); autosave(); }
+function contractById(){const rows=(devisContract&&devisContract.lines)||[]; const out={}; rows.forEach(row=>{out[row.catalog_id]=row}); return out;}
 function cart(){
-  const items=CAT.filter(p=>sel.has(p.id)); let tm=0,tu=0;
+  const items=CAT.filter(p=>sel.has(p.id)); let tm=0,tu=0; const why=contractById();
   document.getElementById("lines").innerHTML=items.length?items.map(p=>{tm+=p.prix_mensuel||0;tu+=p.prix_unique||0;
     const v=p.prix_mensuel!=null?`${p.prix_mensuel} €/m`:(p.prix_unique!=null?`${p.prix_unique} €`:"—");
-    return `<div class="line"><span>${p.label}</span><span>${v}</span></div>`;}).join(""):'<div style="font-size:13px;color:#9ca3af">Aucune sélection</div>';
+    const w=why[p.id]; const reason=w?`<div class="why ${w.optional?'optional':''}">${esc(w.display||'')}</div>`:"";
+    return `<div class="line"><span>${esc(p.label)}</span><span>${esc(v)}</span></div>${reason}`;}).join(""):'<div style="font-size:13px;color:#9ca3af">Aucune sélection</div>';
   document.getElementById("tm").textContent=tm+" €"; document.getElementById("tu").textContent=tu+" €";
 }
 function msg(t,ok){const m=document.getElementById("msg");m.className="msg";m.style.background=ok?"#dcfce7":"#fef3c7";m.style.color=ok?"#166534":"#92400e";m.textContent=t;}
@@ -90,10 +102,11 @@ function autosave(){ clearTimeout(saveTimer); document.getElementById("saved").t
 }
 async function saveDevis(showLink){
   if(!sel.size){ document.getElementById("saved").textContent=""; if(showLink)msg("Choisissez au moins un produit.",false); return null; }
-  const r=await fetch("/api/devis",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({items:[...sel],devis_id:devisId})});
+  const payload={items:[...sel],devis_id:devisId}; if(auditId) payload.audit_id=auditId;
+  const r=await fetch("/api/devis",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
   const d=await r.json();
-  if(r.ok){ devisId=d.devis.id;
-    const url=location.origin+"/devis/?id="+devisId; history.replaceState(null,"","/devis/?id="+devisId);
+  if(r.ok){ devisId=d.devis.id; devisContract=d.devis.devis_contract||devisContract;
+    const url=location.origin+"/devis/?"+(auditId?"audit_id="+encodeURIComponent(auditId)+"&":"")+"id="+devisId; history.replaceState(null,"","/devis/?"+(auditId?"audit_id="+encodeURIComponent(auditId)+"&":"")+"id="+devisId);
     document.getElementById("saved").textContent="✓ enregistré";
     if(showLink){ navigator.clipboard&&navigator.clipboard.writeText(url); msg("Lien copié : "+url+" — reprenez votre devis quand vous voulez.",true); }
     return devisId;
