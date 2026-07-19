@@ -79,9 +79,11 @@ function render(){
     for(const p of items){ const pm=p.prix_mensuel, pu=p.prix_unique;
       const price=pm!=null?`${pm} €/mois`:(pu!=null?`${pu} € une fois`:"sur devis");
       const inc=p.inclus?`<div class="inc">${esc((Array.isArray(p.inclus)?p.inclus:[p.inclus]).join(" · "))}</div>`:"";
-      h+=`<div class="prod ${sel.has(p.id)?'sel':''}" onclick="tog(${JSON.stringify(String(p.id||'')).replace(/</g,'\u003c')})"><h3>${esc(p.label)}</h3><div class="pitch">${esc(p.pitch||'')}</div><div class="price">${esc(price)}</div>${inc}</div>`;
+      h+=`<div class="prod ${sel.has(p.id)?'sel':''}" data-product-id="${esc(p.id)}"><h3>${esc(p.label)}</h3><div class="pitch">${esc(p.pitch||'')}</div><div class="price">${esc(price)}</div>${inc}</div>`;
     }}
-  document.getElementById("cat").innerHTML=h; cart();
+  document.getElementById("cat").innerHTML=h;
+  document.querySelectorAll(".prod[data-product-id]").forEach(el=>{el.onclick=()=>tog(el.dataset.productId||"");});
+  cart();
 }
 function tog(id){ sel.has(id)?sel.delete(id):sel.add(id); render(); autosave(); }
 function contractById(){const rows=(devisContract&&devisContract.lines)||[]; const out={}; rows.forEach(row=>{out[row.catalog_id]=row}); return out;}

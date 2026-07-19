@@ -977,6 +977,9 @@ def test_public_audit_payload_renderers_escape_malicious_payloads():
     assert "const esc=" in devis_html
     assert "${esc(w.display" in devis_html
     assert "${w.display||" not in devis_html
+    assert "onclick=\"tog(" not in devis_html
+    assert "data-product-id=\"${esc(p.id)}\"" in devis_html
+    assert "el.onclick=()=>tog(el.dataset.productId||\"\")" in devis_html
 
 
 def test_devis_requires_user_validation_before_checkout_then_reports_unconfigured_payment_provider(tmp_path):
