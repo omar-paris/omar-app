@@ -2,6 +2,8 @@ from pathlib import Path
 import json
 import re
 import subprocess
+import tarfile
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
@@ -34,6 +36,39 @@ def test_build_generates_all_direct_routes():
         assert "Omar App" in text
         assert "V0.5.0" in text
         assert "app.omar.paris" in text
+
+
+def test_public_artifacts_are_reproducible_from_the_committed_checkout():
+    """A clean committed checkout must stay clean after rebuilding public assets."""
+    with tempfile.TemporaryDirectory(prefix="omar-app-build-contract-") as temp_dir:
+        checkout = Path(temp_dir) / "checkout"
+        checkout.mkdir()
+        archive_path = Path(temp_dir) / "head.tar"
+        with archive_path.open("wb") as archive:
+            subprocess.run(
+                ["git", "archive", "--format=tar", "HEAD"],
+                cwd=ROOT,
+                check=True,
+                stdout=archive,
+            )
+        with tarfile.open(archive_path) as archive:
+            archive.extractall(checkout, filter="data")
+        subprocess.run(["git", "init", "-q"], cwd=checkout, check=True)
+        subprocess.run(["git", "add", "-A"], cwd=checkout, check=True)
+        subprocess.run(
+            ["git", "-c", "user.name=contract", "-c", "user.email=contract@example.invalid", "commit", "-qm", "baseline"],
+            cwd=checkout,
+            check=True,
+        )
+        subprocess.run(["python3", "scripts/build.py"], cwd=checkout, check=True)
+        status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=checkout,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+        assert status.stdout == "", status.stdout
 
 
 def test_navigation_links_are_real_direct_urls():
