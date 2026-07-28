@@ -1,6 +1,6 @@
 # app.omar.paris — Portail unifié OA App (Fable, 11 juin)
 # UN SEUL portail servi par le serveur applicatif (:8096) — fini les collisions build.py.
-# OAuth Google sur tout le portail ; /api/* a son auth propre ; sondes machine bypassent.
+# OAuth Google sur le portail ; les routes API explicitement publiques restent limitées.
 # Ordre des handle (Caddy = premier match gagne).
 app.omar.paris {
 	import security_headers
@@ -69,7 +69,7 @@ app.omar.paris {
 		reverse_proxy 127.0.0.1:8096
 	}
 
-	# Autres API + assets du portail → serveur (machine, humain, ou Stripe externe)
+	# Autres API + assets publics du portail → serveur (prospect ou Stripe externe)
 	# Tunnel prospect public : audit conversationnel + onboarding draft/simulation.
 	# Pas de provisioning payé, pas de secrets, pas d'accès multi-tenant client.
 	handle /api/audits* {
@@ -109,15 +109,6 @@ app.omar.paris {
 	# Endpoints oauth2-proxy
 	handle /oauth2/* {
 		reverse_proxy 127.0.0.1:4180
-	}
-
-	# Sondes machine (tailnet + token) → portail sans OAuth, servi par le serveur
-	@machine {
-		remote_ip 100.64.0.0/10 127.0.0.1/8
-		header X-OA-Token ca5f4565639415534f91e4c0a898cb8181272bc4580e15e8
-	}
-	handle @machine {
-		reverse_proxy 127.0.0.1:8096
 	}
 
 	# Tout le portail (/, /devis/, /onboarding/, /sav/, /compte/, /aide/, /changelog/, /admin/…)

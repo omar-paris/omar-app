@@ -440,12 +440,26 @@ def test_caddy_protects_multitenant_api_before_generic_api_bypass():
     """
     caddy = (ROOT / "deploy" / "app.omar.paris.caddy").read_text(encoding="utf-8")
     generic_pos = caddy.index("handle /api/*")
-    for route in ("/api/onboarding/status", "/api/sav/status"):
+    for route in ("/api/onboarding/status", "/api/sav/status", "/api/proposals/*", "/api/proposals*"):
         block_start = caddy.index(f"handle {route}")
         assert block_start < generic_pos
-        block = caddy[block_start:generic_pos]
+        next_handle = caddy.find("\n\thandle ", block_start + 1)
+        assert next_handle != -1
+        block = caddy[block_start:next_handle]
         assert "forward_auth 127.0.0.1:4180" in block
         assert "copy_headers X-Auth-Request-User X-Auth-Request-Email" in block
+
+
+def test_caddy_public_vhost_has_no_machine_token_bypass_and_keeps_health_public():
+    """A public vhost must not bypass OAuth from a caller-controlled header."""
+    caddy = (ROOT / "deploy" / "app.omar.paris.caddy").read_text(encoding="utf-8")
+    generic_pos = caddy.index("handle /api/*")
+    health_block = caddy[generic_pos:caddy.index("handle /pages-app/*")]
+
+    assert "X-OA-Token" not in caddy
+    assert "@machine" not in caddy
+    assert "forward_auth" not in health_block
+    assert "reverse_proxy 127.0.0.1:8096" in health_block
 
 
 def test_caddy_keeps_audit_public_but_devis_and_changelog_authenticated():
